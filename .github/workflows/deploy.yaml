@@ -31,6 +31,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
+      - name: Validate HA config
+        if: inputs.stack == 'homeassistant'
+        run: |
+          docker run --rm \
+            -v ${{ github.workspace }}/${{ env.LOCAL_DIR }}/homeassistant:/config \
+            ghcr.io/home-assistant/home-assistant:stable \
+            hass --script check_config --config /config
+
       - name: Load Tailscale credentials from 1Password
         uses: 1password/load-secrets-action@v2
         with:
