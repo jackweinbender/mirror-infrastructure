@@ -1,0 +1,15 @@
+default_config:
+
+homeassistant:
+  name: Weinbender Home
+  country: US
+  unit_system: imperial
+  time_zone: America/Chicago
+
+http:
+  use_x_forwarded_for: true
+  trusted_proxies: 10.1.77.55/20
+
+automation: !include automations.yaml
+script: !include scripts.yaml
+scene: !include scenes.yaml
