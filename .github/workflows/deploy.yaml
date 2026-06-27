@@ -1,0 +1,94 @@
+name: "Deploy stack"
+
+on:
+  workflow_dispatch:
+    inputs:
+      stack:
+        description: "Stack to deploy (directory name under compose-stacks/)"
+        required: true
+        type: string
+      host:
+        description: "Host to deploy to (Tailscale MagicDNS name or IP)"
+        required: true
+        type: string
+      user:
+        description: "SSH user on the host"
+        required: false
+        default: "deploy"
+        type: string
+
+env:
+  LOCAL_DIR: compose-stacks/${{ inputs.stack }}
+  REMOTE_DIR: /etc/compose-stacks/${{ inputs.stack }}
+  REMOTE: ${{ inputs.user }}@${{ inputs.host }}
+  ENV_TEMPLATE: compose-stacks/${{ inputs.stack }}/.env.template
+
+jobs:
+  deploy:
+    name: "Deploy ${{ inputs.stack }} to ${{ inputs.host }}"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Load Tailscale credentials from 1Password
+        uses: 1password/load-secrets-action@v2
+        with:
+          export-env: true
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.ONE_PASSWORD_SA_TOKEN }}
+          TS_OAUTH_CLIENT_ID: "op://network/tailscale-oauth-github-actions/client-id"
+          TS_OAUTH_CLIENT_SECRET: "op://network/tailscale-oauth-github-actions/client-secret"
+
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v2
+        with:
+          oauth-client-id: ${{ env.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ env.TS_OAUTH_CLIENT_SECRET }}
+          tags: tag:ci
+          version: 1.76.1
+
+      - name: Install 1Password CLI
+        uses: 1password/install-cli-action@v3
+
+      - name: Configure SSH known hosts
+        run: |
+          mkdir -p ~/.ssh
+          # ssh-keyscan is safe here — Tailscale authenticates the network,
+          # so the host we're scanning is trusted.
+          ssh-keyscan ${{ inputs.host }} >> ~/.ssh/known_hosts
+
+      - name: Annotate deployment
+        run: |
+          DEPLOY_TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          {
+            echo "DEPLOY_SHA=${{ github.sha }}"
+            echo "DEPLOY_REF=${{ github.ref }}"
+            echo "DEPLOY_RUN_NUMBER=${{ github.run_number }}"
+            echo "DEPLOY_TIMESTAMP=$DEPLOY_TIMESTAMP"
+          } >> $ENV_TEMPLATE
+
+      - name: Prepare remote directory
+        run: ssh $REMOTE "mkdir -p $REMOTE_DIR"
+
+      - name: Sync secrets
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.ONE_PASSWORD_SA_TOKEN }}
+        run: |
+          # Resolve op:// refs and pipe directly to the VM — secrets never
+          # touch the runner's disk.
+          op inject -i $ENV_TEMPLATE | ssh $REMOTE "cat > $REMOTE_DIR/.env"
+
+      - name: Sync compose stack
+        run: |
+          # If the stack has a .rsyncexclude file, use it to protect
+          # stack-specific runtime state from --delete.
+          RSYNC_OPTS="-r --delete --exclude='.env'"
+          if [ -f "$LOCAL_DIR/.rsyncexclude" ]; then
+            RSYNC_OPTS="$RSYNC_OPTS --exclude-from=$LOCAL_DIR/.rsyncexclude"
+          fi
+          rsync $RSYNC_OPTS $LOCAL_DIR/ $REMOTE:$REMOTE_DIR/
+
+      - name: Bring up stack
+        run: |
+          ssh $REMOTE "cd $REMOTE_DIR && docker compose up -d --pull missing"
