@@ -1,0 +1,97 @@
+name: "Deploy Home Assistant"
+
+on:
+  workflow_dispatch:
+    inputs:
+      host:
+        description: "Host to deploy to"
+        required: true
+        type: choice
+        options:
+          - homeassistant
+
+env:
+  LOCAL_DIR: compose-stacks/homeassistant
+  REMOTE_DIR: /etc/compose-stacks/homeassistant
+  REMOTE: ${{ vars.HA_VM_USER }}@${{ vars.HA_VM_HOST }}
+  ENV_TEMPLATE: compose-stacks/homeassistant/.env.template
+
+jobs:
+  deploy:
+    name: "Deploy to ${{ inputs.host }}"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Load Tailscale credentials from 1Password
+        uses: 1password/load-secrets-action@v2
+        with:
+          export-env: true
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.ONE_PASSWORD_SA_TOKEN }}
+          TS_OAUTH_CLIENT_ID: "op://network/tailscale-oauth-github-actions/client-id"
+          TS_OAUTH_CLIENT_SECRET: "op://network/tailscale-oauth-github-actions/client-secret"
+
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v2
+        with:
+          oauth-client-id: ${{ env.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ env.TS_OAUTH_CLIENT_SECRET }}
+          tags: tag:ci
+          version: 1.76.1
+
+      - name: Install 1Password CLI
+        uses: 1password/install-cli-action@v3
+
+      - name: Configure SSH known hosts
+        run: |
+          mkdir -p ~/.ssh
+          # ssh-keyscan is safe here — Tailscale authenticates the network,
+          # so the host we're scanning is trusted.
+          ssh-keyscan ${{ vars.HA_VM_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Annotate deployment
+        run: |
+          DEPLOY_TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          {
+            echo "DEPLOY_SHA=${{ github.sha }}"
+            echo "DEPLOY_REF=${{ github.ref }}"
+            echo "DEPLOY_RUN_NUMBER=${{ github.run_number }}"
+            echo "DEPLOY_TIMESTAMP=$DEPLOY_TIMESTAMP"
+          } >> $ENV_TEMPLATE
+
+      - name: Prepare remote directory
+        run: ssh $REMOTE "mkdir -p $REMOTE_DIR"
+
+      - name: Sync secrets
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.ONE_PASSWORD_SA_TOKEN }}
+        run: |
+          # Resolve op:// refs and pipe directly to the VM — secrets never
+          # touch the runner's disk.
+          op inject -i $ENV_TEMPLATE | ssh $REMOTE "cat > $REMOTE_DIR/.env"
+
+      - name: Sync compose stack
+        run: |
+          rsync -r --delete \
+            --exclude='.env' \
+            --exclude='homeassistant/.storage/' \
+            --exclude='homeassistant/home-assistant_v2.db*' \
+            --exclude='homeassistant/home-assistant.log*' \
+            --exclude='homeassistant/.cloud/' \
+            --exclude='zigbee2mqtt/devices.js' \
+            --exclude='zigbee2mqtt/database.db' \
+            $LOCAL_DIR/ $REMOTE:$REMOTE_DIR/
+
+      - name: Check HA config
+        run: |
+          # hass --script check_config is the HA Core Docker equivalent of
+          # 'ha core check-config' (which is HAOS-only).
+          # This step will fail on a cold-start (HA not yet running) — see
+          # maintenance notes for the first-deploy procedure.
+          ssh $REMOTE "docker exec homeassistant hass --script check_config --config /config"
+
+      - name: Bring up stack
+        run: |
+          ssh $REMOTE "cd $REMOTE_DIR && docker compose up -d --pull missing"
