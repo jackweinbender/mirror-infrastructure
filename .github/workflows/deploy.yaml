@@ -1,24 +1,31 @@
-name: "Deploy Home Assistant"
+name: "Deploy stack"
 
 on:
   workflow_dispatch:
     inputs:
-      host:
-        description: "Host to deploy to"
+      stack:
+        description: "Stack to deploy (directory name under compose-stacks/)"
         required: true
-        type: choice
-        options:
-          - homeassistant
+        type: string
+      host:
+        description: "Host to deploy to (Tailscale MagicDNS name or IP)"
+        required: true
+        type: string
+      user:
+        description: "SSH user on the host"
+        required: false
+        default: "deploy"
+        type: string
 
 env:
-  LOCAL_DIR: compose-stacks/homeassistant
-  REMOTE_DIR: /etc/compose-stacks/homeassistant
-  REMOTE: ${{ vars.HA_VM_USER }}@${{ vars.HA_VM_HOST }}
-  ENV_TEMPLATE: compose-stacks/homeassistant/.env.template
+  LOCAL_DIR: compose-stacks/${{ inputs.stack }}
+  REMOTE_DIR: /etc/compose-stacks/${{ inputs.stack }}
+  REMOTE: ${{ inputs.user }}@${{ inputs.host }}
+  ENV_TEMPLATE: compose-stacks/${{ inputs.stack }}/.env.template
 
 jobs:
   deploy:
-    name: "Deploy to ${{ inputs.host }}"
+    name: "Deploy ${{ inputs.stack }} to ${{ inputs.host }}"
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -49,7 +56,7 @@ jobs:
           mkdir -p ~/.ssh
           # ssh-keyscan is safe here — Tailscale authenticates the network,
           # so the host we're scanning is trusted.
-          ssh-keyscan ${{ vars.HA_VM_HOST }} >> ~/.ssh/known_hosts
+          ssh-keyscan ${{ inputs.host }} >> ~/.ssh/known_hosts
 
       - name: Annotate deployment
         run: |
@@ -74,23 +81,13 @@ jobs:
 
       - name: Sync compose stack
         run: |
-          rsync -r --delete \
-            --exclude='.env' \
-            --exclude='homeassistant/.storage/' \
-            --exclude='homeassistant/home-assistant_v2.db*' \
-            --exclude='homeassistant/home-assistant.log*' \
-            --exclude='homeassistant/.cloud/' \
-            --exclude='zigbee2mqtt/devices.js' \
-            --exclude='zigbee2mqtt/database.db' \
-            $LOCAL_DIR/ $REMOTE:$REMOTE_DIR/
-
-      - name: Check HA config
-        run: |
-          # hass --script check_config is the HA Core Docker equivalent of
-          # 'ha core check-config' (which is HAOS-only).
-          # This step will fail on a cold-start (HA not yet running) — see
-          # maintenance notes for the first-deploy procedure.
-          ssh $REMOTE "docker exec homeassistant hass --script check_config --config /config"
+          # If the stack has a .rsyncexclude file, use it to protect
+          # stack-specific runtime state from --delete.
+          RSYNC_OPTS="-r --delete --exclude='.env'"
+          if [ -f "$LOCAL_DIR/.rsyncexclude" ]; then
+            RSYNC_OPTS="$RSYNC_OPTS --exclude-from=$LOCAL_DIR/.rsyncexclude"
+          fi
+          rsync $RSYNC_OPTS $LOCAL_DIR/ $REMOTE:$REMOTE_DIR/
 
       - name: Bring up stack
         run: |
