@@ -1,0 +1,3 @@
+# Runtime state to preserve across deploys.
+# The traefik_acme volume is a Docker named volume — rsync never touches it.
+# Add paths here if runtime-written bind-mount state needs protecting.
