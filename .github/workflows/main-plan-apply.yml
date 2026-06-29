@@ -11,6 +11,7 @@ on:
           - "aws"
           - "gcp-remind-me"
           - "gcp-weinbender-io"
+          - "cloudflare"
         default: "aws"
       apply:
         description: "Apply Terraform"
