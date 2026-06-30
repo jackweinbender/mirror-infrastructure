@@ -28,6 +28,18 @@ services:
     depends_on:
       - traefik
 
+  helloworld:
+    image: nginx:alpine
+    container_name: helloworld
+    restart: unless-stopped
+    networks:
+      - proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.helloworld.rule=Host(`helloworld.weinbender.io`)"
+      - "traefik.http.routers.helloworld.entrypoints=websecure"
+      - "traefik.http.routers.helloworld.tls.certresolver=letsencrypt"
+
 networks:
   proxy:
     name: proxy
