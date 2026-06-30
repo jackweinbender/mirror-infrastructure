@@ -31,7 +31,7 @@ runs:
         TS_OAUTH_CLIENT_ID: "op://network/tailscale-oauth-github-actions/client-id"
         TS_OAUTH_CLIENT_SECRET: "op://network/tailscale-oauth-github-actions/client-secret"
         # Cloudflare API token — create in 1Password and update the op:// path.
-        CLOUDFLARE_API_TOKEN: "op://cloudflare/api-token/credential"
+        CLOUDFLARE_API_TOKEN: "op://network/cloudflare-auth-weinbenderio/credential"
     - name: Tailscale
       uses: tailscale/github-action@v2
       with:
