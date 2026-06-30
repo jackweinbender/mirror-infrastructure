@@ -33,8 +33,7 @@ runs:
         CLOUDFLARE_API_TOKEN: "op://network/cloudflare-auth-weinbenderio/credential"
         TF_VAR_cloudflare_zone_id: "op://network/cloudflare-auth-weinbenderio/zone-id"
         TF_VAR_cloudflare_account_id: "op://network/cloudflare-auth-weinbenderio/account-id"
-        # JSON array, e.g. ["you@example.com"]
-        TF_VAR_google_oauth_email_whitelist: "op://network/cloudflare-auth-weinbenderio/oauth-email-whitelist"
+
     - name: Tailscale
       uses: tailscale/github-action@v2
       with:

@@ -25,9 +25,9 @@ resource "cloudflare_zero_trust_access_policy" "homeassistant_allow" {
   name       = "Allow whitelisted Google accounts"
   decision   = "allow"
 
-  include = [for email in var.google_oauth_email_whitelist : {
+  include = [{
     email = {
-      email = email
+      email = "jack.weinbender@gmail.com"
     }
   }]
 }
