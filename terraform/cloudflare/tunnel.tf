@@ -19,10 +19,14 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "main" {
         # Wildcard public hostname — registers *.weinbender.io with Cloudflare's
         # edge so any subdomain CNAME'd to this tunnel is accepted. Traefik
         # receives the original Host header and routes to the right container.
-        # TLS: cloudflared uses the request hostname as SNI; Traefik's
-        # *.weinbender.io wildcard cert matches all subdomains.
+        #
+        # HTTP (not HTTPS) to Traefik: the CF tunnel already encrypts the
+        # CF-edge→cloudflared leg; the cloudflared→Traefik hop is on a private
+        # Docker network and doesn't need TLS. Using HTTPS here requires Traefik
+        # to have a valid cert ready before cloudflared will connect, which
+        # causes 502s on fresh deploys before ACME completes.
         hostname = "*.weinbender.io"
-        service  = "https://traefik:443"
+        service  = "http://traefik:80"
       },
       {
         # Required catch-all — Cloudflare rejects configs with no fallback.

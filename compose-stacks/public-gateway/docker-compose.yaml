@@ -37,8 +37,7 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.helloworld.rule=Host(`helloworld.weinbender.io`)"
-      - "traefik.http.routers.helloworld.entrypoints=websecure"
-      - "traefik.http.routers.helloworld.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.helloworld.entrypoints=web"
 
 networks:
   proxy:
