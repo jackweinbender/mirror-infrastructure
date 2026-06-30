@@ -2,7 +2,7 @@ resource "cloudflare_zero_trust_tunnel_cloudflared" "main" {
   account_id    = var.cloudflare_account_id
   name          = "weinbender-io"
   config_src    = "cloudflare"
-  tunnel_secret = base64encode(random_bytes.tunnel_secret.bytes)
+  tunnel_secret = random_bytes.tunnel_secret.base64
 }
 
 resource "random_bytes" "tunnel_secret" {
