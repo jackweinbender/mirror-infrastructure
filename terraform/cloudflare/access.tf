@@ -1,26 +1,19 @@
-# ── Home Assistant Access application ────────────────────────────────────────
+# ── uk2026.weinbender.io ─────────────────────────────────────────────────────
 
-resource "cloudflare_zero_trust_access_application" "homeassistant" {
+resource "cloudflare_zero_trust_access_application" "uk2026" {
   zone_id          = var.cloudflare_zone_id
-  name             = "Home Assistant"
-  domain           = "ha.weinbender.io"
+  name             = "UK 2026"
+  domain           = "uk2026.weinbender.io"
   session_duration = "24h"
   type             = "self_hosted"
 
   policies = [{
-    id         = cloudflare_zero_trust_access_policy.homeassistant_allow.id
+    id         = cloudflare_zero_trust_access_policy.allow.id
     precedence = 1
   }]
 }
 
-# NOTE: Google OAuth identity provider must be configured manually in the
-# Cloudflare Zero Trust UI before this policy will function. Navigate to
-# Settings -> Authentication -> Add new identity provider -> Google. This
-# is a one-time manual step; it is not managed by Terraform in this root.
-#
-# In v5, policies are account-scoped standalone resources referenced by ID
-# from the application. application_id is no longer an attribute.
-resource "cloudflare_zero_trust_access_policy" "homeassistant_allow" {
+resource "cloudflare_zero_trust_access_policy" "allow" {
   account_id = var.cloudflare_account_id
   name       = "Allow whitelisted Google accounts"
   decision   = "allow"
