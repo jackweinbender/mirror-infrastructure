@@ -31,8 +31,6 @@ runs:
         TS_OAUTH_CLIENT_ID: "op://network/tailscale-oauth-github-actions/client-id"
         TS_OAUTH_CLIENT_SECRET: "op://network/tailscale-oauth-github-actions/client-secret"
         CLOUDFLARE_API_TOKEN: "op://network/cloudflare-auth-weinbenderio/credential"
-        TF_VAR_cloudflare_zone_id: "op://network/cloudflare-auth-weinbenderio/zone-id"
-        TF_VAR_cloudflare_account_id: "op://network/cloudflare-auth-weinbenderio/account-id"
 
     - name: Tailscale
       uses: tailscale/github-action@v2
