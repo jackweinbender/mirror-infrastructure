@@ -1,0 +1,22 @@
+# Pre-provision wildcard cert for *.weinbender.io via ACME DNS-01.
+#
+# Traefik v3 removed the `domains` field from the static certificatesResolvers
+# config. The equivalent is a router with tls.domains pointing at noop@internal.
+# Traefik will request and renew the wildcard + apex cert at startup so it is
+# ready before any per-app routers are added.
+#
+# https://doc.traefik.io/traefik/routing/routers/#domains
+
+http:
+  routers:
+    wildcard-cert:
+      rule: "Host(`weinbender.io`)"
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: letsencrypt
+        domains:
+          - main: "*.weinbender.io"
+            sans:
+              - "weinbender.io"
+      service: noop@internal
