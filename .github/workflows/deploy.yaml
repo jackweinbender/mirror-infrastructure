@@ -86,8 +86,11 @@ jobs:
         env:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.ONE_PASSWORD_SA_TOKEN }}
         run: |
+          set -o pipefail
           # Resolve op:// refs and pipe directly to the VM — secrets never
-          # touch the runner's disk.
+          # touch the runner's disk. pipefail ensures op inject failures
+          # (e.g. missing 1Password items) fail the step rather than silently
+          # writing a blank .env.
           op inject -i $ENV_TEMPLATE | ssh $REMOTE "cat > $REMOTE_DIR/.env"
 
       - name: Sync compose stack
