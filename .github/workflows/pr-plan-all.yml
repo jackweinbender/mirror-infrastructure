@@ -16,7 +16,7 @@ jobs:
     env:
       TF_VAR_cloudflare_zone_id: ${{ secrets.CLOUDFLARE_ZONE_ID }}
       TF_VAR_cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-      TF_VAR_google_oauth_email_whitelist: ${{ vars.CLOUDFLARE_ACCESS_EMAILS }}
+
     strategy:
       matrix:
         component: [mgmt, aws, gcp-remind-me, gcp-weinbender-io, cloudflare]
