@@ -1,6 +1,6 @@
 services:
   traefik:
-    image: traefik:v3.3
+    image: traefik:v3.7
     container_name: traefik
     restart: unless-stopped
     expose:
@@ -13,10 +13,6 @@ services:
       - traefik_acme:/etc/traefik/acme
     environment:
       - CF_DNS_API_TOKEN=${CF_DNS_API_TOKEN}
-      # Force Traefik's Docker client to use a modern API version.
-      # Traefik v3 defaults to negotiating 1.24; Docker Engine ≥27 dropped
-      # support for anything below 1.40.
-      - DOCKER_API_VERSION=1.41
     networks:
       - proxy
 
