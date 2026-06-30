@@ -4,13 +4,18 @@ on:
   workflow_dispatch:
     inputs:
       stack:
-        description: "Stack to deploy (directory name under compose-stacks/)"
+        description: "Stack to deploy"
         required: true
-        type: string
+        type: choice
+        options:
+          - public-gateway
+          - homeassistant
       host:
         description: "Host to deploy to (Tailscale MagicDNS name or IP)"
         required: true
-        type: string
+        type: choice
+        options:
+          - docker-vm-dmz
       user:
         description: "SSH user on the host"
         required: false
