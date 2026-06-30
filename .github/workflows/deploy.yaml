@@ -39,6 +39,9 @@ jobs:
             ghcr.io/home-assistant/home-assistant:stable \
             hass --script check_config --config /config
 
+      - name: Install rsync
+        run: sudo apt-get install -y rsync
+
       - name: Load Tailscale credentials from 1Password
         uses: 1password/load-secrets-action@v2
         with:
