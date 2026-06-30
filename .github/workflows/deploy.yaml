@@ -82,26 +82,25 @@ jobs:
       - name: Prepare remote directory
         run: ssh $REMOTE "mkdir -p $REMOTE_DIR"
 
+      - name: Sync compose stack
+        run: |
+          # If the stack has a .rsyncexclude file, use it to protect
+          # stack-specific runtime state from --delete.
+          RSYNC_OPTS="-r --delete --exclude=.env"
+          if [ -f "$LOCAL_DIR/.rsyncexclude" ]; then
+            RSYNC_OPTS="$RSYNC_OPTS --exclude-from=$LOCAL_DIR/.rsyncexclude"
+          fi
+          rsync $RSYNC_OPTS $LOCAL_DIR/ $REMOTE:$REMOTE_DIR/
+
       - name: Sync secrets
         env:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.ONE_PASSWORD_SA_TOKEN }}
         run: |
           set -o pipefail
           # Resolve op:// refs and pipe directly to the VM — secrets never
-          # touch the runner's disk. pipefail ensures op inject failures
-          # (e.g. missing 1Password items) fail the step rather than silently
-          # writing a blank .env.
+          # touch the runner's disk. Runs after rsync so --delete can't
+          # remove .env. pipefail ensures op inject failures are visible.
           op inject -i $ENV_TEMPLATE | ssh $REMOTE "cat > $REMOTE_DIR/.env"
-
-      - name: Sync compose stack
-        run: |
-          # If the stack has a .rsyncexclude file, use it to protect
-          # stack-specific runtime state from --delete.
-          RSYNC_OPTS="-r --delete --exclude='.env'"
-          if [ -f "$LOCAL_DIR/.rsyncexclude" ]; then
-            RSYNC_OPTS="$RSYNC_OPTS --exclude-from=$LOCAL_DIR/.rsyncexclude"
-          fi
-          rsync $RSYNC_OPTS $LOCAL_DIR/ $REMOTE:$REMOTE_DIR/
 
       - name: Bring up stack
         run: |
