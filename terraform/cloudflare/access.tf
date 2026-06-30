@@ -25,14 +25,11 @@ resource "cloudflare_zero_trust_access_policy" "homeassistant_allow" {
   name       = "Allow whitelisted Google accounts"
   decision   = "allow"
 
-  dynamic "include" {
-    for_each = var.google_oauth_email_whitelist
-    content {
-      email = {
-        email = include.value
-      }
+  include = [{
+    email = {
+      email = "jack.weinbender@gmail.com"
     }
-  }
+  }]
 }
 
 # ── Service token (programmatic access, day-two) ──────────────────────────────
