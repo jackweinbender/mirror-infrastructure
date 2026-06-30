@@ -29,20 +29,9 @@ jobs:
         with:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
-      - uses: hashicorp/setup-terraform@v2
-        name: Plan on ${{ matrix.component }}
-      # We always run init.
-      - name: Terraform init
-        id: init
-        shell: bash
-        run: terraform -chdir=terraform/${{ matrix.component }} init
-
-      - name: Terraform validate
-        id: validate
-        shell: bash
-        run: terraform -chdir=terraform/${{ matrix.component }} validate
-
-      - name: Terraform plan
-        id: plan
-        shell: bash
-        run: terraform -chdir=terraform/${{ matrix.component }} plan -no-color
+      - name: Plan ${{ matrix.component }}
+        uses: "./.github/actions/tf-plan-apply"
+        with:
+          op_token: ${{ secrets.ONE_PASSWORD_SA_TOKEN }}
+          component: ${{ matrix.component }}
+          apply: "false"

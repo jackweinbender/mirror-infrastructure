@@ -30,8 +30,11 @@ runs:
         OP_SERVICE_ACCOUNT_TOKEN: ${{ inputs.op_token }}
         TS_OAUTH_CLIENT_ID: "op://network/tailscale-oauth-github-actions/client-id"
         TS_OAUTH_CLIENT_SECRET: "op://network/tailscale-oauth-github-actions/client-secret"
-        # Cloudflare API token — create in 1Password and update the op:// path.
         CLOUDFLARE_API_TOKEN: "op://network/cloudflare-auth-weinbenderio/credential"
+        TF_VAR_cloudflare_zone_id: "op://network/cloudflare-auth-weinbenderio/zone-id"
+        TF_VAR_cloudflare_account_id: "op://network/cloudflare-auth-weinbenderio/account-id"
+        # JSON array, e.g. ["you@example.com"]
+        TF_VAR_google_oauth_email_whitelist: "op://network/cloudflare-auth-weinbenderio/oauth-email-whitelist"
     - name: Tailscale
       uses: tailscale/github-action@v2
       with:
