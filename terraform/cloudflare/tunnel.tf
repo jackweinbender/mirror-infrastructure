@@ -14,12 +14,20 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "main" {
   tunnel_id  = cloudflare_zero_trust_tunnel_cloudflared.main.id
 
   config = {
-    ingress = [{
-      service = "https://traefik:443"
-      origin_request = {
-        origin_server_name = "*.weinbender.io"
-        no_tls_verify      = false
+    ingress = [
+      {
+        # Wildcard public hostname — registers *.weinbender.io with Cloudflare's
+        # edge so any subdomain CNAME'd to this tunnel is accepted. Traefik
+        # receives the original Host header and routes to the right container.
+        # TLS: cloudflared uses the request hostname as SNI; Traefik's
+        # *.weinbender.io wildcard cert matches all subdomains.
+        hostname = "*.weinbender.io"
+        service  = "https://traefik:443"
+      },
+      {
+        # Required catch-all — Cloudflare rejects configs with no fallback.
+        service = "http_status:404"
       }
-    }]
+    ]
   }
 }
