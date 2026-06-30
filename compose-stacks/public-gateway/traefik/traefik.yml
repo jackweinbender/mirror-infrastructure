@@ -52,11 +52,8 @@ certificatesResolvers:
         provider: cloudflare
         # Wait for DNS propagation before Let's Encrypt verifies
         delayBeforeCheck: 30s
-      # Pre-provision the wildcard cert so it's ready before apps are added
-      domains:
-        - main: "*.weinbender.io"
-          sans:
-            - "weinbender.io"
+      # Note: wildcard cert pre-provisioning is done in dynamic/wildcard-cert.yml
+      # (Traefik v3 removed `domains` from static acme config; use router tls.domains instead)
 
 providers:
   docker:
