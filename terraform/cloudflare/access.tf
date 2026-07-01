@@ -30,6 +30,7 @@ resource "cloudflare_zero_trust_access_policy" "allow" {
     { email = { email = "adamlbean@gmail.com" } },
     { email = { email = "cj.frisina@gmail.com" } },
     { email = { email = "brandondwaite@proton.me" } },
+    { email = { email = "tammath80@gmail.com" } },
   ]
 }
 
