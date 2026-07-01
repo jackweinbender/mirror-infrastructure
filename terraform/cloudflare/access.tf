@@ -19,14 +19,16 @@ resource "cloudflare_zero_trust_access_policy" "allow" {
   decision   = "allow"
 
   include = [
-    { email_otp = { email = "jack.weinbender@gmail.com" } },
-    { email_otp = { email = "tiffany@idamayes.com" } },
-    { email_otp = { email = "jackweinbender@msn.com" } },
-    { email_otp = { email = "maryweinbender@msn.com" } },
-    { email_otp = { email = "jennwrites21@gmail.com" } },
-    { email_otp = { email = "kendramathews26@gmail.com" } },
-    { email_otp = { email = "sergio@cucinalogica.com" } },
-    { email_otp = { email = "jamiedel818@gmail.com" } },
+    { email = { email = "jack.weinbender@gmail.com" } },
+    { email = { email = "tiffany@idamayes.com" } },
+    { email = { email = "jackweinbender@msn.com" } },
+    { email = { email = "maryweinbender@msn.com" } },
+    { email = { email = "jennwrites21@gmail.com" } },
+    { email = { email = "kendramathews26@gmail.com" } },
+    { email = { email = "sergio@cucinalogica.com" } },
+    { email = { email = "jamiedel818@gmail.com" } },
+    { email = { email = "adamlbean@gmail.com" } },
+    { email = { email = "cj.frisina@gmail.com" } },
   ]
 }
 
