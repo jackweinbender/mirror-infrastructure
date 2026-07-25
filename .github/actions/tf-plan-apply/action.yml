@@ -35,7 +35,6 @@ runs:
         # prerequisites") and update the op:// path if the item/field names differ.
         PROXMOX_VE_API_TOKEN: "op://network/proxmox-terraform/api-token"
         PROXMOX_VE_ENDPOINT: "op://network/proxmox-terraform/endpoint"
-        PROXMOX_VE_INSECURE: "true"
 
     - name: Tailscale
       uses: tailscale/github-action@v2
