@@ -31,6 +31,11 @@ runs:
         TS_OAUTH_CLIENT_ID: "op://network/tailscale-oauth-github-actions/client-id"
         TS_OAUTH_CLIENT_SECRET: "op://network/tailscale-oauth-github-actions/client-secret"
         CLOUDFLARE_API_TOKEN: "op://network/cloudflare-terraform/credential"
+        # Proxmox API token — create in 1Password (see this plan's "Manual
+        # prerequisites") and update the op:// path if the item/field names differ.
+        PROXMOX_VE_API_TOKEN: "op://network/proxmox-terraform/api-token"
+        PROXMOX_VE_ENDPOINT: "op://network/proxmox-terraform/endpoint"
+        PROXMOX_VE_INSECURE: "true"
 
     - name: Tailscale
       uses: tailscale/github-action@v2

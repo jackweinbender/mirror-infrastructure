@@ -12,6 +12,7 @@ on:
           - "gcp-remind-me"
           - "gcp-weinbender-io"
           - "cloudflare"
+          - "proxmox"
         default: "aws"
       apply:
         description: "Apply Terraform"
