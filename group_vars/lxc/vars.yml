@@ -1,0 +1,4 @@
+# LXC containers: no systemd, use lxc-attach compatible tasks
+ansible_connection: community.general.lxc
+container: true
+systemd_available: false

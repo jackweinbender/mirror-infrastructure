@@ -1,0 +1,12 @@
+---
+- name: Homelab site playbook - common configuration
+  ansible.builtin.import_playbook: common.yml
+
+- name: Homelab site playbook - Docker hosts
+  ansible.builtin.import_playbook: docker.yml
+
+- name: Homelab site playbook - LXC hosts
+  ansible.builtin.import_playbook: lxc.yml
+
+- name: Homelab site playbook - VM hosts
+  ansible.builtin.import_playbook: vm.yml

@@ -1,0 +1,8 @@
+---
+- name: LXC-specific configuration
+  hosts: lxc
+  become: true
+  tasks:
+    - name: Include LXC tasks
+      ansible.builtin.include_tasks: ../tasks/lxc.yml
+      tags: [lxc]

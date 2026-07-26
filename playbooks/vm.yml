@@ -1,0 +1,8 @@
+---
+- name: VM-specific configuration
+  hosts: vm
+  become: true
+  tasks:
+    - name: Include VM tasks
+      ansible.builtin.include_tasks: ../tasks/vm.yml
+      tags: [vm]

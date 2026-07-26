@@ -1,0 +1,69 @@
+---
+- name: Bootstrap fresh host for Ansible management
+  hosts: all
+  gather_facts: false
+  vars:
+    bootstrap_ssh_key: "{{ lookup('file', '~/.ssh/id_ed25519.pub') }}"
+  tasks:
+    - name: Install python3 (required for Ansible)
+      ansible.builtin.raw: |
+        if command -v apt-get >/dev/null; then
+          apt-get update && apt-get install -y python3 python3-apt sudo
+        elif command -v apk >/dev/null; then
+          apk add --no-cache python3 py3-pip sudo
+        elif command -v yum >/dev/null; then
+          yum install -y python3 python3-pip sudo
+        elif command -v dnf >/dev/null; then
+          dnf install -y python3 python3-pip sudo
+        fi
+      become: true
+      changed_when: false
+      tags: [bootstrap]
+
+    - name: Ensure homelab user has sudo
+      ansible.builtin.raw: |
+        echo "{{ homelab_user }} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/{{ homelab_user }} && chmod 440 /etc/sudoers.d/{{ homelab_user }}
+      become: true
+      changed_when: false
+      tags: [bootstrap]
+
+    - name: Create homelab user
+      ansible.builtin.user:
+        name: "{{ homelab_user }}"
+        shell: "{{ homelab_user_shell }}"
+        groups: "{{ homelab_user_groups }}"
+        append: true
+        state: present
+      become: true
+      tags: [bootstrap]
+
+    - name: Deploy SSH key for homelab user
+      ansible.posix.authorized_key:
+        user: "{{ homelab_user }}"
+        state: present
+        key: "{{ bootstrap_ssh_key }}"
+      become: true
+      tags: [bootstrap]
+
+    - name: Disable root SSH login
+      ansible.builtin.lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: "^#?PermitRootLogin\\s+"
+        line: "PermitRootLogin no"
+        state: present
+        backup: true
+        validate: "sshd -t -f %s"
+      notify: Restart sshd
+      become: true
+      tags: [bootstrap]
+
+    - name: Flush handlers
+      ansible.builtin.meta: flush_handlers
+      tags: [bootstrap]
+
+  handlers:
+    - name: Restart sshd
+      ansible.builtin.service:
+        name: ssh
+        state: restarted
+      become: true

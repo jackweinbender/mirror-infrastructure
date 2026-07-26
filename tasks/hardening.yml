@@ -1,0 +1,42 @@
+- name: Ensure unattended-upgrades is installed
+  ansible.builtin.package:
+    name: unattended-upgrades
+    state: present
+  tags: [hardening]
+  become: true
+  when: ansible_os_family == "Debian"
+
+- name: Configure automatic security updates
+  ansible.builtin.copy:
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    content: |
+      APT::Periodic::Update-Package-Lists "1";
+      APT::Periodic::Unattended-Upgrade "1";
+      APT::Periodic::AutocleanInterval "7";
+    mode: "0644"
+  tags: [hardening]
+  become: true
+  when: ansible_os_family == "Debian"
+
+- name: Disable root login via console (additional to SSH)
+  ansible.builtin.lineinfile:
+    path: /etc/securetty
+    regexp: "^console$"
+    state: absent
+  tags: [hardening]
+  become: true
+  when: ansible_os_family == "Debian"
+
+- name: Set kernel sysctl hardening
+  ansible.posix.sysctl:
+    name: "{{ item.key }}"
+    value: "{{ item.value }}"
+    sysctl_file: /etc/sysctl.d/99-homelab-hardening.conf
+    state: present
+    reload: true
+  loop:
+    - { key: "net.ipv4.ip_forward", value: "1" }
+    - { key: "net.ipv6.conf.all.forwarding", value: "1" }
+    - { key: "kernel.yama.ptrace_scope", value: "1" }
+  tags: [hardening]
+  become: true

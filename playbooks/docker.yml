@@ -1,0 +1,8 @@
+---
+- name: Docker configuration for docker-hosts group
+  hosts: docker-hosts
+  become: true
+  tasks:
+    - name: Include Docker tasks
+      ansible.builtin.include_tasks: ../tasks/docker.yml
+      tags: [docker]

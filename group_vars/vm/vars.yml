@@ -1,0 +1,4 @@
+# VMs: full systemd, standard SSH
+ansible_connection: ssh
+container: false
+systemd_available: true

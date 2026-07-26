@@ -1,0 +1,39 @@
+- name: Ensure homelab user exists
+  ansible.builtin.user:
+    name: "{{ homelab_user }}"
+    shell: "{{ homelab_user_shell }}"
+    groups: "{{ homelab_user_groups }}"
+    append: true
+    state: present
+  tags: [users]
+
+- name: Ensure homelab user has passwordless sudo
+  ansible.builtin.copy:
+    dest: /etc/sudoers.d/{{ homelab_user }}
+    content: "{{ homelab_user }} ALL=(ALL) NOPASSWD:ALL\n"
+    mode: "0440"
+    validate: "visudo -cf %s"
+  tags: [users]
+
+- name: Ensure .ssh directory exists for homelab user
+  ansible.builtin.file:
+    path: "/home/{{ homelab_user }}/.ssh"
+    state: directory
+    mode: "0700"
+    owner: "{{ homelab_user }}"
+    group: "{{ homelab_user }}"
+  tags: [users]
+
+- name: Deploy authorized_keys for homelab user
+  ansible.posix.authorized_key:
+    user: "{{ homelab_user }}"
+    state: present
+    key: "{{ homelab_ssh_pubkey }}"
+  tags: [users]
+
+- name: Ensure docker group exists
+  ansible.builtin.group:
+    name: docker
+    state: present
+  tags: [users, docker]
+  when: docker_install | default(false)

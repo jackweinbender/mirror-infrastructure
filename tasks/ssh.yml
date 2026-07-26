@@ -1,0 +1,50 @@
+- name: Harden sshd_config
+  ansible.builtin.lineinfile:
+    path: /etc/ssh/sshd_config
+    regexp: "^#?{{ item.key }}\\s+"
+    line: "{{ item.key }} {{ item.value }}"
+    state: present
+    backup: true
+    validate: "sshd -t -f %s"
+  loop: "{{ sshd_config | dict2items }}"
+  notify: Restart sshd
+  tags: [ssh]
+
+- name: Ensure sshd_config.d directory exists
+  ansible.builtin.file:
+    path: /etc/ssh/sshd_config.d
+    state: directory
+    mode: "0755"
+  tags: [ssh]
+
+- name: Deploy sshd hardening drop-in
+  ansible.builtin.copy:
+    dest: /etc/ssh/sshd_config.d/99-homelab-hardening.conf
+    content: |
+      # Homelab SSH hardening
+      PermitRootLogin no
+      PasswordAuthentication no
+      PubkeyAuthentication yes
+      MaxAuthTries 3
+      PermitEmptyPasswords no
+      ChallengeResponseAuthentication no
+      UsePAM yes
+      X11Forwarding no
+      PrintMotd no
+      AcceptEnv
+      AllowUsers {{ homelab_user }}
+    mode: "0644"
+    validate: "sshd -t -f %s"
+  notify: Restart sshd
+  tags: [ssh]
+
+- name: Flush handlers for sshd
+  ansible.builtin.meta: flush_handlers
+  tags: [ssh]
+
+- name: Restart sshd handler
+  ansible.builtin.service:
+    name: ssh
+    state: restarted
+  listen: "Restart sshd"
+  tags: [ssh]

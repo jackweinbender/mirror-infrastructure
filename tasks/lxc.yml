@@ -1,0 +1,33 @@
+- name: Ensure LXC container has required packages
+  ansible.builtin.package:
+    name:
+      - sudo
+      - curl
+      - ca-certificates
+    state: present
+  tags: [lxc]
+  become: true
+  when: container | default(false)
+
+- name: Configure LXC-friendly sudo (no tty required)
+  ansible.builtin.lineinfile:
+    path: /etc/sudoers
+    regexp: "^Defaults\\s+requiretty"
+    line: "Defaults !requiretty"
+    state: present
+    validate: "visudo -cf %s"
+  tags: [lxc]
+  become: true
+  when: container | default(false)
+
+- name: Mask systemd services that don't work in LXC
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    masked: true
+  loop:
+    - systemd-logind
+    - systemd-udevd
+  tags: [lxc]
+  become: true
+  when: container | default(false) and systemd_available | default(false)
+  failed_when: false

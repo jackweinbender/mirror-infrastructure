@@ -1,0 +1,28 @@
+# Common user configuration
+homelab_user: jlw
+homelab_user_shell: /bin/bash
+homelab_user_groups:
+  - sudo
+  - docker
+homelab_ssh_pubkey: "{{ lookup('file', '~/.ssh/id_ed25519.pub') }}"
+
+# Tailscale (auth key from secrets)
+tailscale_auth_key: "{{ vault_tailscale_auth_key | default('') }}"
+
+# SSH hardening
+sshd_config:
+  PermitRootLogin: "no"
+  PasswordAuthentication: "no"
+  PubkeyAuthentication: "yes"
+  MaxAuthTries: 3
+  PermitEmptyPasswords: "no"
+  ChallengeResponseAuthentication: "no"
+  UsePAM: "yes"
+  X11Forwarding: "no"
+  PrintMotd: "no"
+  AcceptEnv: ""
+  AllowUsers: "{{ homelab_user }}"
+
+# Docker
+docker_install: false
+docker_compose_version: "v2.24.0"

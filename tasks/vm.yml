@@ -1,0 +1,23 @@
+- name: Ensure VM has qemu-guest-agent
+  ansible.builtin.package:
+    name: qemu-guest-agent
+    state: present
+  tags: [vm]
+  become: true
+  when: not (container | default(false))
+
+- name: Start and enable qemu-guest-agent
+  ansible.builtin.systemd:
+    name: qemu-guest-agent
+    enabled: true
+    state: started
+  tags: [vm]
+  become: true
+  when: not (container | default(false)) and systemd_available | default(true)
+
+- name: Configure VM timezone
+  community.general.timezone:
+    name: UTC
+  tags: [vm]
+  become: true
+  when: not (container | default(false))

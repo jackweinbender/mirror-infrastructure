@@ -1,0 +1,50 @@
+- name: Ensure curl is installed
+  ansible.builtin.package:
+    name: curl
+    state: present
+  tags: [tailscale]
+  become: true
+
+- name: Add Tailscale GPG key
+  ansible.builtin.apt_key:
+    url: https://pkgs.tailscale.com/stable/ubuntu/jammy.noarmor.gpg
+    state: present
+  tags: [tailscale]
+  become: true
+  when: ansible_os_family == "Debian"
+
+- name: Add Tailscale repository
+  ansible.builtin.apt_repository:
+    repo: "deb https://pkgs.tailscale.com/stable/ubuntu jammy main"
+    state: present
+    filename: tailscale
+  tags: [tailscale]
+  become: true
+  when: ansible_os_family == "Debian"
+
+- name: Install Tailscale
+  ansible.builtin.package:
+    name: tailscale
+    state: present
+  tags: [tailscale]
+  become: true
+
+- name: Start and enable Tailscale
+  ansible.builtin.systemd:
+    name: tailscaled
+    enabled: true
+    state: started
+  tags: [tailscale]
+  become: true
+  when: systemd_available | default(true)
+
+- name: Bring up Tailscale with auth key
+  ansible.builtin.command:
+    cmd: "tailscale up --authkey={{ tailscale_auth_key }} --hostname={{ inventory_hostname }}"
+    creates: /var/lib/tailscale/tailscaled.state
+  register: tailscale_up
+  changed_when: tailscale_up.rc == 0
+  failed_when: tailscale_up.rc not in [0, 1]
+  tags: [tailscale]
+  become: true
+  when: tailscale_auth_key | length > 0

@@ -1,0 +1,30 @@
+---
+- name: Common configuration for all homelab hosts
+  hosts: all
+  become: true
+  tasks:
+    - name: Include users tasks
+      ansible.builtin.include_tasks: ../tasks/users.yml
+      tags: [users]
+
+    - name: Include SSH hardening tasks
+      ansible.builtin.include_tasks: ../tasks/ssh.yml
+      tags: [ssh]
+
+    - name: Include Tailscale tasks
+      ansible.builtin.include_tasks: ../tasks/tailscale.yml
+      tags: [tailscale]
+
+    - name: Include hardening tasks
+      ansible.builtin.include_tasks: ../tasks/hardening.yml
+      tags: [hardening]
+
+    - name: Include LXC-specific tasks
+      ansible.builtin.include_tasks: ../tasks/lxc.yml
+      tags: [lxc]
+      when: container | default(false)
+
+    - name: Include VM-specific tasks
+      ansible.builtin.include_tasks: ../tasks/vm.yml
+      tags: [vm]
+      when: not (container | default(false))
