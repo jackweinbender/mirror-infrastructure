@@ -1,0 +1,49 @@
+name: "Ansible Playbook"
+
+on:
+  schedule:
+    - cron: "0 5 * * *"
+  workflow_dispatch:
+  push:
+    branches:
+      - "main"
+
+# Only let one of these workflows run at a time
+concurrency:
+  group: main
+  cancel-in-progress: false
+
+defaults:
+  run:
+    working-directory: ./ansible
+
+jobs:
+  playbook:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Load secret
+        uses: 1password/load-secrets-action@v2
+        with:
+          export-env: true
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.ONE_PASSWORD_SA_TOKEN }}
+          TS_OAUTH_CLIENT_ID: "op://network/tailscale-oauth-github-actions/client-id"
+          TS_OAUTH_CLIENT_SECRET: "op://network/tailscale-oauth-github-actions/client-secret"
+      - name: Tailscale
+        uses: tailscale/github-action@v2
+        with:
+          oauth-client-id: ${{ env.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ env.TS_OAUTH_CLIENT_SECRET }}
+          tags: tag:ci
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: "pip"
+          cache-dependency-path: |
+            **/*requirements.txt
+            **/*requirements.yaml
+      - run: pip install -r requirements.txt
+      # - run: ansible-galaxy install -r ansible-requirements.yaml
+      - run: ansible-lint
+      - run: ansible-playbook -i inventory.yaml edge.yaml
