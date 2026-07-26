@@ -2,13 +2,15 @@
 # modules/lxc-base/README.md) — proves the module applies cleanly against
 # real Proxmox infrastructure. Not a service; nothing depends on this
 # container; safe to `terraform destroy` at any time.
-
-resource "proxmox_download_file" "debian_13" {
-  content_type = "vztmpl"
-  datastore_id = "local-zfs"
-  node_name    = "caba-host"
-  url          = "http://download.proxmox.com/images/system/debian-13-standard_13.6-1_amd64.tar.zst"
-}
+#
+# template_file_id below references a Debian 13 vztmpl already downloaded
+# onto caba-host's `local` storage by hand (Proxmox GUI: caba-host > local
+# storage > CT Templates > Download from URL) — not a download-file
+# resource. PVE's download-url API action requires a privilege
+# (Sys.AccessNetwork) beyond the CI token's normal datastore/container
+# write access; referencing an already-present file avoids needing to grant
+# that at all. See modules/lxc-base/variables.tf's template_file_id
+# description for this module's documented static-string pattern.
 
 module "lxc_base_test" {
   source = "./modules/lxc-base"
@@ -17,7 +19,7 @@ module "lxc_base_test" {
   disk_datastore_id = "local-zfs"
   hostname          = "lxc-base-test"
   description       = "Throwaway test instantiation of lxc-base — see modules/lxc-base/README.md. Safe to destroy."
-  template_file_id  = proxmox_download_file.debian_13.id
+  template_file_id  = "local:vztmpl/debian-13-standard_13.6-1_amd64.tar.zst"
 
   ssh_public_keys = [
     "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEmJPl4KFClzE9kbnkate3cS1IVv9OR/Vshs8nSqFvwa jack@weinbender.io",
