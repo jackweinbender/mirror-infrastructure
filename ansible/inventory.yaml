@@ -1,8 +1,18 @@
 all:
   vars:
-    ansible_user: deploy
+    ansible_user: ansible
 
-core:
+lxc:
   hosts:
-    pi-scale:
+    docker-dayof-0:
       ansible_host: docker-dayof-0.tortoise-noodlefish.ts.net
+      ansible_user: ansible
+
+pve_hosts:
+  hosts:
+    caba-host:
+      ansible_host: 192.168.1.144
+      ansible_user: root
+    gateway-host:
+      ansible_host: 192.168.14.134
+      ansible_user: root

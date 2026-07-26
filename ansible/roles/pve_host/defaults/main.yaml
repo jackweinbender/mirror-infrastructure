@@ -1,0 +1,23 @@
+---
+# Debian/Proxmox APT suite name (e.g. "trixie" for PVE 9)
+pve_host_apt_suite: trixie
+
+# Disable the subscription-only 'pve-enterprise' repository
+pve_host_disable_enterprise_repo: true
+
+# Enable the free 'pve-no-subscription' repository
+pve_host_enable_no_subscription_repo: true
+
+# Patch the Web UI / Mobile UI to remove the "No valid subscription" nag
+pve_host_disable_subscription_nag: true
+
+# Disable HA services (corosync/pve-ha-lrm/pve-ha-crm) on standalone,
+# non-clustered nodes to reclaim resources
+pve_host_disable_ha: true
+
+# Run `apt dist-upgrade` as part of convergence
+pve_host_apt_dist_upgrade: true
+
+# Never reboot automatically, even if one is required after upgrading.
+# When false, a warning is surfaced instead.
+pve_host_reboot_if_required: false

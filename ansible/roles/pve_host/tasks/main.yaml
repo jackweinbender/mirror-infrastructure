@@ -1,0 +1,83 @@
+---
+- name: Disable pve-enterprise repository
+  ansible.builtin.template:
+    src: pve-enterprise.sources.j2
+    dest: /etc/apt/sources.list.d/pve-enterprise.sources
+    owner: root
+    group: root
+    mode: "0644"
+  when: pve_host_disable_enterprise_repo
+
+- name: Enable pve-no-subscription repository
+  ansible.builtin.template:
+    src: proxmox.sources.j2
+    dest: /etc/apt/sources.list.d/proxmox.sources
+    owner: root
+    group: root
+    mode: "0644"
+  when: pve_host_enable_no_subscription_repo
+
+- name: Install subscription nag removal script
+  ansible.builtin.template:
+    src: pve-remove-nag.sh.j2
+    dest: /usr/local/bin/pve-remove-nag.sh
+    owner: root
+    group: root
+    mode: "0755"
+  when: pve_host_disable_subscription_nag
+
+- name: Install apt hook to reapply nag removal after package changes
+  ansible.builtin.template:
+    src: no-nag-script.j2
+    dest: /etc/apt/apt.conf.d/no-nag-script
+    owner: root
+    group: root
+    mode: "0644"
+  when: pve_host_disable_subscription_nag
+
+- name: Apply subscription nag removal now
+  ansible.builtin.command: /usr/local/bin/pve-remove-nag.sh
+  register: pve_host_nag_result
+  changed_when: "'Patching' in pve_host_nag_result.stdout"
+  when: pve_host_disable_subscription_nag
+
+- name: Disable high availability services
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    state: stopped
+    enabled: false
+  loop:
+    - pve-ha-lrm
+    - pve-ha-crm
+    - corosync
+  when: pve_host_disable_ha
+
+- name: Update apt cache
+  ansible.builtin.apt:
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Dist-upgrade packages
+  ansible.builtin.apt:
+    upgrade: dist
+  when: pve_host_apt_dist_upgrade
+
+- name: Check whether a reboot is required
+  ansible.builtin.stat:
+    path: /var/run/reboot-required
+  register: pve_host_reboot_required_file
+
+- name: Warn that a reboot is required
+  ansible.builtin.debug:
+    msg: >-
+      A reboot is required on {{ inventory_hostname }} (e.g. after a kernel
+      update). Reboot manually when convenient.
+  when:
+    - pve_host_reboot_required_file.stat.exists
+    - not pve_host_reboot_if_required
+
+- name: Reboot and wait for the host to come back
+  ansible.builtin.reboot:
+  when:
+    - pve_host_reboot_required_file.stat.exists
+    - pve_host_reboot_if_required
