@@ -46,4 +46,4 @@ jobs:
       - run: pip install -r requirements.txt
       # - run: ansible-galaxy install -r ansible-requirements.yaml
       - run: ansible-lint
-      - run: ansible-playbook -i inventory.yaml edge.yaml
+      - run: ansible-playbook -i inventory.yaml core.yaml

@@ -1,0 +1,23 @@
+# One-shot playbook to bootstrap an LXC container that already exists
+# (create it in the Proxmox web UI first, including your SSH public key on
+# the Create CT dialog, so root@<ip> is reachable immediately). Run
+# manually from the LAN:
+#
+#   make bootstrap-lxc PVE_HOST=caba-host CTID=105
+#
+# Play 1 runs on the PVE host itself (needs `pct`): adds the TUN device,
+# reboots the container only if that changed, then discovers its IP.
+# Play 2 connects directly to the container over SSH as root and runs
+# standard Ansible modules to finish setup (ansible user, sudo, Tailscale).
+---
+- name: Prepare LXC container on the PVE host
+  hosts: "{{ lxc_pve_host | default('pve_hosts') }}"
+  gather_facts: false
+  roles:
+    - lxc_prepare
+
+- name: Bootstrap the container over SSH
+  hosts: lxc_new
+  gather_facts: true
+  roles:
+    - lxc_bootstrap

@@ -1,0 +1,7 @@
+{{ ansible_managed | comment }}
+Types: deb
+URIs: https://enterprise.proxmox.com/debian/pve
+Suites: {{ pve_host_apt_suite }}
+Components: pve-enterprise
+Signed-By: /usr/share/keyrings/proxmox-archive-keyring.gpg
+Enabled: false

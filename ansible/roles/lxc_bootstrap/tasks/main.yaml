@@ -1,0 +1,323 @@
+---
+- name: Wait for outbound network connectivity
+  # Runs right after the container may have just booted/rebooted
+  # (lxc_prepare rebooted it for the TUN device change). DNS/networking can
+  # take a few seconds to come up, and every task below this one depends on
+  # it (apt, GitHub keys over HTTPS, the Tailscale install script) - fail
+  # fast with retries here instead of letting those fail with a confusing
+  # error partway through.
+  ansible.builtin.uri:
+    url: https://github.com
+    method: HEAD
+    status_code:
+      - 200
+      - 301
+      - 302
+  register: lxc_bootstrap_network_check
+  until: lxc_bootstrap_network_check.status is defined and lxc_bootstrap_network_check.status in [200, 301, 302]
+  retries: 12
+  delay: 5
+  changed_when: false
+
+- name: Upgrade installed packages (Debian/Ubuntu)
+  ansible.builtin.apt:
+    upgrade: safe
+    update_cache: true
+    cache_valid_time: 3600
+  when: lxc_bootstrap_upgrade_packages
+
+- name: Ensure sudo is installed (Debian/Ubuntu)
+  ansible.builtin.apt:
+    name: sudo
+    state: present
+    update_cache: true
+
+- name: Create the ansible user
+  ansible.builtin.user:
+    name: "{{ lxc_bootstrap_ansible_user }}"
+    shell: /bin/bash
+    create_home: true
+
+- name: Ensure root's .ssh directory exists
+  ansible.builtin.file:
+    path: /root/.ssh
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Fetch GitHub public keys for root
+  ansible.builtin.uri:
+    url: "https://github.com/{{ lxc_bootstrap_github_user }}.keys"
+    return_content: true
+  register: lxc_bootstrap_github_keys
+
+- name: Install GitHub SSH keys for root
+  # root is the only account reachable over plain SSH (as set at
+  # container-creation time). The ansible user below is intentionally left
+  # without any authorized_keys - it's only reachable via Tailscale SSH,
+  # which authenticates against the tailnet identity rather than local keys.
+  ansible.builtin.lineinfile:
+    path: /root/.ssh/authorized_keys
+    line: "{{ item }}"
+    create: true
+    owner: root
+    group: root
+    mode: "0600"
+  loop: "{{ lxc_bootstrap_github_keys.content.splitlines() }}"
+  when: item | trim | length > 0
+
+- name: Configure passwordless sudo for the ansible user
+  ansible.builtin.copy:
+    content: "{{ lxc_bootstrap_ansible_user }} ALL=(ALL) NOPASSWD:ALL\n"
+    dest: "/etc/sudoers.d/{{ lxc_bootstrap_ansible_user }}"
+    owner: root
+    group: root
+    mode: "0440"
+    validate: "visudo -cf %s"
+
+- name: Determine which getty unit serves the console (systemd)
+  # The unit name varies by Proxmox/template version - check the known
+  # candidates and use whichever is actually active, rather than assuming.
+  ansible.builtin.command:
+    argv:
+      - systemctl
+      - is-active
+      - "{{ item }}"
+  loop:
+    - container-getty@1.service
+    - console-getty.service
+    - getty@tty1.service
+  register: lxc_bootstrap_getty_check
+  failed_when: false
+  changed_when: false
+  when:
+    - lxc_bootstrap_console_autologin
+    - ansible_facts['os_family'] == 'Debian'
+
+- name: Select the active getty unit
+  ansible.builtin.set_fact:
+    lxc_bootstrap_getty_unit: >-
+      {{ (lxc_bootstrap_getty_check.results | selectattr('stdout', 'equalto', 'active') | map(attribute='item') | list | first) }}
+  when:
+    - lxc_bootstrap_console_autologin
+    - ansible_facts['os_family'] == 'Debian'
+    - lxc_bootstrap_getty_check.results | selectattr('stdout', 'equalto', 'active') | list | length > 0
+
+- name: Warn if no active getty unit was found
+  ansible.builtin.debug:
+    msg: >-
+      lxc_bootstrap_console_autologin is true but no known getty unit
+      (container-getty@1, console-getty, getty@tty1) is active on
+      {{ inventory_hostname }}. Skipping console auto-login setup - check
+      `systemctl list-units | grep getty` on the host manually.
+  when:
+    - lxc_bootstrap_console_autologin
+    - ansible_facts['os_family'] == 'Debian'
+    - lxc_bootstrap_getty_unit is not defined
+
+- name: Ensure the getty override directory exists
+  ansible.builtin.file:
+    path: "/etc/systemd/system/{{ lxc_bootstrap_getty_unit }}.d"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when:
+    - lxc_bootstrap_console_autologin
+    - lxc_bootstrap_getty_unit is defined
+
+- name: Configure console auto-login for root (systemd)
+  ansible.builtin.copy:
+    dest: "/etc/systemd/system/{{ lxc_bootstrap_getty_unit }}.d/override.conf"
+    content: |
+      [Service]
+      ExecStart=
+      ExecStart=-/sbin/agetty --autologin root --noclear --keep-baud pts/%I 115200,38400,9600 $TERM
+    owner: root
+    group: root
+    mode: "0644"
+  register: lxc_bootstrap_getty_override
+  when:
+    - lxc_bootstrap_console_autologin
+    - lxc_bootstrap_getty_unit is defined
+
+- name: Reload systemd and restart the getty unit
+  ansible.builtin.systemd:
+    daemon_reload: true
+    name: "{{ lxc_bootstrap_getty_unit }}"
+    state: restarted
+  when:
+    - lxc_bootstrap_console_autologin
+    - lxc_bootstrap_getty_unit is defined
+    - lxc_bootstrap_getty_override.changed
+
+- name: Configure console auto-login for root (Alpine)
+  ansible.builtin.replace:
+    path: /etc/inittab
+    regexp: '^(tty1::respawn:)/sbin/getty.*$'
+    replace: '\1/sbin/getty -n -l /bin/login -a root 38400 tty1'
+  register: lxc_bootstrap_inittab
+  when:
+    - lxc_bootstrap_console_autologin
+    - ansible_facts['os_family'] == 'Alpine'
+
+- name: Reload inittab (Alpine)
+  ansible.builtin.command:
+    argv:
+      - kill
+      - -HUP
+      - "1"
+  changed_when: true
+  when:
+    - lxc_bootstrap_console_autologin
+    - ansible_facts['os_family'] == 'Alpine'
+    - lxc_bootstrap_inittab.changed
+
+- name: Check whether Tailscale is already installed
+  ansible.builtin.command:
+    argv:
+      - which
+      - tailscale
+  register: lxc_bootstrap_tailscale_check
+  failed_when: false
+  changed_when: false
+  when: lxc_bootstrap_install_tailscale
+
+- name: Download the Tailscale install script
+  ansible.builtin.get_url:
+    url: https://tailscale.com/install.sh
+    dest: /tmp/tailscale-install.sh
+    mode: "0755"
+  when:
+    - lxc_bootstrap_install_tailscale
+    - lxc_bootstrap_tailscale_check.rc != 0
+
+- name: Run the Tailscale install script
+  ansible.builtin.command:
+    argv:
+      - sh
+      - /tmp/tailscale-install.sh
+  when:
+    - lxc_bootstrap_install_tailscale
+    - lxc_bootstrap_tailscale_check.rc != 0
+  changed_when: true
+
+- name: Remove the Tailscale install script
+  ansible.builtin.file:
+    path: /tmp/tailscale-install.sh
+    state: absent
+  when: lxc_bootstrap_install_tailscale
+
+- name: Check whether Tailscale already has an IP (already joined)
+  ansible.builtin.command:
+    argv:
+      - tailscale
+      - ip
+      - -4
+  register: lxc_bootstrap_ts_ip
+  changed_when: false
+  failed_when: false
+  when:
+    - lxc_bootstrap_install_tailscale
+    - lxc_bootstrap_tailscale_authkey | default('') | length > 0
+
+- name: Join the tailnet
+  ansible.builtin.command:
+    argv:
+      - tailscale
+      - up
+      - "--authkey={{ lxc_bootstrap_tailscale_authkey }}"
+      - --ssh
+  when:
+    - lxc_bootstrap_install_tailscale
+    - lxc_bootstrap_tailscale_authkey | default('') | length > 0
+    - lxc_bootstrap_ts_ip.rc != 0
+  no_log: true
+  changed_when: true
+
+- name: Get Tailscale status
+  ansible.builtin.command:
+    argv:
+      - tailscale
+      - status
+      - --self
+      - --json
+  register: lxc_bootstrap_ts_status
+  changed_when: false
+  failed_when: false
+  when:
+    - lxc_bootstrap_install_tailscale
+    - lxc_bootstrap_tailscale_authkey | default('') | length > 0
+
+- name: Source the Tailscale hostname
+  ansible.builtin.set_fact:
+    lxc_bootstrap_tailscale_hostname: >-
+      {{ (lxc_bootstrap_ts_status.stdout | from_json).Self.DNSName | default('') | trim('.') }}
+  when:
+    - lxc_bootstrap_install_tailscale
+    - lxc_bootstrap_tailscale_authkey | default('') | length > 0
+    - lxc_bootstrap_ts_status.rc == 0
+    - lxc_bootstrap_ts_status.stdout | trim | length > 0
+
+- name: Read the current inventory file
+  ansible.builtin.slurp:
+    src: "{{ playbook_dir }}/inventory.yaml"
+  register: lxc_bootstrap_inventory_raw
+  delegate_to: localhost
+  when: lxc_bootstrap_tailscale_hostname is defined
+
+- name: Merge the new host into inventory data
+  ansible.builtin.set_fact:
+    lxc_bootstrap_inventory_data: >-
+      {{
+        (lxc_bootstrap_inventory_raw.content | b64decode | from_yaml)
+        | combine({
+            'lxc': {
+              'hosts': {
+                lxc_bootstrap_tailscale_hostname: {
+                  'ansible_host': lxc_bootstrap_tailscale_hostname,
+                  'ansible_user': lxc_bootstrap_ansible_user
+                }
+              }
+            }
+          }, recursive=True)
+      }}
+  when: lxc_bootstrap_tailscale_hostname is defined
+
+- name: Write the container into ansible/inventory.yaml
+  ansible.builtin.copy:
+    content: "{{ lxc_bootstrap_inventory_data | to_nice_yaml(indent=2, sort_keys=False) }}"
+    dest: "{{ playbook_dir }}/inventory.yaml"
+    mode: "0644"
+  delegate_to: localhost
+  when: lxc_bootstrap_tailscale_hostname is defined
+
+- name: Print next steps (manual tailscale up)
+  ansible.builtin.debug:
+    msg: >-
+      {{ inventory_hostname }} ({{ ansible_host }}) is bootstrapped. The
+      ansible user has no local SSH key - it's only reachable via
+      Tailscale SSH. SSH in as root@{{ ansible_host }} and run `tailscale
+      up --ssh` to join the tailnet (the `--ssh` flag enables Tailscale
+      SSH), then connect as
+      {{ lxc_bootstrap_ansible_user }}@<tailscale-hostname>. Add it to
+      ansible/inventory.yaml under the `lxc` group once you know its
+      Tailscale hostname.
+  when: lxc_bootstrap_tailscale_authkey | default('') | length == 0
+
+- name: Print next steps (joined tailnet)
+  ansible.builtin.debug:
+    msg: >-
+      {{ inventory_hostname }} ({{ ansible_host }}) is bootstrapped and
+      joined to the tailnet with Tailscale SSH enabled as
+      {{ lxc_bootstrap_tailscale_hostname | default('<pending - check `tailscale status` on the host>') }}.
+      Connect as {{ lxc_bootstrap_ansible_user }}@{{ lxc_bootstrap_tailscale_hostname | default('<tailscale-hostname>') }}
+      via `tailscale ssh` (or plain `ssh` once Tailscale SSH access is
+      configured) - it has no local authorized_keys, so plain SSH from
+      outside the tailnet won't reach it. root@{{ ansible_host }} remains
+      reachable via your GitHub key over plain SSH.
+      {{ lxc_bootstrap_tailscale_hostname | default(inventory_hostname) }}
+      has been added to ansible/inventory.yaml under the `lxc` group
+      automatically.
+  when: lxc_bootstrap_tailscale_authkey | default('') | length > 0

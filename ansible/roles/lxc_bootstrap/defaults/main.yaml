@@ -1,0 +1,30 @@
+---
+# GitHub username whose public keys get installed for lxc_bootstrap_ansible_user.
+lxc_bootstrap_github_user: jackweinbender
+
+# Non-root user created inside the container for Ansible to connect as
+# (matches ansible_user: ansible used by the lxc inventory group).
+lxc_bootstrap_ansible_user: ansible
+
+# Upgrade all installed packages (apt-get upgrade) before doing anything
+# else. Freshly-created containers can be sitting on months-old packages
+# from whenever the template was published.
+lxc_bootstrap_upgrade_packages: true
+
+# Install the Tailscale package inside the container.
+lxc_bootstrap_install_tailscale: true
+
+# Tailscale auth key used to run `tailscale up --authkey=...` automatically
+# after install. Normally passed via -e/interactive prompt (see `make
+# bootstrap-lxc`) rather than set here. Leave blank to skip joining the
+# tailnet automatically - `sudo tailscale up` remains available as a
+# manual step.
+lxc_bootstrap_tailscale_authkey: ""
+
+# Auto-login root on the Proxmox web UI's noVNC console (the container's
+# actual getty, not SSH - an SSH key does nothing there). ON by default as
+# a permanent part of the bootstrap: it means anyone with access to the
+# Proxmox GUI/API gets an unauthenticated root shell in the container, with
+# no password prompt. Accepted tradeoff here since Proxmox GUI/API access
+# is already restricted to trusted admins. Set to false to opt out.
+lxc_bootstrap_console_autologin: true
