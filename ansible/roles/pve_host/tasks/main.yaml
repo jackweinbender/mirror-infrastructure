@@ -41,6 +41,35 @@
   changed_when: "'Patching' in pve_host_nag_result.stdout"
   when: pve_host_disable_subscription_nag
 
+- name: Check whether this node has a corosync cluster config
+  ansible.builtin.stat:
+    path: /etc/pve/corosync.conf
+  register: pve_host_corosync_conf
+  when: pve_host_ha_enabled
+
+- name: Enable high availability services
+  ansible.builtin.systemd:
+    name: "{{ item }}"
+    state: started
+    enabled: true
+  loop:
+    - corosync
+    - pve-ha-crm
+    - pve-ha-lrm
+  when:
+    - pve_host_ha_enabled
+    - pve_host_corosync_conf.stat.exists
+
+- name: Warn that HA is requested but no cluster is configured
+  ansible.builtin.debug:
+    msg: >-
+      pve_host_ha_enabled is true but {{ inventory_hostname }} has no
+      /etc/pve/corosync.conf yet. Join or create a cluster first (pvecm
+      create / pvecm add), then re-run this role to enable HA services.
+  when:
+    - pve_host_ha_enabled
+    - not pve_host_corosync_conf.stat.exists
+
 - name: Disable high availability services
   ansible.builtin.systemd:
     name: "{{ item }}"
@@ -50,7 +79,7 @@
     - pve-ha-lrm
     - pve-ha-crm
     - corosync
-  when: pve_host_disable_ha
+  when: not pve_host_ha_enabled
 
 - name: Update apt cache
   ansible.builtin.apt:

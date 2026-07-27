@@ -1,0 +1,7 @@
+---
+# Required - must be provided via -e (no sane default)
+# lxc_prepare_ctid: 105
+
+# Add the TUN device (needed by Tailscale and other VPN clients) to the
+# container's LXC config.
+lxc_prepare_enable_tun: true

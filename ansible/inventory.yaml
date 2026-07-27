@@ -1,13 +1,17 @@
 all:
   vars:
     ansible_user: ansible
-
 lxc:
   hosts:
     docker-dayof-0:
       ansible_host: docker-dayof-0.tortoise-noodlefish.ts.net
       ansible_user: ansible
-
+    bootstrap-test.tortoise-noodlefish.ts.net:
+      ansible_host: bootstrap-test.tortoise-noodlefish.ts.net
+      ansible_user: ansible
+    pocketbase.tortoise-noodlefish.ts.net:
+      ansible_host: pocketbase.tortoise-noodlefish.ts.net
+      ansible_user: ansible
 pve_hosts:
   hosts:
     caba-host:

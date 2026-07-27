@@ -11,9 +11,12 @@ pve_host_enable_no_subscription_repo: true
 # Patch the Web UI / Mobile UI to remove the "No valid subscription" nag
 pve_host_disable_subscription_nag: true
 
-# Disable HA services (corosync/pve-ha-lrm/pve-ha-crm) on standalone,
-# non-clustered nodes to reclaim resources
-pve_host_disable_ha: true
+# Whether corosync/pve-ha-lrm/pve-ha-crm should be enabled and running.
+# caba-host and gateway-host are clustered ("weinbender-home") - default to
+# true so this role doesn't fight your corosync setup. Only takes effect
+# on nodes that actually have /etc/pve/corosync.conf; otherwise it just
+# warns instead of trying to start corosync without a cluster config.
+pve_host_ha_enabled: true
 
 # Run `apt dist-upgrade` as part of convergence
 pve_host_apt_dist_upgrade: true

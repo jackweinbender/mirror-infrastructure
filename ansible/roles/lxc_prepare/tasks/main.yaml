@@ -1,0 +1,101 @@
+---
+- name: Assert required variables are set
+  ansible.builtin.assert:
+    that:
+      - lxc_prepare_ctid is defined
+    fail_msg: >-
+      lxc_prepare_ctid is required, e.g.: make bootstrap-lxc
+      PVE_HOST=<pve-host> CTID=105
+
+- name: Wait for the container to accept pct exec
+  ansible.builtin.command:
+    argv:
+      - pct
+      - exec
+      - "{{ lxc_prepare_ctid }}"
+      - --
+      - "true"
+  register: lxc_prepare_exec_check
+  until: lxc_prepare_exec_check.rc == 0
+  retries: 10
+  delay: 5
+  changed_when: false
+
+- name: Add TUN device to the container's LXC config
+  # /etc/pve is pmxcfs (a FUSE-backed cluster filesystem). It does not
+  # support the atomic write-temp-then-rename pattern that lineinfile/copy/
+  # template rely on ("Invalid cross-device link" / "Permission denied"),
+  # AND it does not reliably support O_APPEND writes either (`>>` fails
+  # with "I/O error"). The one pattern that works is what a text editor
+  # does: read the whole file, then overwrite it in a single truncating
+  # write. (Also requires the node to have corosync quorum - pmxcfs
+  # refuses all writes without it.)
+  ansible.builtin.shell:
+    cmd: |
+      set -e
+      CONF=/etc/pve/lxc/{{ lxc_prepare_ctid }}.conf
+      LINE={{ item | quote }}
+      if grep -qxF "$LINE" "$CONF"; then
+        echo "CHANGED=0"
+      else
+        NEW_CONTENT=$(cat "$CONF"; printf '%s\n' "$LINE")
+        printf '%s\n' "$NEW_CONTENT" >"$CONF"
+        echo "CHANGED=1"
+      fi
+  loop:
+    - "lxc.cgroup2.devices.allow: c 10:200 rwm"
+    - "lxc.mount.entry: /dev/net/tun dev/net/tun none bind,create=file"
+  when: lxc_prepare_enable_tun
+  register: lxc_prepare_tun_config
+  changed_when: "'CHANGED=1' in lxc_prepare_tun_config.stdout"
+
+- name: Reboot the container to apply LXC config changes
+  ansible.builtin.command:
+    argv:
+      - pct
+      - reboot
+      - "{{ lxc_prepare_ctid }}"
+  when:
+    - lxc_prepare_enable_tun
+    - lxc_prepare_tun_config.results | selectattr('changed') | list | length > 0
+  changed_when: true
+
+- name: Wait for the container to accept pct exec after reboot
+  ansible.builtin.command:
+    argv:
+      - pct
+      - exec
+      - "{{ lxc_prepare_ctid }}"
+      - --
+      - "true"
+  register: lxc_prepare_exec_check_post_reboot
+  until: lxc_prepare_exec_check_post_reboot.rc == 0
+  retries: 10
+  delay: 5
+  changed_when: false
+  when:
+    - lxc_prepare_enable_tun
+    - lxc_prepare_tun_config.results | selectattr('changed') | list | length > 0
+
+- name: Get the container's IP address
+  ansible.builtin.command:
+    argv:
+      - pct
+      - exec
+      - "{{ lxc_prepare_ctid }}"
+      - --
+      - hostname
+      - -I
+  register: lxc_prepare_ip_result
+  changed_when: false
+  until: lxc_prepare_ip_result.stdout | trim | length > 0
+  retries: 10
+  delay: 5
+
+- name: Add the container to in-memory inventory for the next play
+  ansible.builtin.add_host:
+    name: "lxc-{{ lxc_prepare_ctid }}"
+    ansible_host: "{{ lxc_prepare_ip_result.stdout.split()[0] }}"
+    ansible_user: root
+    groups:
+      - lxc_new
