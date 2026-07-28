@@ -2,6 +2,14 @@
 - name: Include LXC bootstrap variables
   ansible.builtin.include_vars: vars.yml
 
+- name: Map LXC bootstrap variables to common role variables
+  ansible.builtin.set_fact:
+    common_upgrade_packages: "{{ lxc_bootstrap_upgrade_packages }}"
+    common_ansible_user: "{{ lxc_bootstrap_ansible_user }}"
+    common_github_user: "{{ lxc_bootstrap_github_user }}"
+    common_install_tailscale: "{{ lxc_bootstrap_install_tailscale }}"
+    common_tailscale_authkey: "{{ lxc_bootstrap_tailscale_authkey }}"
+
 - name: Wait for outbound network connectivity
   ansible.builtin.uri:
     url: https://github.com
@@ -120,19 +128,33 @@
 
 # Tailscale installation and configuration is now part of the tailscale role
 # Apply tailscale configuration if configured
+- name: Require Tailscale configuration
+  ansible.builtin.assert:
+    that:
+      - common_install_tailscale | bool
+      - common_tailscale_authkey | length > 0
+    fail_msg: >-
+      LXC bootstrap requires Tailscale and a non-empty
+      lxc_bootstrap_tailscale_authkey so the container can be added to inventory.
+
 - name: Include Tailscale configuration
   ansible.builtin.import_role:
     name: tailscale
-  when: common_install_tailscale | default(true) # Use common variable
+
+- name: Require a Tailscale hostname
+  ansible.builtin.assert:
+    that:
+      - tailscale_hostname is defined
+      - tailscale_hostname | length > 0
+    fail_msg: Tailscale did not return a hostname for the container.
 
 # Inventory management tasks are specific to the bootstrap process for adding new hosts
 # These should remain in the bootstrap playbook, not in the common role.
 - name: Read the current inventory file
   ansible.builtin.slurp:
-    src: "{{ playbook_dir }}/inventory.yaml"
+    src: "{{ playbook_dir }}/../inventory.yaml"
   register: lxc_bootstrap_inventory_raw
   delegate_to: localhost
-  when: common_tailscale_install_tailscale | default(true) and common_tailscale_authkey | default('') | length > 0 # Check if tailscale is intended and configured
 
 - name: Merge the new host into inventory data
   ansible.builtin.set_fact:
@@ -142,50 +164,35 @@
         | combine({
             'lxc': {
               'hosts': {
-                common_tailscale_hostname: { # Use common fact name
-                  'ansible_host': common_tailscale_hostname,
-                  'ansible_user': common_ansible_user | default('ansible') # Use common var
+                tailscale_hostname: {
+                  'ansible_host': tailscale_hostname,
+                  'ansible_user': common_ansible_user | default('ansible')
                 }
               }
             }
           }, recursive=True)
       }}
-  when: common_tailscale_install_tailscale | default(true) and common_tailscale_authkey | default('') | length > 0 and common_tailscale_hostname is defined
 
 - name: Write the container into ansible/inventory.yaml
   ansible.builtin.copy:
     content: "{{ lxc_bootstrap_inventory_data | to_nice_yaml(indent=2, sort_keys=False) }}"
-    dest: "{{ playbook_dir }}/inventory.yaml"
+    dest: "{{ playbook_dir }}/../inventory.yaml"
     mode: "0644"
   delegate_to: localhost
-  when: common_tailscale_install_tailscale | default(true) and common_tailscale_authkey | default('') | length > 0 and common_tailscale_hostname is defined
 
 # Print next steps - these can remain in the bootstrap playbook as they are specific to the bootstrapping process
-- name: Print next steps (manual tailscale up)
-  ansible.builtin.debug:
-    msg: >-
-      {{ inventory_hostname }} ({{ ansible_host }}) is bootstrapped. The
-      ansible user has no local SSH key - it's only reachable via
-      Tailscale SSH. SSH in as root@{{ ansible_host }} and run `tailscale
-      up --ssh` to join the tailnet (the `--ssh` flag enables Tailscale
-      SSH), then connect as
-      {{ common_ansible_user | default('ansible') }}@<tailscale-hostname>. Add it to
-      ansible/inventory.yaml under the `lxc` group once you know its
-      Tailscale hostname.
-  when: common_install_tailscale | default(true) and common_tailscale_authkey | default('') | length == 0
-
 - name: Print next steps (joined tailnet)
   ansible.builtin.debug:
     msg: >-
       {{ inventory_hostname }} ({{ ansible_host }}) is bootstrapped and
       joined to the tailnet with Tailscale SSH enabled as
-      {{ common_tailscale_hostname | default('<pending - check `tailscale status` on the host>') }}.
-      Connect as {{ common_ansible_user | default('ansible') }}@{{ common_tailscale_hostname | default('<tailscale-hostname>') }}
+      {{ tailscale_hostname | default('<pending - check `tailscale status` on the host>') }}.
+      Connect as {{ common_ansible_user | default('ansible') }}@{{ tailscale_hostname | default('<tailscale-hostname>') }}
       via `tailscale ssh` (or plain `ssh` once Tailscale SSH access is
       configured) - it has no local authorized_keys, so plain SSH from
       outside the tailnet won't reach it. root@{{ ansible_host }} remains
       reachable via your GitHub key over plain SSH.
-      {{ common_tailscale_hostname | default(inventory_hostname) }}
+      {{ tailscale_hostname | default(inventory_hostname) }}
       has been added to ansible/inventory.yaml under the `lxc` group
       automatically.
-  when: common_install_tailscale | default(true) and common_tailscale_authkey | default('') | length > 0
+  changed_when: false
