@@ -10,9 +10,9 @@ The following table details the available Ansible playbooks and their purposes.
 
 | Playbook Name              | Description                                                                 |
 | -------------------------- | --------------------------------------------------------------------------- |
-| `core.yaml`                | Core Ansible configurations and setup.                                      |
-| `local-bootstrap-lxc.yaml` | Boots individual LXC containers.                                            |
-| `local-bootstrap-pve.yaml` | Boots Proxmox Virtual Environment (PVE) hosts.                              |
+| `workloads.yaml`           | Maintains the steady state of bootstrapped workload servers using reusable roles. |
+| `local-bootstrap-lxc.yaml` | Orchestrates the bootstrap process for LXC containers, including initial setup and application of common roles. |
+| `local-bootstrap-pve.yaml` | Orchestrates the bootstrap process for PVE hosts, including initial setup and application of common roles. |
 
 ## Tasks
 
@@ -23,6 +23,8 @@ Ansible tasks are organized into directories based on their target or function.
 - `ansible/tasks/pve_host/`: Tasks for configuring Proxmox Virtual Environment hosts.
 
 ## Configuration
+
+All Ansible-managed tailnet hosts must have the `tag:ansible` Tailscale tag so the tailnet ACL permits management traffic.
 
 - `ansible.cfg`: Main Ansible configuration file. Sets inventory, disables host-key checking, and auto-detects Python.
 - `inventory.yaml`: Defines the hosts and groups for Ansible to manage.

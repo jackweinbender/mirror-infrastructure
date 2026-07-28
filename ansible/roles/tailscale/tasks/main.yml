@@ -1,0 +1,87 @@
+# This role installs and configures Tailscale.
+
+- name: Check whether Tailscale is already installed
+  ansible.builtin.command:
+    argv:
+      - which
+      - tailscale
+  register: tailscale_check
+  failed_when: false
+  changed_when: false
+  when: common_install_tailscale | default(true)
+
+- name: Download the Tailscale install script
+  ansible.builtin.get_url:
+    url: https://tailscale.com/install.sh
+    dest: /tmp/tailscale-install.sh
+    mode: "0755"
+  when:
+    - common_install_tailscale | default(true)
+    - tailscale_check.rc != 0
+
+- name: Run the Tailscale install script
+  ansible.builtin.command:
+    argv:
+      - sh
+      - /tmp/tailscale-install.sh
+  when:
+    - common_install_tailscale | default(true)
+    - tailscale_check.rc != 0
+  changed_when: true
+
+- name: Remove the Tailscale install script
+  ansible.builtin.file:
+    path: /tmp/tailscale-install.sh
+    state: absent
+  when: common_install_tailscale | default(true)
+
+- name: Check whether Tailscale already has an IP (already joined)
+  ansible.builtin.command:
+    argv:
+      - tailscale
+      - ip
+      - -4
+  register: ts_ip
+  changed_when: false
+  failed_when: false
+  when:
+    - common_install_tailscale | default(true)
+    - common_tailscale_authkey | default('') | length > 0
+
+- name: Join the tailnet
+  ansible.builtin.command:
+    argv:
+      - tailscale
+      - up
+      - "--authkey={{ common_tailscale_authkey }}"
+      - --ssh
+  when:
+    - common_install_tailscale | default(true)
+    - common_tailscale_authkey | default('') | length > 0
+    - ts_ip.rc != 0
+  no_log: true
+  changed_when: true
+
+- name: Get Tailscale status
+  ansible.builtin.command:
+    argv:
+      - tailscale
+      - status
+      - --self
+      - --json
+  register: ts_status
+  changed_when: false
+  failed_when: false
+  when:
+    - common_install_tailscale | default(true)
+    - common_tailscale_authkey | default('') | length > 0
+
+- name: Source the Tailscale hostname
+  ansible.builtin.set_fact:
+    common_tailscale_hostname: >
+      {{ (ts_status.stdout | from_json).Self.DNSName | default('') | trim('.') }}
+  when:
+    - common_install_tailscale | default(true)
+    - common_tailscale_authkey | default('') | length > 0
+    - ts_status.rc == 0
+    - ts_status.stdout | trim | length > 0

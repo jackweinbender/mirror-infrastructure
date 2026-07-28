@@ -16,7 +16,7 @@
 #     -e lxc_bootstrap_tailscale_authkey=tskey-...
 ---
 - name: Prepare LXC container on the PVE host
-  hosts: "{{ lxc_pve_host | default('pve_hosts') }}"
+  hosts: "{{ lxc_pve_host | default('hypervisors') }}"
   gather_facts: false
   tasks:
     - name: Include LXC prepare tasks

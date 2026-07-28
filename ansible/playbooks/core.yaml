@@ -1,9 +1,0 @@
-# Configures the steady-state of the core server configuration.
-# These are configuration tasks that apply to all non-hypervisor servers,
-# be they LXC, VM, or bare metal. All such servers should be running Debian 13
-# and be accessible via tailscale. This playbook is intended to be run from
-# CI/CD pipelines, and not from a local workstation. It is expected that each host
-# conforms to the bootstrapped state defined in the bootstrap.yaml playbook.
----
-- name: Core Config
-  hosts: tailnet

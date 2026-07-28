@@ -1,12 +1,15 @@
-all:
-  vars:
-    ansible_user: ansible
-lxc:
+# all:
+#   vars:
+#     ansible_user: ansible
+workloads:
   hosts:
     jellyfin-lxc.tortoise-noodlefish.ts.net:
       ansible_host: jellyfin-lxc.tortoise-noodlefish.ts.net
       ansible_user: ansible
-pve_hosts:
+    traefik-lxc.tortoise-noodlefish.ts.net:
+      ansible_host: traefik-lxc.tortoise-noodlefish.ts.net
+      ansible_user: ansible
+hypervisors:
   hosts:
     caba-host:
       ansible_host: 192.168.1.144

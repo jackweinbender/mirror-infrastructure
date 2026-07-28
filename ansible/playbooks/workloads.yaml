@@ -1,0 +1,11 @@
+# Maintains non-hypervisor Debian servers after bootstrap. These hosts may be
+# LXC containers, VMs, or bare metal, and must already be reachable over Tailscale
+# using the configured Ansible user. This playbook is intended for CI/CD.
+---
+- name: Configure workloads
+  hosts: workloads
+  gather_facts: true
+  become: true
+  roles:
+    - common
+    - tailscale

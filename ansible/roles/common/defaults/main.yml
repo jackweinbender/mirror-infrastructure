@@ -1,0 +1,7 @@
+# Default variables for the common role
+
+common_upgrade_packages: true
+common_ansible_user: ansible
+common_github_user: jackweinbender
+common_install_tailscale: true
+common_tailscale_authkey: ""
