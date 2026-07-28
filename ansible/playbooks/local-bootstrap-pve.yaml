@@ -1,0 +1,15 @@
+# Configures the Proxmox VE hosts in the pve_hosts inventory group. Run this
+# from the ansible directory on the local network: these hosts use LAN addresses
+# and require direct root SSH access. The play is intended to be safe to rerun.
+#
+# Preview changes across all PVE hosts:
+#   ansible-playbook playbooks/local-bootstrap-pve.yaml --check --diff
+#
+# Apply changes to one host:
+#   ansible-playbook playbooks/local-bootstrap-pve.yaml --limit caba-host
+---
+- name: PVE Host Configuration
+  hosts: pve_hosts
+  tasks:
+    - name: Include PVE host tasks
+      ansible.builtin.import_tasks: ../tasks/pve_host/main.yml

@@ -1,6 +1,0 @@
-# Playbook for configuring PVE Host boxes
----
-- name: PVE Host Configuration
-  hosts: pve_hosts
-  roles:
-    - pve_host

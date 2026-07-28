@@ -1,51 +1,54 @@
 ---
+- name: Include PVE host variables
+  ansible.builtin.include_vars: vars.yml
+
 - name: Disable pve-enterprise repository
   ansible.builtin.template:
-    src: pve-enterprise.sources.j2
+    src: templates/pve-enterprise.sources.j2
     dest: /etc/apt/sources.list.d/pve-enterprise.sources
     owner: root
     group: root
     mode: "0644"
-  when: pve_host_disable_enterprise_repo
+  when: pve_host_disable_enterprise_repo | default(true)
 
 - name: Enable pve-no-subscription repository
   ansible.builtin.template:
-    src: proxmox.sources.j2
+    src: templates/proxmox.sources.j2
     dest: /etc/apt/sources.list.d/proxmox.sources
     owner: root
     group: root
     mode: "0644"
-  when: pve_host_enable_no_subscription_repo
+  when: pve_host_enable_no_subscription_repo | default(true)
 
 - name: Install subscription nag removal script
   ansible.builtin.template:
-    src: pve-remove-nag.sh.j2
+    src: templates/pve-remove-nag.sh.j2
     dest: /usr/local/bin/pve-remove-nag.sh
     owner: root
     group: root
     mode: "0755"
-  when: pve_host_disable_subscription_nag
+  when: pve_host_disable_subscription_nag | default(true)
 
 - name: Install apt hook to reapply nag removal after package changes
   ansible.builtin.template:
-    src: no-nag-script.j2
+    src: templates/no-nag-script.j2
     dest: /etc/apt/apt.conf.d/no-nag-script
     owner: root
     group: root
     mode: "0644"
-  when: pve_host_disable_subscription_nag
+  when: pve_host_disable_subscription_nag | default(true)
 
 - name: Apply subscription nag removal now
   ansible.builtin.command: /usr/local/bin/pve-remove-nag.sh
   register: pve_host_nag_result
   changed_when: "'Patching' in pve_host_nag_result.stdout"
-  when: pve_host_disable_subscription_nag
+  when: pve_host_disable_subscription_nag | default(true)
 
 - name: Check whether this node has a corosync cluster config
   ansible.builtin.stat:
     path: /etc/pve/corosync.conf
   register: pve_host_corosync_conf
-  when: pve_host_ha_enabled
+  when: pve_host_ha_enabled | default(true)
 
 - name: Enable high availability services
   ansible.builtin.systemd:
@@ -57,18 +60,18 @@
     - pve-ha-crm
     - pve-ha-lrm
   when:
-    - pve_host_ha_enabled
-    - pve_host_corosync_conf.stat.exists
+    - pve_host_ha_enabled | default(true)
+    - pve_host_corosync_conf.stat.exists | default(false)
 
 - name: Warn that HA is requested but no cluster is configured
   ansible.builtin.debug:
     msg: >-
       pve_host_ha_enabled is true but {{ inventory_hostname }} has no
       /etc/pve/corosync.conf yet. Join or create a cluster first (pvecm
-      create / pvecm add), then re-run this role to enable HA services.
+      create / pvecm add), then re-run this playbook to enable HA services.
   when:
-    - pve_host_ha_enabled
-    - not pve_host_corosync_conf.stat.exists
+    - pve_host_ha_enabled | default(true)
+    - not pve_host_corosync_conf.stat.exists | default(false)
 
 - name: Disable high availability services
   ansible.builtin.systemd:
@@ -79,7 +82,7 @@
     - pve-ha-lrm
     - pve-ha-crm
     - corosync
-  when: not pve_host_ha_enabled
+  when: not pve_host_ha_enabled | default(true)
 
 - name: Update apt cache
   ansible.builtin.apt:
@@ -89,7 +92,7 @@
 - name: Dist-upgrade packages
   ansible.builtin.apt:
     upgrade: dist
-  when: pve_host_apt_dist_upgrade
+  when: pve_host_apt_dist_upgrade | default(true)
 
 - name: Check whether a reboot is required
   ansible.builtin.stat:
@@ -103,10 +106,10 @@
       update). Reboot manually when convenient.
   when:
     - pve_host_reboot_required_file.stat.exists
-    - not pve_host_reboot_if_required
+    - not pve_host_reboot_if_required | default(false)
 
 - name: Reboot and wait for the host to come back
   ansible.builtin.reboot:
   when:
     - pve_host_reboot_required_file.stat.exists
-    - pve_host_reboot_if_required
+    - pve_host_reboot_if_required | default(false)

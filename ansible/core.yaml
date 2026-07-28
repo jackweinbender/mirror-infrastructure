@@ -1,5 +1,0 @@
-# Playbook for configuring edge ingress device and webserver
----
-- name: Core Config
-  hosts: core
-  # become: true

@@ -13,7 +13,7 @@ pve_host_disable_subscription_nag: true
 
 # Whether corosync/pve-ha-lrm/pve-ha-crm should be enabled and running.
 # caba-host and gateway-host are clustered ("weinbender-home") - default to
-# true so this role doesn't fight your corosync setup. Only takes effect
+# true so this playbook doesn't fight your corosync setup. Only takes effect
 # on nodes that actually have /etc/pve/corosync.conf; otherwise it just
 # warns instead of trying to start corosync without a cluster config.
 pve_host_ha_enabled: true

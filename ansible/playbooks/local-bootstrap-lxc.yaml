@@ -1,0 +1,30 @@
+# Bootstraps an existing LXC container. Run this from the ansible directory on
+# the local network. The container must already exist, be running, and permit
+# root SSH access using the key supplied when it was created. The first play
+# prepares it through its PVE host; the second discovers its LAN address and
+# configures it directly. Omit the Tailscale key to join the tailnet later.
+#
+# Bootstrap without joining Tailscale:
+#   ansible-playbook playbooks/local-bootstrap-lxc.yaml \
+#     -e lxc_pve_host=caba-host \
+#     -e lxc_prepare_ctid=105
+#
+# Bootstrap and join Tailscale:
+#   ansible-playbook playbooks/local-bootstrap-lxc.yaml \
+#     -e lxc_pve_host=caba-host \
+#     -e lxc_prepare_ctid=105 \
+#     -e lxc_bootstrap_tailscale_authkey=tskey-...
+---
+- name: Prepare LXC container on the PVE host
+  hosts: "{{ lxc_pve_host | default('pve_hosts') }}"
+  gather_facts: false
+  tasks:
+    - name: Include LXC prepare tasks
+      ansible.builtin.import_tasks: ../tasks/lxc_prepare/main.yml
+
+- name: Bootstrap the container over SSH
+  hosts: lxc_new
+  gather_facts: true
+  tasks:
+    - name: Include LXC bootstrap tasks
+      ansible.builtin.import_tasks: ../tasks/lxc_bootstrap/main.yml
