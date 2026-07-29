@@ -20,6 +20,13 @@
 - name: Install Tailscale
   when: tailscale_check.rc != 0
   block:
+    - name: Ensure prerequisite packages are installed
+      ansible.builtin.apt:
+        name:
+          - ca-certificates
+          - gpg
+        state: present
+
     - name: Ensure the apt keyrings directory exists
       ansible.builtin.file:
         path: /etc/apt/keyrings

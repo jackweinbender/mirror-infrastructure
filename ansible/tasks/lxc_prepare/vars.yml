@@ -1,7 +1,9 @@
 ---
 # Required - must be provided via -e (no sane default)
 # lxc_prepare_ctid: 105
-
-# Add the TUN device (needed by Tailscale and other VPN clients) to the
-# container's LXC config.
-lxc_prepare_enable_tun: true
+#
+# lxc_prepare_enable_tun and lxc_prepare_enable_docker are intentionally
+# NOT defaulted here: include_vars (this file) has higher precedence than
+# play-level `vars:`, so a default set here would silently clobber a value
+# threaded in from a caller (e.g. local-bootstrap-lxc.yaml's Docker prompt).
+# Both are read via `| default(...)` at their point of use in main.yml instead.

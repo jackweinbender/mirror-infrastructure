@@ -80,11 +80,23 @@
       no_log: true
       when: lxc_bootstrap_tailscale_authkey is not defined
 
+    - name: Prompt for whether this container will run Docker
+      ansible.builtin.pause:
+        prompt: Will this container run Docker? (y/N)
+      register: lxc_prepare_enable_docker_prompt
+      when: lxc_prepare_enable_docker is not defined
+
+    - name: Record whether this container will run Docker
+      ansible.builtin.set_fact:
+        lxc_prepare_enable_docker: "{{ lxc_prepare_enable_docker_prompt.user_input | default('') | trim | lower in ['y', 'yes'] }}"
+      when: lxc_prepare_enable_docker is not defined
+
 - name: Prepare the LXC container on its PVE host
   hosts: "{{ hostvars['localhost']['lxc_pve_host'] }}"
   gather_facts: false
   vars:
     lxc_prepare_ctid: "{{ hostvars['localhost']['lxc_prepare_ctid'] }}"
+    lxc_prepare_enable_docker: "{{ hostvars['localhost']['lxc_prepare_enable_docker'] }}"
   tasks:
     - name: Include LXC prepare tasks
       ansible.builtin.import_tasks: ../tasks/lxc_prepare/main.yml
@@ -94,6 +106,7 @@
   gather_facts: true
   vars:
     lxc_bootstrap_tailscale_authkey: "{{ hostvars['localhost']['lxc_bootstrap_tailscale_authkey'] }}"
+    lxc_bootstrap_enable_docker: "{{ hostvars['localhost']['lxc_prepare_enable_docker'] }}"
   tasks:
     - name: Include LXC bootstrap tasks
       ansible.builtin.import_tasks: ../tasks/lxc_bootstrap/main.yml

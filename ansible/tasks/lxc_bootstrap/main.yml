@@ -60,10 +60,13 @@
   vars:
     lxc_bootstrap_inventory: "{{ lxc_bootstrap_inventory_raw.content | b64decode | from_yaml }}"
     # Preserve whatever vars (e.g. host_roles) an already-registered host
-    # already has; only a brand-new host gets `null`. Re-bootstrapping an
-    # existing host must not silently erase its host_roles.
+    # already has; only a brand-new host gets `null`, or {host_roles:
+    # [docker]} if lxc_bootstrap_enable_docker was requested. Re-bootstrapping
+    # an existing host must not silently erase its host_roles.
+    lxc_bootstrap_default_host_vars: >-
+      {{ {'host_roles': ['docker']} if (lxc_bootstrap_enable_docker | default(false)) else none }}
     lxc_bootstrap_existing_host_vars: >-
-      {{ lxc_bootstrap_inventory.workloads.hosts[tailscale_hostname] | default(none) }}
+      {{ lxc_bootstrap_inventory.workloads.hosts[tailscale_hostname] | default(lxc_bootstrap_default_host_vars) }}
   ansible.builtin.copy:
     content: >-
       {{
