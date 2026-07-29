@@ -1,6 +1,6 @@
 ---
+# noqa: var-naming
 # Verify that the docker role installed and configured everything correctly.
-
 - name: Verify Docker role
   hosts: all
   gather_facts: true
@@ -22,7 +22,7 @@
         fail_msg: "Docker not properly installed"
 
     # Verify Docker Compose plugin is installed
-    - name: Check Docker Compose plugin
+    - name: Check Docker Compose plugin  # noqa var-naming
       ansible.builtin.command:
         argv:
           - docker
@@ -46,7 +46,7 @@
       failed_when: ansible_facts.getent_group is not defined or 'docker' not in ansible_facts.getent_group
 
     # Verify ansible user is in docker group
-    - name: Check ansible user in docker group
+    - name: Check ansible user in docker group  # noqa var-naming
       ansible.builtin.command:
         argv:
           - id
@@ -62,7 +62,7 @@
         fail_msg: "ansible user not in docker group"
 
     # Verify jlw user is in docker group (from base_extra_sudo_users)
-    - name: Check jlw user in docker group
+    - name: Check jlw user in docker group  # noqa var-naming
       ansible.builtin.command:
         argv:
           - id

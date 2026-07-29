@@ -1,0 +1,60 @@
+---
+# Upgrade packages and install baseline tools required by other tasks.
+
+- name: Upgrade installed packages
+  ansible.builtin.apt:
+    upgrade: safe
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Ensure baseline packages are installed
+  ansible.builtin.apt:
+    name:
+      - curl
+      - git
+      - zsh
+    state: present
+
+- name: Install unattended-upgrades
+  ansible.builtin.apt:
+    name:
+      - unattended-upgrades
+      - apt-listchanges
+    state: present
+
+- name: Configure unattended-upgrades origins
+  ansible.builtin.template:
+    src: 50unattended-upgrades.j2
+    dest: /etc/apt/apt.conf.d/50unattended-upgrades
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Enable periodic apt updates
+  ansible.builtin.template:
+    src: 20auto-upgrades.j2
+    dest: /etc/apt/apt.conf.d/20auto-upgrades
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Ensure unattended-upgrades is enabled and running
+  ansible.builtin.systemd:
+    name: unattended-upgrades
+    enabled: true
+    state: started
+
+- name: Install needrestart for automatic service restarts
+  ansible.builtin.apt:
+    name: needrestart
+    state: present
+
+- name: Configure needrestart to automatically restart services
+  ansible.builtin.copy:
+    content: |
+      # Managed by Ansible (roles/base). Do not edit by hand.
+      $nrconf{restart} = 'a';
+    dest: /etc/needrestart/conf.d/99-base-auto-restart.conf
+    owner: root
+    group: root
+    mode: "0644"

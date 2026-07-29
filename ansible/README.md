@@ -1,222 +1,168 @@
 # Ansible
 
-## Ansible Playbook Organization and Principles
+Infrastructure management and bootstrap orchestration using Ansible roles and playbooks.
 
-This repository utilizes Ansible to manage infrastructure configurations. The organization of playbooks and roles follows these core principles:
+## Directory Structure
 
-*   **Separation of Concerns:**
-    *   **Steady-State Configuration:** Defined in reusable Ansible roles (e.g., `roles/base/`, `roles/tailscale/`, `roles/docker/`). These roles encapsulate idempotent configurations that ensure a server reaches and maintains a desired end-state. `base` + `tailscale` are applied to every host in `workloads.yaml`; specialized roles like `docker` are applied only to hosts that declare them via `host_roles` in `inventory.yaml`.
-    *   **Bootstrap Process:** Orchestrated by dedicated playbook files (e.g., `playbooks/local-bootstrap-lxc.yaml`). These playbooks handle the initial provisioning of new infrastructure. They include procedural, one-off tasks specific to the setup sequence inline or in task files (e.g., `tasks/lxc_bootstrap/main.yml`, `tasks/lxc_prepare/main.yml`), and call upon Ansible roles for steady-state configurations where applicable.
-    *   **Composable Features:** LXC feature tasks (e.g., `tasks/lxc_features/add_docker.yml`, `tasks/lxc_features/add_tailscale.yml`) are modular building blocks that can be orchestrated via standalone playbooks (e.g., `playbooks/local-lxc-add-docker.yaml`, `playbooks/local-lxc-add-tailscale.yaml`) to add capabilities to existing containers without re-running the full bootstrap.
+| Path | Purpose |
+|------|---------|
+| `roles/base/` | Debian baseline: packages, users, SSH, locale, timezone, autologin, logs |
+| `roles/docker/` | Docker Engine + Compose + group membership for passwordless docker |
+| `roles/tailscale/` | Tailscale VPN client installation and tailnet join |
+| `tasks/lxc_*/` | One-shot LXC bootstrap and feature provisioning |
+| `tasks/pve_host/` | Proxmox hypervisor configuration |
+| `playbooks/workloads.yaml` | Steady-state: applies roles to all managed hosts |
+| `playbooks/local-bootstrap-*.yaml` | One-shot bootstrap workflows |
 
-*   **DRY (Don't Repeat Yourself):** Common configurations are defined once in roles and applied consistently across hosts and playbooks.
+## Design Principles
 
-*   **Modularity and Reusability:** Ansible roles and task includes allow for composing complex configurations from smaller, manageable parts.
+- **Separation of Concerns**: Steady-state roles (idempotent) vs. bootstrap tasks (procedural)
+- **DRY**: Shared configuration lives once in roles; playbooks orchestrate without duplication
+- **Composability**: Feature tasks (`lxc_features/`) are modules; playbooks compose them
+- **Inventory-Driven**: `workloads.yaml` is generic; per-host specialization via `host_roles` in inventory
+- **Idempotency**: Safe to replay; roles check state before making changes
+- **Debian-Only**: No Ubuntu/distro detection; treats non-Debian as infrastructure error
 
-*   **Maintainability:** A clear distinction between initial setup and ongoing configuration simplifies updates, troubleshooting, and understanding the infrastructure's desired state.
-
-*   **Idempotency:** Steady-state configurations guarantee predictable outcomes, ensuring that running `workloads.yaml` multiple times will result in the same final configuration without unintended side effects.
-
-All Ansible-managed hosts on the tailnet must have the `tag:ansible` Tailscale tag so the tailnet ACL permits management traffic.
-
-## Developer setup
-
-Work from this directory so Ansible discovers `ansible.cfg`. The configuration selects `inventory.yaml`, disables host-key checking for these managed hosts, and lets Ansible choose the target Python interpreter automatically.
-
-Create an isolated Python environment and install the pinned Ansible tooling:
+## Setup
 
 ```bash
 cd ansible
 python3 -m venv .venv
 source .venv/bin/activate
-python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
-```
-
-Confirm the active tools and configuration:
-
-```bash
-ansible --version
-ansible-lint --version
-ansible-config dump --only-changed
-ansible-inventory --graph
-```
-
-Run the linter before submitting changes:
-
-```bash
-ansible-lint
+pip install -r requirements.txt
+ansible-lint                           # Syntax + style check
+ansible-inventory --graph               # Verify inventory
 ```
 
 ## Testing
 
-### Molecule Tests for Roles
-
-All three production roles (`base`, `docker`, `tailscale`) include [Molecule](https://molecule.readthedocs.io/) tests for independent validation without touching live infrastructure.
-
-#### Quick Start
-
-With Docker running, from the `ansible/` directory:
+All production roles have Molecule tests using Docker:
 
 ```bash
-# Full test cycle for each role: create → apply → verify → destroy
-molecule test -s base       # Debian baseline (~2-3 min)
-molecule test -s docker     # Docker Engine + Compose plugin (~3-4 min)
-molecule test -s tailscale  # Tailscale installation (~3-4 min)
-
-# Or, converge and inspect the container
-molecule converge -s docker     # Apply and keep running
-docker exec -it debian-bookworm bash  # Inspect inside
-docker ps                       # Verify Docker is working
-exit
-molecule destroy -s docker      # Clean up
-
-# Test idempotency (apply twice, second run should change nothing)
-molecule idempotent -s base     # Gold standard for Ansible roles
+molecule test -s base       # Debian baseline (~2 min)
+molecule test -s docker     # Docker Engine + Compose (~3 min)
+molecule test -s tailscale  # Tailscale VPN (~3 min)
+molecule idempotent -s base # Test idempotency (apply twice, no changes)
+molecule converge -s docker # Apply and inspect: docker exec -it debian-bookworm bash
+molecule destroy -s docker  # Clean up
 ```
 
-#### What Gets Tested
+See `roles/{role}/molecule/` for test details.
 
-**Base Role** — Debian baseline (users, packages, locale, timezone, SSH, shells)
+Bootstrap tasks (`tasks/lxc_*`) can't be easily unit-tested (they requires Proxmox) but are validated via:
+- Syntax check: `ansible-playbook playbooks/local-bootstrap-lxc.yaml --syntax-check`
+- Dry-run: `ansible-playbook playbooks/workloads.yaml --check --diff`
 
-**Docker Role** — Docker Engine + Compose plugin + group membership for passwordless docker access
+## Playbooks
 
-**Tailscale Role** — Tailscale installation from official repository + systemd daemon
+### workloads.yaml (Steady-State)
 
-#### Documentation
-
-For complete testing guide: `TESTING.md`  
-For bootstrap task testing strategy: `TESTING-TASKS.md`  
-For navigation: `TESTING-INDEX.md`  
-For role-specific details: `roles/{role}/molecule/README.md`
-
-###
-
-## Invoking playbooks
-
-Each playbook begins with a short description, its execution constraints, and a concrete invocation. The following examples show the common command-line variations.
-
-Check syntax without executing tasks:
+Apply base + tailscale to every host, then apply each host's `host_roles`:
 
 ```bash
-ansible-playbook playbooks/local-bootstrap-pve.yaml --syntax-check
-ansible-playbook playbooks/local-bootstrap-lxc.yaml --syntax-check
-ansible-playbook playbooks/workloads.yaml --syntax-check
+ansible-playbook playbooks/workloads.yaml
+ansible-playbook playbooks/workloads.yaml --check --diff  # Preview changes
+ansible-playbook playbooks/workloads.yaml --limit my-host # Single host
 ```
 
-Preview changes and display managed-file differences:
+To add a role to a host, edit `inventory.yaml` only:
+
+```yaml
+workloads:
+  hosts:
+    my-host.ts.net:
+      host_roles: [docker, tailscale]
+```
+
+### local-bootstrap-lxc.yaml (One-Shot: New Container)
+
+Create and bootstrap an LXC interactively with prompts, or non-interactively:
 
 ```bash
-ansible-playbook playbooks/local-bootstrap-pve.yaml --check --diff
+# Interactive
+ansible-playbook playbooks/local-bootstrap-lxc.yaml
+
+# Non-interactive (existing container)
+ansible-playbook playbooks/local-bootstrap-lxc.yaml \
+  -e skip_creation=true \
+  -e lxc_pve_host=my-proxmox-host \
+  -e lxc_prepare_ctid=105 \
+  -e lxc_bootstrap_tailscale_authkey=tskey-...
 ```
 
-Preview changes on one inventory host:
+### local-bootstrap-pve.yaml
 
-```bash
-ansible-playbook playbooks/local-bootstrap-pve.yaml \
-  --check \
-  --diff \
-  --limit caba-host
-```
-
-Apply the PVE playbook:
+Configure a Proxmox hypervisor:
 
 ```bash
 ansible-playbook playbooks/local-bootstrap-pve.yaml
 ```
 
-### LXC Bootstrap (interactive, creates new container)
+### local-lxc-add-docker.yaml / local-lxc-add-tailscale.yaml
 
-Bootstrap a new LXC container with interactive prompts for all inputs:
-
-```bash
-ansible-playbook playbooks/local-bootstrap-lxc.yaml
-```
-
-This guides you through container creation (name, CPU, memory, storage, SSH key), feature selection (Docker, Tailscale), and Tailscale registration.
-
-### LXC Bootstrap (existing container)
-
-Bootstrap an existing LXC container by passing the PVE host, container ID, and a Tailscale auth key:
-
-```bash
-ansible-playbook playbooks/local-bootstrap-lxc.yaml \
-  -e skip_creation=true \
-  -e lxc_pve_host=caba-host \
-  -e lxc_prepare_ctid=105 \
-  -e lxc_bootstrap_tailscale_authkey=tskey-...
-```
-
-Omit any of the inputs and the playbook prompts for them interactively (the PVE host prompt is a numbered menu built from the `hypervisors` inventory group).
-
-### Add features to existing containers
-
-These playbooks add specific features to already-bootstrapped containers without re-running the full bootstrap:
-
-#### Add Docker support
-
-```bash
-ansible-playbook playbooks/local-lxc-add-docker.yaml -e lxc_ctid=105
-```
-
-Non-interactive (supply PVE host):
+Add features to existing containers after bootstrap:
 
 ```bash
 ansible-playbook playbooks/local-lxc-add-docker.yaml \
-  -e lxc_pve_host=caba-host \
+  -e lxc_pve_host=my-proxmox-host \
   -e lxc_ctid=105
 ```
 
-Adds Docker-required LXC feature flags (nesting, keyctl) and reboots the container if needed.
+## Inventory
 
-#### Add Tailscale support
+**Groups:**
 
-```bash
-ansible-playbook playbooks/local-lxc-add-tailscale.yaml -e lxc_ctid=105
-```
+- `workloads`: Hosts on the tailnet managed by `workloads.yaml` (Ansible user, SSH over Tailscale)
+- `hypervisors`: Proxmox hosts on the LAN managed by bootstrap playbooks (root user, LAN access)
 
-Non-interactive (supply PVE host):
+**Per-Host Variables:**
 
-```bash
-ansible-playbook playbooks/local-lxc-add-tailscale.yaml \
-  -e lxc_pve_host=caba-host \
-  -e lxc_ctid=105
-```
+- `host_roles`: List of specialized roles to apply (e.g., `[docker]`). Defaults to `base + tailscale`.
 
-Tailscale requires a TUN/TAP device to create virtual network interfaces for the VPN tunnel. This playbook adds that support and reboots the container if necessary.
+**ACLs:**
 
-### Steady-state management
+All Ansible-managed hosts must have the Tailscale `tag:ansible` tag (required for management ACL).
 
-Once bootstrapped, containers manage themselves via `workloads.yaml`:
+## Remote Access Model
 
-```bash
-ansible-playbook playbooks/workloads.yaml
-```
+- **Primary**: Tailscale SSH (`tailscale up --ssh`) over the tailnet
+- **Fallback**: Proxmox web console (root login, no password) - see `roles/base/tasks/05-console_logs.yml`
+- **No**: Plaintext SSH keys or passwords; only Tailscale SSH
 
-Increase verbosity when diagnosing task or connection failures:
+## Role Details
 
-```bash
-ansible-playbook playbooks/local-bootstrap-pve.yaml -v
-ansible-playbook playbooks/local-bootstrap-pve.yaml -vvv
-```
+### base (Debian Baseline)
 
-## Specialized roles per host
+Applies to every host. 5 task files:
 
-`workloads.yaml` applies `base` + `tailscale` to every host, then loops
-over each host's `host_roles` list (declared in `inventory.yaml`) to apply
-anything beyond the baseline:
+| File | Coverage |
+|------|----------|
+| `01-packages_updates.yml` | Packages, unattended-upgrades, needrestart |
+| `02-users_shells.yml` | Create sudoers, set shells |
+| `03-ssh_security.yml` | Enforce key-only SSH, regenerate host keys on clones |
+| `04-system_time_locale.yml` | Locale, timezone, NTP |
+| `05-console_logs.yml` | Root autologin (console fallback), MOTD, log retention |
 
-```yaml
-# inventory.yaml
-workloads:
-  hosts:
-    traefik-lxc.tortoise-noodlefish.ts.net:
-      host_roles: [docker]
-```
+### docker
 
-To add a specialized role to a host, edit `inventory.yaml` only - never
-`workloads.yaml`. Check what a host will actually run:
+Adds Docker Engine + Compose + passwordless docker access if `host_roles: [docker]`. Preflight checks Proxmox LXC flags (nesting, keyctl) and fails fast with clear guidance if not set.
+
+### tailscale
+
+Installs Tailscale. If `tailscale_authkey` is set and host isn't already joined, joins the tailnet with SSH enabled. Applied to every host in `workloads.yaml`.
+
+## Linting & Validation
 
 ```bash
-ansible-inventory --host traefik-lxc.tortoise-noodlefish.ts.net
+ansible-lint                                      # All files
+ansible-playbook playbooks/workloads.yaml --syntax-check
+ansible-playbook playbooks/local-bootstrap-lxc.yaml -vvv  # Verbose debug
 ```
+
+## Key Decisions
+
+1. **No Feature Flags in Roles**: If a role always does something, it's not gated behind a variable. To skip a task, don't apply that role.
+2. **Debian-Only**: No distro detection. Treatment of non-Debian as an infrastructure error (rebuild as Debian).
+3. **Idempotency**: Every role is safe to replay multiple times. `workloads.yaml` can run daily or on-demand.
+4. **Bootstrap ≠ Steady State**: Bootstrap creates the user and joins tailnet. Everything else (packages, sshd policy, updates, shells) is owned by roles and applied on the first steady-state run.
+5. **Inventory-Driven Specialization**: `workloads.yaml` is generic; `host_roles` in inventory drives which roles apply to which hosts. Adding a role to a host means editing inventory only.

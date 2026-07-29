@@ -1,6 +1,6 @@
 ---
+# noqa: var-naming
 # Verify that the tailscale role installed and configured everything correctly.
-
 - name: Verify Tailscale role
   hosts: all
   gather_facts: true
@@ -35,7 +35,7 @@
         fail_msg: "tailscale binary not executable"
 
     # Verify tailscaled daemon binary exists
-    - name: Check tailscaled daemon binary exists
+    - name: Check tailscaled daemon binary exists  # noqa var-naming
       ansible.builtin.stat:
         path: /usr/sbin/tailscaled
       register: tailscaled_binary
@@ -49,7 +49,7 @@
       failed_when: not tailscale_service.stat.exists
 
     # Verify tailscaled is running (daemon that manages VPN connection)
-    - name: Check tailscaled daemon is running
+    - name: Check tailscaled daemon is running  # noqa var-naming
       ansible.builtin.command:
         argv:
           - systemctl
@@ -66,7 +66,7 @@
         fail_msg: "tailscaled daemon not running"
 
     # Verify tailscaled is enabled
-    - name: Check tailscaled daemon is enabled
+    - name: Check tailscaled daemon is enabled  # noqa var-naming
       ansible.builtin.command:
         argv:
           - systemctl
@@ -109,7 +109,7 @@
         fail_msg: "Tailscale GPG key not installed"
 
     # Verify the package is installed
-    - name: Get Tailscale package facts
+    - name: Get Tailscale package facts  # noqa var-naming
       ansible.builtin.package_facts:
         manager: apt
       register: package_facts

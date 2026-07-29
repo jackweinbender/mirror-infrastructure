@@ -1,0 +1,100 @@
+---
+# Configure root auto-login on console, login banner, and log retention.
+
+- name: Ensure getty override directories exist
+  ansible.builtin.file:
+    path: "/etc/systemd/system/{{ item.unit }}.d"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  loop: "{{ base_autologin_gettys }}"
+
+- name: Configure root auto-login overrides
+  ansible.builtin.copy:
+    dest: "/etc/systemd/system/{{ item.unit }}.d/override.conf"
+    content: |
+      [Service]
+      ExecStart=
+      ExecStart=-/sbin/agetty --autologin root --noclear --keep-baud {{ item.tty }} 115200,38400,9600 $TERM
+    owner: root
+    group: root
+    mode: "0644"
+  loop: "{{ base_autologin_gettys }}"
+  register: base_autologin_overrides
+
+- name: Reload systemd so it picks up the new overrides  # noqa no-handler
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when: base_autologin_overrides.changed
+
+- name: Restart running getty units to apply auto-login  # noqa no-handler
+  ansible.builtin.command:
+    argv:
+      - systemctl
+      - try-restart
+      - console-getty.service
+      - container-getty@*.service
+  when: base_autologin_overrides.changed
+  changed_when: true
+
+- name: Empty the static /etc/motd disclaimer
+  ansible.builtin.copy:
+    content: ""
+    dest: /etc/motd
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Find stock update-motd.d scripts
+  ansible.builtin.find:
+    paths: /etc/update-motd.d
+    excludes: 10-banner
+  register: base_motd_stock_scripts
+
+- name: Disable stock update-motd.d scripts
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    mode: "0644"
+  loop: "{{ base_motd_stock_scripts.files }}"
+
+- name: Install the login banner
+  ansible.builtin.template:
+    src: 10-banner.j2
+    dest: /etc/update-motd.d/10-banner
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Ensure the journald config directory exists
+  ansible.builtin.file:
+    path: /etc/systemd/journald.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Cap journald's on-disk log size
+  ansible.builtin.copy:
+    content: |
+      # Managed by Ansible (roles/base). Do not edit by hand.
+      [Journal]
+      SystemMaxUse={{ base_journald_max_use }}
+      MaxRetentionSec={{ base_journald_max_retention }}
+    dest: /etc/systemd/journald.conf.d/99-base-retention.conf
+    owner: root
+    group: root
+    mode: "0644"
+  register: base_journald_config
+
+- name: Restart journald to apply the retention cap  # noqa no-handler
+  ansible.builtin.systemd:
+    name: systemd-journald
+    state: restarted
+  when: base_journald_config.changed
+
+- name: Set the default logrotate retention
+  ansible.builtin.lineinfile:
+    path: /etc/logrotate.conf
+    regexp: '^(#\s*)?rotate\s+\d+'
+    line: "rotate {{ base_logrotate_weeks }}"

@@ -9,10 +9,9 @@
   ansible.builtin.assert:
     that:
       - ansible_facts['distribution'] == 'Debian'
-    fail_msg: >-
+    fail_msg: >
       Bootstrap supports Debian guests only; {{ inventory_hostname }} reports
-      {{ ansible_facts['distribution'] }} (os_family Debian includes Ubuntu,
-      which this repo does not support - see AGENTS.md).
+      {{ ansible_facts['distribution'] }}.
 
 - name: Require a Tailscale auth key
   ansible.builtin.assert:
@@ -34,9 +33,7 @@
   changed_when: false
 
 - name: Create the management user steady state connects as
-  ansible.builtin.import_role:
-    name: base
-    tasks_from: users
+  ansible.builtin.import_tasks: users.yml
 
 - name: Install Tailscale and join the tailnet
   ansible.builtin.import_role:

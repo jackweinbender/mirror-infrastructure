@@ -1,40 +1,15 @@
 ---
-# Each task file is one self-contained feature. No feature flags: applying
-# the role means applying the baseline. To skip a feature, don't apply it
-# (import_role with tasks_from, as bootstrap does with users.yml).
+- name: Install packages and enable automatic updates
+  ansible.builtin.import_tasks: 01-packages_updates.yml
 
-- name: Upgrade and install baseline packages
-  ansible.builtin.import_tasks: packages.yml
+- name: Create users and configure shells
+  ansible.builtin.import_tasks: 02-users_shells.yml
 
-- name: Create the management user and configure sudo
-  ansible.builtin.import_tasks: users.yml
+- name: Harden SSH and regenerate host keys on clones
+  ansible.builtin.import_tasks: 03-ssh_security.yml
 
-- name: Set account shells (zsh for personal logins)
-  ansible.builtin.import_tasks: shells.yml
+- name: Configure locale and time synchronization
+  ansible.builtin.import_tasks: 04-system_time_locale.yml
 
-- name: Regenerate SSH host keys if cloned from a shared template
-  ansible.builtin.import_tasks: ssh_host_keys.yml
-
-- name: Enforce key-only SSH authentication
-  ansible.builtin.import_tasks: ssh.yml
-
-- name: Configure automatic security updates
-  ansible.builtin.import_tasks: updates.yml
-
-- name: Automatically restart services after patching
-  ansible.builtin.import_tasks: needrestart.yml
-
-- name: Configure the system locale
-  ansible.builtin.import_tasks: locale.yml
-
-- name: Configure timezone and time sync
-  ansible.builtin.import_tasks: time.yml
-
-- name: Configure root auto-login on the container console
-  ansible.builtin.import_tasks: autologin.yml
-
-- name: Configure the login banner
-  ansible.builtin.import_tasks: motd.yml
-
-- name: Cap local log retention
-  ansible.builtin.import_tasks: logs.yml
+- name: Configure console access, login banner, and log retention
+  ansible.builtin.import_tasks: 05-console_logs.yml

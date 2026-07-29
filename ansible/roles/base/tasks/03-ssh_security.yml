@@ -1,16 +1,12 @@
 ---
-# Guards against duplicate SSH host keys when containers are cloned from a
-# shared Proxmox template (a real security defect - breaks host-key
-# pinning, is a latent impersonation risk between containers). Regenerates
-# once per host, gated on a marker file so subsequent runs are a no-op and
-# known_hosts entries don't keep breaking.
+# Enforce key-only SSH and regenerate host keys on cloned containers.
 
 - name: Check whether SSH host keys have already been regenerated
   ansible.builtin.stat:
     path: /etc/ssh/.base-host-keys-regenerated
   register: base_host_keys_marker
 
-- name: Regenerate SSH host keys
+- name: Regenerate SSH host keys if this is a cloned container
   when: not base_host_keys_marker.stat.exists
   block:
     - name: Find existing SSH host key files
@@ -44,3 +40,42 @@
         owner: root
         group: root
         mode: "0644"
+
+- name: Own the sshd hardening drop-in
+  ansible.builtin.copy:
+    content: |
+      # Managed by Ansible (roles/base). Do not edit by hand.
+      PasswordAuthentication no
+    dest: /etc/ssh/sshd_config.d/99-hardening.conf
+    owner: root
+    group: root
+    mode: "0644"
+  register: base_sshd_config
+
+- name: Ensure sshd's privilege separation directory exists  # noqa no-handler
+  ansible.builtin.command:
+    argv:
+      - install
+      - -d
+      - -m
+      - "0755"
+      - /run/sshd
+  when: base_sshd_config.changed
+  changed_when: false
+
+- name: Validate the merged sshd configuration  # noqa no-handler
+  ansible.builtin.command:
+    argv:
+      - /usr/sbin/sshd
+      - -t
+  when: base_sshd_config.changed
+  changed_when: false
+
+- name: Apply the sshd configuration  # noqa no-handler
+  ansible.builtin.command:
+    argv:
+      - systemctl
+      - reload-or-restart
+      - ssh.service
+  when: base_sshd_config.changed
+  changed_when: true
