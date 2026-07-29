@@ -22,7 +22,7 @@
     argv:
       - keyctl
       - show
-  register: base_preflight_keyctl
+  register: docker_preflight_keyctl
   failed_when: false
   changed_when: false
 
@@ -34,14 +34,14 @@
       pct set {{ ansible_hostname }} --features nesting=1,keyctl=1
       (the container's CTID may differ from its hostname - check `pct list`)
       then reboot the container and re-run this playbook.
-  when: base_preflight_keyctl.rc != 0
+  when: docker_preflight_keyctl.rc != 0
 
 - name: Check whether cgroup delegation is available (requires nesting)
   ansible.builtin.command:
     argv:
       - mkdir
-      - /sys/fs/cgroup/base-preflight-check
-  register: base_preflight_cgroup
+      - /sys/fs/cgroup/docker-preflight-check
+  register: docker_preflight_cgroup
   failed_when: false
   changed_when: false
 
@@ -49,8 +49,8 @@
   ansible.builtin.command:
     argv:
       - rmdir
-      - /sys/fs/cgroup/base-preflight-check
-  when: base_preflight_cgroup.rc == 0
+      - /sys/fs/cgroup/docker-preflight-check
+  when: docker_preflight_cgroup.rc == 0
   changed_when: false
   failed_when: false
 
@@ -63,4 +63,4 @@
       pct set {{ ansible_hostname }} --features nesting=1,keyctl=1
       (the container's CTID may differ from its hostname - check `pct list`)
       then reboot the container and re-run this playbook.
-  when: base_preflight_cgroup.rc != 0
+  when: docker_preflight_cgroup.rc != 0

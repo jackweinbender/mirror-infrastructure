@@ -9,6 +9,9 @@
 - name: Create the management user and configure sudo
   ansible.builtin.import_tasks: users.yml
 
+- name: Set account shells (zsh for personal logins)
+  ansible.builtin.import_tasks: shells.yml
+
 - name: Regenerate SSH host keys if cloned from a shared template
   ansible.builtin.import_tasks: ssh_host_keys.yml
 

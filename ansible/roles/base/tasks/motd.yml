@@ -17,7 +17,7 @@
 - name: Find stock update-motd.d scripts
   ansible.builtin.find:
     paths: /etc/update-motd.d
-    excludes: 10-hermes-banner
+    excludes: 10-banner
   register: base_motd_stock_scripts
 
 - name: Disable stock update-motd.d scripts
@@ -28,8 +28,8 @@
 
 - name: Install the login banner
   ansible.builtin.template:
-    src: 10-hermes-banner.j2
-    dest: /etc/update-motd.d/10-hermes-banner
+    src: 10-banner.j2
+    dest: /etc/update-motd.d/10-banner
     owner: root
     group: root
     mode: "0755"

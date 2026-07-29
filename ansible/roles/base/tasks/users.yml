@@ -4,7 +4,8 @@
 # (same treatment - user + passwordless sudo, nothing more). Bootstrap
 # imports exactly this file (import_role tasks_from: users) so a fresh
 # container can hand off to workloads.yaml; keep it free of anything
-# beyond that contract.
+# beyond that contract - shells are handled separately in shells.yml
+# because zsh isn't installed yet when bootstrap runs this.
 #
 # No SSH keys are installed for any of these accounts, on purpose:
 # Tailscale SSH is the only supported remote-access path, with the Proxmox
@@ -21,7 +22,6 @@
 - name: Create sudo-enabled accounts
   ansible.builtin.user:
     name: "{{ item }}"
-    shell: "{{ base_user_shells[item] | default('/bin/bash') }}"
     create_home: true
   loop: "{{ [base_ansible_user] + base_extra_sudo_users }}"
 
@@ -34,9 +34,3 @@
     mode: "0440"
     validate: "visudo -cf %s"
   loop: "{{ [base_ansible_user] + base_extra_sudo_users }}"
-
-- name: Set root's shell
-  ansible.builtin.user:
-    name: root
-    shell: "{{ base_user_shells['root'] | default('/bin/bash') }}"
-

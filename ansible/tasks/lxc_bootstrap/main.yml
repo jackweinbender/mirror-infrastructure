@@ -8,10 +8,11 @@
 - name: Require a Debian guest
   ansible.builtin.assert:
     that:
-      - ansible_facts['os_family'] == 'Debian'
+      - ansible_facts['distribution'] == 'Debian'
     fail_msg: >-
       Bootstrap supports Debian guests only; {{ inventory_hostname }} reports
-      {{ ansible_facts['os_family'] }}.
+      {{ ansible_facts['distribution'] }} (os_family Debian includes Ubuntu,
+      which this repo does not support - see AGENTS.md).
 
 - name: Require a Tailscale auth key
   ansible.builtin.assert:
@@ -23,7 +24,7 @@
 
 - name: Wait for outbound network connectivity
   ansible.builtin.uri:
-    url: https://github.com
+    url: https://tailscale.com
     method: HEAD
     status_code: [200, 301, 302]
   register: lxc_bootstrap_network
@@ -56,11 +57,18 @@
   delegate_to: localhost
 
 - name: Register the host under the workloads group
+  vars:
+    lxc_bootstrap_inventory: "{{ lxc_bootstrap_inventory_raw.content | b64decode | from_yaml }}"
+    # Preserve whatever vars (e.g. host_roles) an already-registered host
+    # already has; only a brand-new host gets `null`. Re-bootstrapping an
+    # existing host must not silently erase its host_roles.
+    lxc_bootstrap_existing_host_vars: >-
+      {{ lxc_bootstrap_inventory.workloads.hosts[tailscale_hostname] | default(none) }}
   ansible.builtin.copy:
     content: >-
       {{
-        lxc_bootstrap_inventory_raw.content | b64decode | from_yaml
-        | combine({'workloads': {'hosts': {tailscale_hostname: none}}}, recursive=true)
+        lxc_bootstrap_inventory
+        | combine({'workloads': {'hosts': {tailscale_hostname: lxc_bootstrap_existing_host_vars}}}, recursive=true)
         | to_nice_yaml(indent=2, sort_keys=false)
       }}
     dest: "{{ playbook_dir }}/../inventory.yaml"

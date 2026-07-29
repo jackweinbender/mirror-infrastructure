@@ -3,6 +3,10 @@
 # already joined, brings it onto the tailnet with Tailscale SSH enabled.
 # Sets tailscale_hostname (the host's tailnet FQDN) whenever the host is
 # joined, for callers that need it (bootstrap's inventory registration).
+#
+# Installed from Tailscale's own apt repo (pinned key + repo file, same
+# pattern as roles/docker), not the curl|sh install.sh convenience script -
+# auditable and reproducible rather than whatever the vendor ships that day.
 
 - name: Check whether Tailscale is already installed
   ansible.builtin.command:
@@ -16,23 +20,35 @@
 - name: Install Tailscale
   when: tailscale_check.rc != 0
   block:
-    - name: Download the Tailscale install script
-      ansible.builtin.get_url:
-        url: https://tailscale.com/install.sh
-        dest: /tmp/tailscale-install.sh
+    - name: Ensure the apt keyrings directory exists
+      ansible.builtin.file:
+        path: /etc/apt/keyrings
+        state: directory
+        owner: root
+        group: root
         mode: "0755"
 
-    - name: Run the Tailscale install script
-      ansible.builtin.command:
-        argv:
-          - sh
-          - /tmp/tailscale-install.sh
-      changed_when: true
+    - name: Download Tailscale's GPG key
+      ansible.builtin.get_url:
+        url: "https://pkgs.tailscale.com/stable/debian/{{ ansible_distribution_release }}.noarmor.gpg"
+        dest: /etc/apt/keyrings/tailscale.asc
+        owner: root
+        group: root
+        mode: "0644"
 
-    - name: Remove the Tailscale install script
-      ansible.builtin.file:
-        path: /tmp/tailscale-install.sh
-        state: absent
+    - name: Add Tailscale's apt repository
+      ansible.builtin.apt_repository:
+        repo: >-
+          deb [signed-by=/etc/apt/keyrings/tailscale.asc]
+          https://pkgs.tailscale.com/stable/debian {{ ansible_distribution_release }} main
+        filename: tailscale
+        state: present
+
+    - name: Install Tailscale
+      ansible.builtin.apt:
+        name: tailscale
+        state: present
+        update_cache: true
 
 - name: Check whether the host has already joined the tailnet
   ansible.builtin.command:

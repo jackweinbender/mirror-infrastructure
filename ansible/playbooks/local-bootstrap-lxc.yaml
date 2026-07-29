@@ -77,6 +77,7 @@
     - name: Record the Tailscale auth key
       ansible.builtin.set_fact:
         lxc_bootstrap_tailscale_authkey: "{{ lxc_bootstrap_authkey_prompt.user_input | trim }}"
+      no_log: true
       when: lxc_bootstrap_tailscale_authkey is not defined
 
 - name: Prepare the LXC container on its PVE host

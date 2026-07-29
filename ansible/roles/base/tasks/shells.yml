@@ -1,0 +1,22 @@
+---
+# Sets each account's default shell (base_user_shells). Split out of
+# users.yml because zsh doesn't exist until packages.yml has run - this
+# file must never be something bootstrap imports on its own. Steady state
+# always runs packages.yml -> users.yml -> shells.yml in that order, so the
+# shell binary is guaranteed to exist before this runs.
+
+- name: Set the ansible account's shell
+  ansible.builtin.user:
+    name: "{{ base_ansible_user }}"
+    shell: "{{ base_user_shells[base_ansible_user] | default('/bin/bash') }}"
+
+- name: Set extra sudo accounts' shells
+  ansible.builtin.user:
+    name: "{{ item }}"
+    shell: "{{ base_user_shells[item] | default('/bin/bash') }}"
+  loop: "{{ base_extra_sudo_users }}"
+
+- name: Set root's shell
+  ansible.builtin.user:
+    name: root
+    shell: "{{ base_user_shells['root'] | default('/bin/bash') }}"

@@ -39,84 +39,73 @@
   delay: 5
   changed_when: false
 
-- name: Find assigned container device slots
-  ansible.builtin.set_fact:
-    lxc_prepare_used_device_slots: >-
-      {{
-        lxc_prepare_ctid_check.stdout_lines
-        | select('match', '^dev[0-9]+:')
-        | map('regex_replace', ':.*$', '')
-        | list
-      }}
+- name: Add the TUN device if missing
   when:
-    - lxc_prepare_enable_tun | default(false)
+    - lxc_prepare_enable_tun
     - "'/dev/net/tun' not in lxc_prepare_ctid_check.stdout"
+  block:
+    - name: Find assigned container device slots
+      ansible.builtin.set_fact:
+        lxc_prepare_used_device_slots: >-
+          {{
+            lxc_prepare_ctid_check.stdout_lines
+            | select('match', '^dev[0-9]+:')
+            | map('regex_replace', ':.*$', '')
+            | list
+          }}
 
-- name: Find available container device slots
-  ansible.builtin.set_fact:
-    lxc_prepare_available_device_slots: >-
-      {{
-        range(0, 256)
-        | map('string')
-        | map('regex_replace', '^', 'dev')
-        | difference(lxc_prepare_used_device_slots)
-        | sort
-        | list
-      }}
-  when:
-    - lxc_prepare_enable_tun | default(false)
-    - "'/dev/net/tun' not in lxc_prepare_ctid_check.stdout"
+    - name: Find available container device slots
+      ansible.builtin.set_fact:
+        lxc_prepare_available_device_slots: >-
+          {{
+            range(0, 256)
+            | map('string')
+            | map('regex_replace', '^', 'dev')
+            | difference(lxc_prepare_used_device_slots)
+            | sort
+            | list
+          }}
 
-- name: Assert a container device slot is available
-  ansible.builtin.assert:
-    that:
-      - lxc_prepare_available_device_slots | length > 0
-    fail_msg: "Container {{ lxc_prepare_ctid }} has no free device slots"
-  when:
-    - lxc_prepare_enable_tun | default(false)
-    - "'/dev/net/tun' not in lxc_prepare_ctid_check.stdout"
+    - name: Assert a container device slot is available
+      ansible.builtin.assert:
+        that:
+          - lxc_prepare_available_device_slots | length > 0
+        fail_msg: "Container {{ lxc_prepare_ctid }} has no free device slots"
 
-- name: Enable TUN/TAP for container
-  ansible.builtin.command:
-    argv:
-      - pct
-      - set
-      - "{{ lxc_prepare_ctid }}"
-      - "--{{ lxc_prepare_available_device_slots | first }}"
-      - "path=/dev/net/tun"
-  when:
-    - lxc_prepare_enable_tun | default(false)
-    - "'/dev/net/tun' not in lxc_prepare_ctid_check.stdout"
-  register: lxc_prepare_tun_config
-  changed_when: true
+    - name: Enable TUN/TAP for container
+      ansible.builtin.command:
+        argv:
+          - pct
+          - set
+          - "{{ lxc_prepare_ctid }}"
+          - "--{{ lxc_prepare_available_device_slots | first }}"
+          - "path=/dev/net/tun"
+      register: lxc_prepare_tun_config
+      changed_when: true
 
-- name: Reboot the container to apply LXC config changes
-  ansible.builtin.command:
-    argv:
-      - pct
-      - reboot
-      - "{{ lxc_prepare_ctid }}"
-  when:
-    - lxc_prepare_enable_tun | default(false)
-    - lxc_prepare_tun_config.changed
-  changed_when: true
+    - name: Reboot the container to apply LXC config changes
+      ansible.builtin.command:
+        argv:
+          - pct
+          - reboot
+          - "{{ lxc_prepare_ctid }}"
+      when: lxc_prepare_tun_config.changed
+      changed_when: true
 
-- name: Wait for the container to accept pct exec after reboot
-  ansible.builtin.command:
-    argv:
-      - pct
-      - exec
-      - "{{ lxc_prepare_ctid }}"
-      - --
-      - "true"
-  register: lxc_prepare_exec_check_post_reboot
-  until: lxc_prepare_exec_check_post_reboot.rc == 0
-  retries: 10
-  delay: 5
-  changed_when: false
-  when:
-    - lxc_prepare_enable_tun | default(false)
-    - lxc_prepare_tun_config.changed
+    - name: Wait for the container to accept pct exec after reboot
+      ansible.builtin.command:
+        argv:
+          - pct
+          - exec
+          - "{{ lxc_prepare_ctid }}"
+          - --
+          - "true"
+      register: lxc_prepare_exec_check_post_reboot
+      until: lxc_prepare_exec_check_post_reboot.rc == 0
+      retries: 10
+      delay: 5
+      changed_when: false
+      when: lxc_prepare_tun_config.changed
 
 - name: Get the container's IP address
   ansible.builtin.command:
