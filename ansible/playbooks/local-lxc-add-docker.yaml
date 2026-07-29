@@ -1,0 +1,112 @@
+# Adds Docker-required LXC features (nesting, keyctl) to an existing container.
+# The container must exist on a Proxmox host. After features are applied, a
+# reboot is required for them to take effect. Run from the ansible directory
+# on the local network.
+#
+# Interactive (prompts for PVE host):
+#   ansible-playbook playbooks/local-lxc-add-docker.yaml -e lxc_ctid=105
+#
+# Non-interactive (CI/CD):
+#   ansible-playbook playbooks/local-lxc-add-docker.yaml \
+#     -e lxc_pve_host=caba-host \
+#     -e lxc_ctid=105
+---
+- name: Collect inputs not already supplied via --extra-vars
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Prompt for the PVE host if not supplied
+      ansible.builtin.pause:
+        prompt: |-
+          Proxmox host managing the container:
+          {% for host in groups['hypervisors'] %}
+          {{ loop.index }}) {{ host }}
+          {% endfor %}
+          Enter a number
+      register: lxc_pve_host_menu
+      vars:
+        selection: "{{ lxc_pve_host_menu.user_input | default('') | trim }}"
+      until: selection is regex('^[0-9]+$') and 1 <= (selection | int) <= (groups['hypervisors'] | length)
+      retries: 5
+      delay: 0
+      when: lxc_pve_host is not defined
+
+    - name: Record the selected PVE host
+      ansible.builtin.set_fact:
+        lxc_pve_host: "{{ groups['hypervisors'][(lxc_pve_host_menu.user_input | int) - 1] }}"
+      when: lxc_pve_host is not defined
+
+    - name: Confirm the PVE host is a known hypervisor (guards -e input)
+      ansible.builtin.assert:
+        that:
+          - lxc_pve_host in groups['hypervisors']
+        fail_msg: >-
+          {{ lxc_pve_host }} is not in the hypervisors inventory group
+          ({{ groups['hypervisors'] | join(', ') }}).
+
+    - name: Prompt for the container ID if not supplied
+      ansible.builtin.pause:
+        prompt: LXC container ID (e.g. 105)
+      register: lxc_ctid_prompt
+      vars:
+        ctid: "{{ lxc_ctid_prompt.user_input | default('') | trim }}"
+      until: ctid is regex('^[0-9]+$')
+      retries: 5
+      delay: 0
+      when: lxc_ctid is not defined
+
+    - name: Record the container ID
+      ansible.builtin.set_fact:
+        lxc_ctid: "{{ lxc_ctid_prompt.user_input | trim }}"
+      when: lxc_ctid is not defined
+
+- name: Add Docker features to the LXC container
+  hosts: "{{ hostvars.localhost.lxc_pve_host | default('localhost') }}"
+  gather_facts: false
+  vars:
+    lxc_features_ctid: "{{ hostvars.localhost.lxc_ctid }}"
+    lxc_features_enable_docker: true
+  tasks:
+    - name: Include Docker feature task
+      ansible.builtin.import_tasks: ../tasks/lxc_features/add_docker.yml
+
+    - name: Reboot the container if Docker features were added
+      ansible.builtin.command:
+        argv:
+          - pct
+          - reboot
+          - "{{ lxc_features_ctid }}"
+      when: lxc_features_reboot_required | default(false)
+      changed_when: true
+
+    - name: Wait for the container to come back after reboot
+      when: lxc_features_reboot_required | default(false)
+      block:
+        - name: Wait for container to accept pct exec
+          ansible.builtin.command:
+            argv:
+              - pct
+              - exec
+              - "{{ lxc_features_ctid }}"
+              - --
+              - "true"
+          register: lxc_reboot_exec_check
+          until: lxc_reboot_exec_check.rc == 0
+          retries: 10
+          delay: 5
+          changed_when: false
+
+    - name: Print summary
+      ansible.builtin.debug:
+        msg: >-
+          Docker features (nesting, keyctl) have been added to container
+          {{ lxc_features_ctid }}. The container has been rebooted for the
+          changes to take effect.
+      when: lxc_features_reboot_required | default(false)
+
+    - name: Print summary (no action taken)
+      ansible.builtin.debug:
+        msg: >-
+          Docker features (nesting, keyctl) were already present on container
+          {{ lxc_features_ctid }}. No action taken.
+      when: not (lxc_features_reboot_required | default(false))

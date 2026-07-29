@@ -7,6 +7,7 @@ This repository utilizes Ansible to manage infrastructure configurations. The or
 *   **Separation of Concerns:**
     *   **Steady-State Configuration:** Defined in reusable Ansible roles (e.g., `roles/base/`, `roles/tailscale/`, `roles/docker/`). These roles encapsulate idempotent configurations that ensure a server reaches and maintains a desired end-state. `base` + `tailscale` are applied to every host in `workloads.yaml`; specialized roles like `docker` are applied only to hosts that declare them via `host_roles` in `inventory.yaml`.
     *   **Bootstrap Process:** Orchestrated by dedicated playbook files (e.g., `playbooks/local-bootstrap-lxc.yaml`). These playbooks handle the initial provisioning of new infrastructure. They include procedural, one-off tasks specific to the setup sequence inline or in task files (e.g., `tasks/lxc_bootstrap/main.yml`, `tasks/lxc_prepare/main.yml`), and call upon Ansible roles for steady-state configurations where applicable.
+    *   **Composable Features:** LXC feature tasks (e.g., `tasks/lxc_features/add_docker.yml`, `tasks/lxc_features/add_tailscale.yml`) are modular building blocks that can be orchestrated via standalone playbooks (e.g., `playbooks/local-lxc-add-docker.yaml`, `playbooks/local-lxc-add-tailscale.yaml`) to add capabilities to existing containers without re-running the full bootstrap.
 
 *   **DRY (Don't Repeat Yourself):** Common configurations are defined once in roles and applied consistently across hosts and playbooks.
 
@@ -80,16 +81,69 @@ Apply the PVE playbook:
 ansible-playbook playbooks/local-bootstrap-pve.yaml
 ```
 
-Bootstrap an existing LXC container by passing the PVE host, container ID, and a Tailscale auth key (required - bootstrap's job is to put the container on the tailnet):
+### LXC Bootstrap (interactive, creates new container)
+
+Bootstrap a new LXC container with interactive prompts for all inputs:
+
+```bash
+ansible-playbook playbooks/local-bootstrap-lxc.yaml
+```
+
+This guides you through container creation (name, CPU, memory, storage, SSH key), feature selection (Docker, Tailscale), and Tailscale registration.
+
+### LXC Bootstrap (existing container)
+
+Bootstrap an existing LXC container by passing the PVE host, container ID, and a Tailscale auth key:
 
 ```bash
 ansible-playbook playbooks/local-bootstrap-lxc.yaml \
-  --extra-vars lxc_pve_host=caba-host \
-  --extra-vars lxc_prepare_ctid=105 \
-  --extra-vars lxc_bootstrap_tailscale_authkey=tskey-...
+  -e skip_creation=true \
+  -e lxc_pve_host=caba-host \
+  -e lxc_prepare_ctid=105 \
+  -e lxc_bootstrap_tailscale_authkey=tskey-...
 ```
 
-Omit any of the three and the playbook prompts for it interactively (the PVE host prompt is a numbered menu built from the `hypervisors` inventory group). Once bootstrapped, the container manages itself via `workloads.yaml`:
+Omit any of the inputs and the playbook prompts for them interactively (the PVE host prompt is a numbered menu built from the `hypervisors` inventory group).
+
+### Add features to existing containers
+
+These playbooks add specific features to already-bootstrapped containers without re-running the full bootstrap:
+
+#### Add Docker support
+
+```bash
+ansible-playbook playbooks/local-lxc-add-docker.yaml -e lxc_ctid=105
+```
+
+Non-interactive (supply PVE host):
+
+```bash
+ansible-playbook playbooks/local-lxc-add-docker.yaml \
+  -e lxc_pve_host=caba-host \
+  -e lxc_ctid=105
+```
+
+Adds Docker-required LXC feature flags (nesting, keyctl) and reboots the container if needed.
+
+#### Add Tailscale support
+
+```bash
+ansible-playbook playbooks/local-lxc-add-tailscale.yaml -e lxc_ctid=105
+```
+
+Non-interactive (supply PVE host):
+
+```bash
+ansible-playbook playbooks/local-lxc-add-tailscale.yaml \
+  -e lxc_pve_host=caba-host \
+  -e lxc_ctid=105
+```
+
+Tailscale requires a TUN/TAP device to create virtual network interfaces for the VPN tunnel. This playbook adds that support and reboots the container if necessary.
+
+### Steady-state management
+
+Once bootstrapped, containers manage themselves via `workloads.yaml`:
 
 ```bash
 ansible-playbook playbooks/workloads.yaml
@@ -122,4 +176,3 @@ To add a specialized role to a host, edit `inventory.yaml` only - never
 ```bash
 ansible-inventory --host traefik-lxc.tortoise-noodlefish.ts.net
 ```
-

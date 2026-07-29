@@ -39,54 +39,11 @@
   delay: 5
   changed_when: false
 
-- name: Add the TUN device if missing
-  when:
-    - lxc_prepare_enable_tun | default(true)
-    - "'/dev/net/tun' not in lxc_prepare_ctid_check.stdout"
-  block:
-    - name: Find assigned container device slots
-      ansible.builtin.set_fact:
-        lxc_prepare_used_device_slots: >-
-          {{
-            lxc_prepare_ctid_check.stdout_lines
-            | select('match', '^dev[0-9]+:')
-            | map('regex_replace', ':.*$', '')
-            | list
-          }}
-
-    - name: Find available container device slots
-      ansible.builtin.set_fact:
-        lxc_prepare_available_device_slots: >-
-          {{
-            range(0, 256)
-            | map('string')
-            | map('regex_replace', '^', 'dev')
-            | difference(lxc_prepare_used_device_slots)
-            | sort
-            | list
-          }}
-
-    - name: Assert a container device slot is available
-      ansible.builtin.assert:
-        that:
-          - lxc_prepare_available_device_slots | length > 0
-        fail_msg: "Container {{ lxc_prepare_ctid }} has no free device slots"
-
-    - name: Enable TUN/TAP for container
-      ansible.builtin.command:
-        argv:
-          - pct
-          - set
-          - "{{ lxc_prepare_ctid }}"
-          - "--{{ lxc_prepare_available_device_slots | first }}"
-          - "path=/dev/net/tun"
-      register: lxc_prepare_tun_config
-      changed_when: true
-
-    - name: Mark that a reboot is required after enabling TUN
-      ansible.builtin.set_fact:
-        lxc_prepare_reboot_required: true
-      when: lxc_prepare_tun_config.changed
+- name: Add Tailscale support (TUN/TAP device) if requested
+  vars:
+    lxc_features_ctid: "{{ lxc_prepare_ctid }}"
+    lxc_features_enable_tailscale: true
+  ansible.builtin.import_tasks: ../lxc_features/add_tailscale.yml
 
 # Docker needs two Proxmox-level LXC feature flags (nesting, keyctl) that
 # only take effect from the host side - see roles/docker/tasks/preflight.yml
@@ -94,31 +51,12 @@
 # caller actually intends to run Docker on this container (lxc_bootstrap
 # prompts for this) - most containers don't need the extra privileges, and
 # there's no reason to grant them by default (see AGENTS.md).
-- name: Enable Docker LXC features if requested
+- name: Add Docker features if requested
   when: lxc_prepare_enable_docker | default(false)
   vars:
-    lxc_prepare_features_line: >-
-      {{ lxc_prepare_ctid_check.stdout_lines | select('match', '^features:') | list | first | default('features:') }}
-    lxc_prepare_features_list: "{{ lxc_prepare_features_line.split(':', 1)[1].strip().split(',') | reject('equalto', '') | list }}"
-    lxc_prepare_docker_flags: ["nesting=1", "keyctl=1"]
-    lxc_prepare_features_missing: "{{ lxc_prepare_docker_flags | reject('in', lxc_prepare_features_list) | list }}"
-  block:
-    - name: Enable nesting and keyctl for Docker
-      ansible.builtin.command:
-        argv:
-          - pct
-          - set
-          - "{{ lxc_prepare_ctid }}"
-          - --features
-          - "{{ (lxc_prepare_features_list + lxc_prepare_features_missing) | join(',') }}"
-      when: lxc_prepare_features_missing | length > 0
-      register: lxc_prepare_docker_features_config
-      changed_when: true
-
-    - name: Mark that a reboot is required after enabling Docker features
-      ansible.builtin.set_fact:
-        lxc_prepare_reboot_required: true
-      when: lxc_prepare_docker_features_config.changed | default(false)
+    lxc_features_ctid: "{{ lxc_prepare_ctid }}"
+    lxc_features_enable_docker: true
+  ansible.builtin.import_tasks: ../lxc_features/add_docker.yml
 
 - name: Apply LXC config changes
   when: lxc_prepare_reboot_required | default(false)

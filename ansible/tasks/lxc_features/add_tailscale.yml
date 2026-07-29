@@ -1,0 +1,74 @@
+---
+# Adds TUN/TAP device required for Tailscale to function in an LXC container.
+# Tailscale needs TUN/TAP to create virtual network interfaces for the VPN tunnel.
+# Required variables:
+#   lxc_features_ctid: Container ID to add Tailscale support to
+# Optional variables:
+#   lxc_features_enable_tailscale: Whether to actually add TUN device (default: true)
+
+- name: Add TUN/TAP device for Tailscale
+  when: lxc_features_enable_tailscale | default(true)
+  block:
+    - name: Get container configuration
+      ansible.builtin.command:
+        argv:
+          - pct
+          - config
+          - "{{ lxc_features_ctid }}"
+      register: lxc_features_tun_config
+      changed_when: false
+
+    - name: Check if TUN device already exists
+      ansible.builtin.set_fact:
+        lxc_features_tun_exists: "{{ '/dev/net/tun' in lxc_features_tun_config.stdout }}"
+
+    - name: Skip TUN addition if already present
+      ansible.builtin.debug:
+        msg: "TUN device already present on container {{ lxc_features_ctid }}"
+      when: lxc_features_tun_exists
+
+    - name: Add TUN device to container
+      when: not lxc_features_tun_exists
+      block:
+        - name: Find assigned container device slots
+          ansible.builtin.set_fact:
+            lxc_features_used_device_slots: >-
+              {{
+                lxc_features_tun_config.stdout_lines
+                | select('match', '^dev[0-9]+:')
+                | map('regex_replace', ':.*$', '')
+                | list
+              }}
+
+        - name: Find available container device slots
+          ansible.builtin.set_fact:
+            lxc_features_available_device_slots: >-
+              {{
+                range(0, 256)
+                | map('string')
+                | map('regex_replace', '^', 'dev')
+                | difference(lxc_features_used_device_slots)
+                | sort
+                | list
+              }}
+
+        - name: Assert a container device slot is available
+          ansible.builtin.assert:
+            that:
+              - lxc_features_available_device_slots | length > 0
+            fail_msg: "Container {{ lxc_features_ctid }} has no free device slots"
+
+        - name: Enable TUN/TAP for container
+          ansible.builtin.command:
+            argv:
+              - pct
+              - set
+              - "{{ lxc_features_ctid }}"
+              - "--{{ lxc_features_available_device_slots | first }}"
+              - "path=/dev/net/tun"
+          register: lxc_features_tun_result
+          changed_when: true
+
+        - name: Mark that container reboot is required for Tailscale TUN to work
+          ansible.builtin.set_fact:
+            lxc_features_reboot_required: true
