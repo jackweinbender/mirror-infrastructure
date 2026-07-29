@@ -1,198 +1,76 @@
 ---
-- name: Include LXC bootstrap variables
-  ansible.builtin.include_vars: vars.yml
+# Bootstrap: the minimum to hand a fresh Debian LXC over to steady state
+# (workloads.yaml). Creates the management user, joins the tailnet, and
+# registers the host in inventory. Everything else - package upgrades, sshd
+# policy, unattended-upgrades, console auto-login - is desired-state config
+# owned by the base role and applied on the first steady-state run.
 
-- name: Map LXC bootstrap variables to base role variables
-  ansible.builtin.set_fact:
-    base_upgrade_packages: "{{ lxc_bootstrap_upgrade_packages }}"
-    base_ansible_user: "{{ lxc_bootstrap_ansible_user }}"
-    base_github_user: "{{ lxc_bootstrap_github_user }}"
-    base_install_tailscale: "{{ lxc_bootstrap_install_tailscale }}"
-    base_tailscale_authkey: "{{ lxc_bootstrap_tailscale_authkey }}"
+- name: Require a Debian guest
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['os_family'] == 'Debian'
+    fail_msg: >-
+      Bootstrap supports Debian guests only; {{ inventory_hostname }} reports
+      {{ ansible_facts['os_family'] }}.
+
+- name: Require a Tailscale auth key
+  ansible.builtin.assert:
+    that:
+      - lxc_bootstrap_tailscale_authkey | default('') | length > 0
+    fail_msg: >-
+      lxc_bootstrap_tailscale_authkey is required: bootstrap's job is to put
+      the container on the tailnet so workloads.yaml can manage it.
 
 - name: Wait for outbound network connectivity
   ansible.builtin.uri:
     url: https://github.com
     method: HEAD
-    status_code:
-      - 200
-      - 301
-      - 302
-  register: lxc_bootstrap_network_check
-  until: lxc_bootstrap_network_check.status is defined and lxc_bootstrap_network_check.status in [200, 301, 302]
+    status_code: [200, 301, 302]
+  register: lxc_bootstrap_network
+  until: lxc_bootstrap_network.status in [200, 301, 302]
   retries: 12
   delay: 5
   changed_when: false
 
-# Baseline provisioning: packages, users, SSH hardening, auto updates.
-- name: Include base server configuration
+- name: Create the management user steady state connects as
   ansible.builtin.import_role:
     name: base
-  when: ansible_facts['os_family'] == 'Debian' # Example condition, adjust as needed
+    tasks_from: users
 
-# Console auto-login configuration remains here as it's a provisioning step
-- name: Determine which getty unit serves the console (systemd)
-  ansible.builtin.command:
-    argv:
-      - systemctl
-      - is-active
-      - "{{ item }}"
-  loop:
-    - getty@service
-    - console-getty.service
-  register: lxc_bootstrap_getty_check
-  failed_when: false
-  changed_when: false
-  when:
-    - lxc_bootstrap_console_autologin | default(true)
-    - ansible_facts['os_family'] == 'Debian'
-
-- name: Select the active getty unit
-  ansible.builtin.set_fact:
-    lxc_bootstrap_getty_unit: >-
-      {{ (lxc_bootstrap_getty_check.results | selectattr('stdout', 'equalto', 'active') | map(attribute='item') | list | first) }}
-  when:
-    - lxc_bootstrap_console_autologin | default(true)
-    - ansible_facts['os_family'] == 'Debian'
-    - lxc_bootstrap_getty_check.results | selectattr('stdout', 'equalto', 'active') | list | length > 0
-
-- name: Warn if no active getty unit was found
-  ansible.builtin.debug:
-    msg: >-
-      lxc_bootstrap_console_autologin is true but no known getty unit
-      (getty@service, console-getty, getty@tty1) is active on
-      {{ inventory_hostname }}. Skipping console auto-login setup - check
-      `systemctl list-units | grep getty` on the host manually.
-  when:
-    - lxc_bootstrap_console_autologin | default(true)
-    - ansible_facts['os_family'] == 'Debian'
-    - lxc_bootstrap_getty_unit is not defined
-
-- name: Ensure the getty override directory exists
-  ansible.builtin.file:
-    path: "/etc/systemd/system/{{ lxc_bootstrap_getty_unit }}.d"
-    state: directory
-    owner: root
-    group: root
-    mode: "0755"
-  when:
-    - lxc_bootstrap_console_autologin | default(true)
-    - lxc_bootstrap_getty_unit is defined
-
-- name: Configure console auto-login for root (systemd)
-  ansible.builtin.copy:
-    dest: "/etc/systemd/system/{{ lxc_bootstrap_getty_unit }}.d/override.conf"
-    content: |
-      [Service]
-      ExecStart=
-      ExecStart=-/sbin/agetty --autologin root --noclear --keep-baud pts/%I 115200,38400,9600 $TERM
-    owner: root
-    group: root
-    mode: "0644"
-  register: lxc_bootstrap_getty_override
-  when:
-    - lxc_bootstrap_console_autologin | default(true)
-    - lxc_bootstrap_getty_unit is defined
-
-- name: Reload systemd and restart the getty unit
-  ansible.builtin.systemd:
-    daemon_reload: true
-    name: "{{ lxc_bootstrap_getty_unit }}"
-    state: restarted
-  when:
-    - lxc_bootstrap_console_autologin | default(true)
-    - lxc_bootstrap_getty_unit is defined
-    - lxc_bootstrap_getty_override.changed
-
-- name: Configure console auto-login for root (Alpine)
-  ansible.builtin.replace:
-    path: /etc/inittab
-    regexp: '^(tty1::respawn:)/sbin/getty.*$'
-    replace: '\1/sbin/getty -n -l /bin/login -a root 38400 tty1'
-  register: lxc_bootstrap_inittab
-  when:
-    - lxc_bootstrap_console_autologin | default(true)
-    - ansible_facts['os_family'] == 'Alpine'
-
-- name: Reload inittab (Alpine)
-  ansible.builtin.command:
-    argv:
-      - kill
-      - -HUP
-      - "1"
-  changed_when: true
-  when:
-    - lxc_bootstrap_console_autologin | default(true)
-    - ansible_facts['os_family'] == 'Alpine'
-    - lxc_bootstrap_inittab.changed
-
-# Tailscale installation and configuration is now part of the tailscale role
-# Apply tailscale configuration if configured
-- name: Require Tailscale configuration
-  ansible.builtin.assert:
-    that:
-      - base_install_tailscale | bool
-      - base_tailscale_authkey | length > 0
-    fail_msg: >-
-      LXC bootstrap requires Tailscale and a non-empty
-      lxc_bootstrap_tailscale_authkey so the container can be added to inventory.
-
-- name: Include Tailscale configuration
+- name: Install Tailscale and join the tailnet
   ansible.builtin.import_role:
     name: tailscale
+  vars:
+    tailscale_authkey: "{{ lxc_bootstrap_tailscale_authkey }}"
 
-- name: Require a Tailscale hostname
+- name: Require a tailnet hostname for inventory registration
   ansible.builtin.assert:
     that:
-      - tailscale_hostname is defined
-      - tailscale_hostname | length > 0
-    fail_msg: Tailscale did not return a hostname for the container.
+      - tailscale_hostname | default('') | length > 0
+    fail_msg: Tailscale did not report a hostname for the container.
 
-# Inventory management tasks are specific to the bootstrap process for adding new hosts
-# These should remain in the bootstrap playbook, not in the common role.
-- name: Read the current inventory file
+- name: Read the current inventory
   ansible.builtin.slurp:
     src: "{{ playbook_dir }}/../inventory.yaml"
   register: lxc_bootstrap_inventory_raw
   delegate_to: localhost
 
-- name: Merge the new host into inventory data
-  ansible.builtin.set_fact:
-    lxc_bootstrap_inventory_data: >-
-      {{
-        (lxc_bootstrap_inventory_raw.content | b64decode | from_yaml)
-        | combine({
-            'workloads': {
-              'hosts': {
-                tailscale_hostname: {
-                  'ansible_host': tailscale_hostname,
-                  'ansible_user': base_ansible_user | default('ansible')
-                }
-              }
-            }
-          }, recursive=True)
-      }}
-
-- name: Write the container into ansible/inventory.yaml
+- name: Register the host under the workloads group
   ansible.builtin.copy:
-    content: "{{ lxc_bootstrap_inventory_data | to_nice_yaml(indent=2, sort_keys=False) }}"
+    content: >-
+      {{
+        lxc_bootstrap_inventory_raw.content | b64decode | from_yaml
+        | combine({'workloads': {'hosts': {tailscale_hostname: none}}}, recursive=true)
+        | to_nice_yaml(indent=2, sort_keys=false)
+      }}
     dest: "{{ playbook_dir }}/../inventory.yaml"
     mode: "0644"
   delegate_to: localhost
 
-# Print next steps - these can remain in the bootstrap playbook as they are specific to the bootstrapping process
-- name: Print next steps (joined tailnet)
+- name: Print the handoff summary
   ansible.builtin.debug:
     msg: >-
-      {{ inventory_hostname }} ({{ ansible_host }}) is bootstrapped and
-      joined to the tailnet with Tailscale SSH enabled as
-      {{ tailscale_hostname | default('<pending - check `tailscale status` on the host>') }}.
-      Connect as {{ base_ansible_user | default('ansible') }}@{{ tailscale_hostname | default('<tailscale-hostname>') }}
-      via `tailscale ssh` (or plain `ssh` once Tailscale SSH access is
-      configured) - it has no local authorized_keys, so plain SSH from
-      outside the tailnet won't reach it. root@{{ ansible_host }} remains
-      reachable via your GitHub key over plain SSH.
-      {{ tailscale_hostname | default(inventory_hostname) }}
-      has been added to ansible/inventory.yaml under the `workloads` group
-      automatically.
-  changed_when: false
+      {{ tailscale_hostname }} is on the tailnet (Tailscale SSH enabled) and
+      registered in ansible/inventory.yaml under workloads. Run
+      workloads.yaml to apply the full baseline. Root remains reachable at
+      {{ ansible_host }} over plain SSH via your GitHub keys.

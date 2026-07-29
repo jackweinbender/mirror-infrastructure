@@ -1,4 +1,8 @@
-# This role installs and configures Tailscale.
+---
+# Installs Tailscale and, when tailscale_authkey is set and the host has not
+# already joined, brings it onto the tailnet with Tailscale SSH enabled.
+# Sets tailscale_hostname (the host's tailnet FQDN) whenever the host is
+# joined, for callers that need it (bootstrap's inventory registration).
 
 - name: Check whether Tailscale is already installed
   ansible.builtin.command:
@@ -8,72 +12,62 @@
   register: tailscale_check
   failed_when: false
   changed_when: false
-  when: base_install_tailscale | default(true)
 
-- name: Download the Tailscale install script
-  ansible.builtin.get_url:
-    url: https://tailscale.com/install.sh
-    dest: /tmp/tailscale-install.sh
-    mode: "0755"
-  when:
-    - base_install_tailscale | default(true)
-    - tailscale_check.rc != 0
+- name: Install Tailscale
+  when: tailscale_check.rc != 0
+  block:
+    - name: Download the Tailscale install script
+      ansible.builtin.get_url:
+        url: https://tailscale.com/install.sh
+        dest: /tmp/tailscale-install.sh
+        mode: "0755"
 
-- name: Run the Tailscale install script
-  ansible.builtin.command:
-    argv:
-      - sh
-      - /tmp/tailscale-install.sh
-  when:
-    - base_install_tailscale | default(true)
-    - tailscale_check.rc != 0
-  changed_when: true
+    - name: Run the Tailscale install script
+      ansible.builtin.command:
+        argv:
+          - sh
+          - /tmp/tailscale-install.sh
+      changed_when: true
 
-- name: Remove the Tailscale install script
-  ansible.builtin.file:
-    path: /tmp/tailscale-install.sh
-    state: absent
-  when: base_install_tailscale | default(true)
+    - name: Remove the Tailscale install script
+      ansible.builtin.file:
+        path: /tmp/tailscale-install.sh
+        state: absent
 
-- name: Check whether Tailscale already has an IP (already joined)
+- name: Check whether the host has already joined the tailnet
   ansible.builtin.command:
     argv:
       - tailscale
       - ip
       - -4
   register: tailscale_ip
-  changed_when: false
   failed_when: false
-  when:
-    - base_install_tailscale | default(true)
-    - base_tailscale_authkey | default('') | length > 0
-
-- name: Print Tailscale approval instructions
-  ansible.builtin.debug:
-    msg: >-
-      The container is joining the tailnet. If device approval is enabled,
-      approve the new device in the Tailscale admin UI while the next task waits.
-      Ensure the machine has the tag:ansible tag before continuing.
-  when:
-    - base_install_tailscale | default(true)
-    - base_tailscale_authkey | default('') | length > 0
-    - tailscale_ip.rc != 0
+  changed_when: false
 
 - name: Join the tailnet
-  ansible.builtin.command:
-    argv:
-      - tailscale
-      - up
-      - "--authkey={{ base_tailscale_authkey }}"
-      - --ssh
   when:
-    - base_install_tailscale | default(true)
-    - base_tailscale_authkey | default('') | length > 0
+    - tailscale_authkey | length > 0
     - tailscale_ip.rc != 0
-  no_log: true
-  changed_when: true
+  block:
+    - name: Print device approval instructions
+      ansible.builtin.debug:
+        msg: >-
+          The host is joining the tailnet. If device approval is enabled,
+          approve it in the Tailscale admin UI while the next task waits,
+          and give it the tag:ansible tag so the tailnet ACL permits
+          management traffic.
 
-- name: Get Tailscale status
+    - name: Run tailscale up
+      ansible.builtin.command:
+        argv:
+          - tailscale
+          - up
+          - "--authkey={{ tailscale_authkey }}"
+          - --ssh
+      no_log: true
+      changed_when: true
+
+- name: Read Tailscale status
   ansible.builtin.command:
     argv:
       - tailscale
@@ -81,18 +75,13 @@
       - --self
       - --json
   register: tailscale_status
-  changed_when: false
   failed_when: false
-  when:
-    - base_install_tailscale | default(true)
-    - base_tailscale_authkey | default('') | length > 0
+  changed_when: false
 
-- name: Source the Tailscale hostname
+- name: Record the tailnet hostname
   ansible.builtin.set_fact:
     tailscale_hostname: >-
       {{ (tailscale_status.stdout | from_json).Self.DNSName | default('') | trim | trim('.') }}
   when:
-    - base_install_tailscale | default(true)
-    - base_tailscale_authkey | default('') | length > 0
     - tailscale_status.rc == 0
     - tailscale_status.stdout | trim | length > 0

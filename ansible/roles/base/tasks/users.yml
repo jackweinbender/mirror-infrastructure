@@ -1,11 +1,23 @@
 ---
-- name: Create the ansible management user
+# Everything steady-state management depends on: the ansible user with
+# passwordless sudo, and root's SSH keys. Bootstrap imports exactly this
+# file (import_role tasks_from: users) so a fresh container can hand off
+# to workloads.yaml; keep it free of anything beyond that contract.
+
+- name: Ensure sudo is installed
+  ansible.builtin.apt:
+    name: sudo
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Create the management user
   ansible.builtin.user:
     name: "{{ base_ansible_user }}"
     shell: /bin/bash
     create_home: true
 
-- name: Configure passwordless sudo for the ansible user
+- name: Grant the management user passwordless sudo
   ansible.builtin.copy:
     content: "{{ base_ansible_user }} ALL=(ALL) NOPASSWD:ALL\n"
     dest: "/etc/sudoers.d/{{ base_ansible_user }}"
@@ -13,6 +25,14 @@
     group: root
     mode: "0440"
     validate: "visudo -cf %s"
+
+- name: Fetch root's SSH keys from GitHub
+  ansible.builtin.uri:
+    url: "https://github.com/{{ base_github_user }}.keys"
+    return_content: true
+  register: base_github_keys
+  # An empty key set would lock root out of plain SSH - refuse to proceed.
+  failed_when: base_github_keys.content | trim | length == 0
 
 - name: Ensure root's .ssh directory exists
   ansible.builtin.file:
@@ -22,19 +42,10 @@
     group: root
     mode: "0700"
 
-- name: Fetch GitHub public keys for root
-  ansible.builtin.uri:
-    url: "https://github.com/{{ base_github_user }}.keys"
-    return_content: true
-  register: base_github_keys
-
-- name: Install GitHub SSH keys for root
-  ansible.builtin.lineinfile:
-    path: /root/.ssh/authorized_keys
-    line: "{{ item }}"
-    create: true
+- name: Make GitHub the authoritative source of root's authorized_keys
+  ansible.builtin.copy:
+    content: "{{ base_github_keys.content | trim }}\n"
+    dest: /root/.ssh/authorized_keys
     owner: root
     group: root
     mode: "0600"
-  loop: "{{ base_github_keys.content.splitlines() }}"
-  when: item | trim | length > 0

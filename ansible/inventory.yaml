@@ -1,16 +1,15 @@
 workloads:
+  vars:
+    ansible_user: ansible
   hosts:
-    jellyfin-lxc.tortoise-noodlefish.ts.net:
-      ansible_host: jellyfin-lxc.tortoise-noodlefish.ts.net
-      ansible_user: ansible
-    traefik-lxc.tortoise-noodlefish.ts.net:
-      ansible_host: traefik-lxc.tortoise-noodlefish.ts.net
-      ansible_user: ansible
+    jellyfin-lxc.tortoise-noodlefish.ts.net: null
+    traefik-lxc.tortoise-noodlefish.ts.net: null
+    testt.tortoise-noodlefish.ts.net: null
 hypervisors:
+  vars:
+    ansible_user: root
   hosts:
     caba-host:
       ansible_host: 192.168.1.144
-      ansible_user: root
     gateway-host:
       ansible_host: 192.168.14.134
-      ansible_user: root

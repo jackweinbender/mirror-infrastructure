@@ -1,0 +1,51 @@
+---
+# Owns /etc/ssh/sshd_config.d/99-hardening.conf outright: whatever this file
+# says is the complete policy, and stale directives from older role versions
+# are replaced wholesale on the next run. Only plain sshd is affected -
+# Tailscale SSH is tailscaled's own server and ignores sshd_config entirely.
+#
+# Validation targets the merged config (sshd -t, no -f): the service loads
+# sshd_config plus every drop-in together, and a per-file check cannot see
+# conflicts between them. sshd -t needs /run/sshd, which only exists while
+# sshd is running - not a given on hosts reached over Tailscale SSH - so it
+# is created first. If validation fails, the service is left untouched and
+# sshd's own error lands in the task output.
+
+- name: Own the sshd hardening drop-in
+  ansible.builtin.copy:
+    content: |
+      # Managed by Ansible (roles/base). Do not edit by hand.
+      PasswordAuthentication no
+    dest: /etc/ssh/sshd_config.d/99-hardening.conf
+    owner: root
+    group: root
+    mode: "0644"
+  register: base_sshd_config
+
+- name: Ensure sshd's privilege separation directory exists
+  ansible.builtin.command:
+    argv:
+      - install
+      - -d
+      - -m
+      - "0755"
+      - /run/sshd
+  when: base_sshd_config.changed
+  changed_when: false
+
+- name: Validate the merged sshd configuration
+  ansible.builtin.command:
+    argv:
+      - /usr/sbin/sshd
+      - -t
+  when: base_sshd_config.changed
+  changed_when: false
+
+- name: Apply the sshd configuration
+  ansible.builtin.command:
+    argv:
+      - systemctl
+      - reload-or-restart
+      - ssh.service
+  when: base_sshd_config.changed
+  changed_when: true

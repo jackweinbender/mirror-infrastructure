@@ -22,7 +22,7 @@
     group: root
     mode: "0644"
 
-- name: Ensure unattended-upgrades service is enabled and running
+- name: Ensure unattended-upgrades is enabled and running
   ansible.builtin.systemd:
     name: unattended-upgrades
     enabled: true

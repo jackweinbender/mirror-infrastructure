@@ -1,18 +1,13 @@
-# Bootstraps an existing LXC container. Run this from the ansible directory on
-# the local network. The container must already exist, be running, and permit
-# root SSH access using the key supplied when it was created. The first play
-# prompts for any of lxc_pve_host / lxc_prepare_ctid / lxc_bootstrap_tailscale_authkey
-# not already supplied via --extra-vars - lxc_pve_host is a numbered menu
-# built from the `hypervisors` inventory group (retries on invalid input) so
-# you pick a valid host instead of typing its name - then hands off to the
-# PVE host to prepare the container; the last play discovers its LAN address
-# and configures it directly. Leave the Tailscale auth key blank at the
-# prompt (or omit lxc_bootstrap_tailscale_authkey) to join the tailnet later.
+# Bootstraps an existing LXC container: creates the management user, joins
+# the tailnet, and registers the host in inventory so workloads.yaml can
+# take over. Run from the ansible directory on the local network. The
+# container must already exist, be running, and permit root SSH with the
+# key supplied at creation.
 #
-# Bootstrap interactively (prompts for anything not passed via -e):
+# The first play prompts for any input not already supplied via -e:
 #   ansible-playbook playbooks/local-bootstrap-lxc.yaml
 #
-# Bootstrap non-interactively (CI/CD, no prompts):
+# Non-interactive (CI/CD, no prompts):
 #   ansible-playbook playbooks/local-bootstrap-lxc.yaml \
 #     -e lxc_pve_host=caba-host \
 #     -e lxc_prepare_ctid=105 \
@@ -22,35 +17,28 @@
   hosts: localhost
   gather_facts: false
   tasks:
-    - name: Build the numbered PVE host menu
-      ansible.builtin.set_fact:
-        lxc_pve_host_menu: "{{ groups['hypervisors'] }}"
-
-    - name: Prompt for the PVE host by number if not supplied
+    - name: Prompt for the PVE host by number
       ansible.builtin.pause:
         prompt: |-
           Proxmox host managing the container:
-          {% for host in lxc_pve_host_menu %}
+          {% for host in groups['hypervisors'] %}
           {{ loop.index }}) {{ host }}
           {% endfor %}
           Enter a number
-      register: lxc_pve_host_prompt
+      register: lxc_pve_host_menu
       vars:
-        selection: "{{ lxc_pve_host_prompt.user_input | default('') | trim }}"
-      until: >-
-        selection is regex('^[0-9]+$') and
-        (selection | int) >= 1 and
-        (selection | int) <= (lxc_pve_host_menu | length)
+        selection: "{{ lxc_pve_host_menu.user_input | default('') | trim }}"
+      until: selection is regex('^[0-9]+$') and 1 <= (selection | int) <= (groups['hypervisors'] | length)
       retries: 5
       delay: 0
       when: lxc_pve_host is not defined
 
     - name: Record the selected PVE host
       ansible.builtin.set_fact:
-        lxc_pve_host: "{{ lxc_pve_host_menu[(lxc_pve_host_prompt.user_input | int) - 1] }}"
+        lxc_pve_host: "{{ groups['hypervisors'][(lxc_pve_host_menu.user_input | int) - 1] }}"
       when: lxc_pve_host is not defined
 
-    - name: Confirm the PVE host is a known hypervisor
+    - name: Confirm the PVE host is a known hypervisor (guards -e input)
       ansible.builtin.assert:
         that:
           - lxc_pve_host in groups['hypervisors']
@@ -58,30 +46,40 @@
           {{ lxc_pve_host }} is not in the hypervisors inventory group
           ({{ groups['hypervisors'] | join(', ') }}).
 
-    - name: Prompt for the container ID if not supplied
+    - name: Prompt for the container ID
       ansible.builtin.pause:
         prompt: LXC container ID (e.g. 105)
       register: lxc_prepare_ctid_prompt
+      vars:
+        ctid: "{{ lxc_prepare_ctid_prompt.user_input | default('') | trim }}"
+      until: ctid is regex('^[0-9]+$')
+      retries: 5
+      delay: 0
       when: lxc_prepare_ctid is not defined
 
-    - name: Record the prompted container ID
+    - name: Record the container ID
       ansible.builtin.set_fact:
-        lxc_prepare_ctid: "{{ lxc_prepare_ctid_prompt.user_input }}"
+        lxc_prepare_ctid: "{{ lxc_prepare_ctid_prompt.user_input | trim }}"
       when: lxc_prepare_ctid is not defined
 
-    - name: Prompt for the Tailscale auth key if not supplied
+    - name: Prompt for the Tailscale auth key
       ansible.builtin.pause:
-        prompt: Tailscale auth key (leave blank to join the tailnet later)
+        prompt: Tailscale auth key (required - bootstrap puts the container on the tailnet)
         echo: false
-      register: lxc_bootstrap_tailscale_authkey_prompt
+      register: lxc_bootstrap_authkey_prompt
+      vars:
+        authkey: "{{ lxc_bootstrap_authkey_prompt.user_input | default('') | trim }}"
+      until: authkey | length > 0
+      retries: 5
+      delay: 0
       when: lxc_bootstrap_tailscale_authkey is not defined
 
-    - name: Record the prompted Tailscale auth key
+    - name: Record the Tailscale auth key
       ansible.builtin.set_fact:
-        lxc_bootstrap_tailscale_authkey: "{{ lxc_bootstrap_tailscale_authkey_prompt.user_input }}"
+        lxc_bootstrap_tailscale_authkey: "{{ lxc_bootstrap_authkey_prompt.user_input | trim }}"
       when: lxc_bootstrap_tailscale_authkey is not defined
 
-- name: Prepare LXC container on the PVE host
+- name: Prepare the LXC container on its PVE host
   hosts: "{{ hostvars['localhost']['lxc_pve_host'] }}"
   gather_facts: false
   vars:

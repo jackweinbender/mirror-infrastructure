@@ -1,22 +1,15 @@
 ---
-# base role: baseline provisioning for Debian workloads on a Tailscale-only
-# network (never internet-exposed). Kept intentionally minimal - no
-# firewall/sysctl/fail2ban, since Tailscale ACLs are the real perimeter and
-# those controls mostly guard against threats these hosts don't face while
-# adding real operational risk (unprivileged-LXC sysctl/nft friction,
-# lockout risk) for little benefit here.
+# base role: the Debian baseline every workload converges to. Applied on
+# every steady-state run by workloads.yaml; bootstrap borrows users.yml only
+# (see tasks/lxc_bootstrap/main.yml).
 
-base_upgrade_packages: true
 base_ansible_user: ansible
 base_github_user: jackweinbender
 
-# Tailscale gating (consumed by roles/tailscale)
-base_install_tailscale: true
-base_tailscale_authkey: ""
-
-# SSH: disable password auth only. Root login is left at Debian's default
-# (prohibit-password) rather than hard-disabled - Tailscale ACLs already
-# gate who can reach sshd at all.
-base_ssh_password_authentication: false
-
-base_enable_unattended_upgrades: true
+# Console getty units a Debian LXC may serve, with the tty argument each
+# expects. Both get an auto-login override; the unused one is inert.
+base_autologin_gettys:
+  - unit: container-getty@.service # Proxmox default console (pts/N)
+    tty: pts/%I
+  - unit: console-getty.service # /dev/console fallback
+    tty: console

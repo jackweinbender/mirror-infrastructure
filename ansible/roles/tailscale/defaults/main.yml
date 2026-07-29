@@ -1,0 +1,5 @@
+---
+# Applying this role means Tailscale should be installed. Supply
+# tailscale_authkey to also join the tailnet (first boot); leave it empty
+# for steady-state runs where the host is already joined.
+tailscale_authkey: ""

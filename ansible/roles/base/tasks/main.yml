@@ -1,17 +1,19 @@
 ---
-# base role: independent, individually toggleable task files. Baseline
-# setup (packages, users) always runs; ssh/updates each have their own
-# base_enable_* switch in defaults/main.yml.
+# Each task file is one self-contained feature. No feature flags: applying
+# the role means applying the baseline. To skip a feature, don't apply it
+# (import_role with tasks_from, as bootstrap does with users.yml).
 
-- name: Update and install baseline packages
+- name: Upgrade and install baseline packages
   ansible.builtin.import_tasks: packages.yml
 
-- name: Create the management user and configure sudo/SSH access
+- name: Create the management user and install SSH keys
   ansible.builtin.import_tasks: users.yml
 
-- name: Disable SSH password authentication
-  ansible.builtin.import_tasks: ssh_hardening.yml
+- name: Enforce key-only SSH authentication
+  ansible.builtin.import_tasks: ssh.yml
 
 - name: Configure automatic security updates
   ansible.builtin.import_tasks: updates.yml
-  when: base_enable_unattended_upgrades
+
+- name: Configure root auto-login on the container console
+  ansible.builtin.import_tasks: autologin.yml
