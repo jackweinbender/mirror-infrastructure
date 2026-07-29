@@ -1,113 +1,49 @@
-
 # AGENTS
 
-This is a sample AGENTS.md file. Replace this with your own content.
-The following are the Ansible agents available for use in this repository.
+Guidance for humans and AI agents working in `ansible/`. See `README.md` for
+setup and command reference; this file covers structure and conventions.
 
-## Ansible Agents
+## Structure
 
-The following table details the available Ansible playbooks and their purposes.
+| Path | Purpose |
+| --- | --- |
+| `roles/base/` | The Debian baseline every workload converges to: packages, the `ansible` management user, key-only sshd, unattended-upgrades, console auto-login. One task file per feature (see `roles/base/tasks/main.yml`); no feature-flag conditionals - applying the role means applying the baseline. |
+| `roles/tailscale/` | Installs Tailscale and, when `tailscale_authkey` is set and the host hasn't already joined, joins the tailnet with Tailscale SSH enabled. Owns no vars but its own (`tailscale_authkey`, `tailscale_hostname`). |
+| `tasks/lxc_bootstrap/` | One-shot provisioning for a fresh LXC: management user + tailnet join + inventory registration only - see "Bootstrap vs steady state" below. |
+| `tasks/lxc_prepare/` | PVE-host-side prep before bootstrap can reach the container over SSH (TUN device, discovering its LAN IP). |
+| `tasks/pve_host/` | Configures the Proxmox hosts themselves (`hypervisors` group), not guests. |
+| `playbooks/workloads.yaml` | Steady state. Applies `base` + `tailscale` to every host in the `workloads` group. Safe to rerun; this is what CI/CD and cron should call. |
+| `playbooks/local-bootstrap-lxc.yaml` | One-shot: prepares an existing LXC via its PVE host, then bootstraps it over SSH and registers it in inventory. Prompts for `lxc_pve_host` / `lxc_prepare_ctid` / `lxc_bootstrap_tailscale_authkey` if not supplied via `-e` (see README). |
+| `playbooks/local-bootstrap-pve.yaml` | One-shot: configures a Proxmox host itself (`hypervisors` group). |
 
-| Playbook Name              | Description                                                                 |
-| -------------------------- | --------------------------------------------------------------------------- |
-| `workloads.yaml`           | Maintains the steady state of bootstrapped workload servers using reusable roles. |
-| `local-bootstrap-lxc.yaml` | Orchestrates the bootstrap process for LXC containers, including initial setup and application of common roles. |
-| `local-bootstrap-pve.yaml` | Orchestrates the bootstrap process for PVE hosts, including initial setup and application of common roles. |
+## Bootstrap vs steady state
 
-## Tasks
+Bootstrap's only job is to get a fresh container to the point where
+`workloads.yaml` can take over: create the `ansible` user, join the
+tailnet, register the host in `inventory.yaml`. Everything else - package
+upgrades, sshd policy, unattended-upgrades, console auto-login - is
+desired-state config owned by `roles/base` and applied on the first
+steady-state run. Do not add features to bootstrap; add them to `roles/base`
+and let `workloads.yaml` converge every host, bootstrapped or not.
 
-Ansible tasks are organized into directories based on their target or function.
+## Remote access model
 
-- `ansible/tasks/lxc_bootstrap/`: Tasks for bootstrapping LXC containers.
-- `ansible/tasks/lxc_prepare/`: Tasks related to preparing LXC environments.
-- `ansible/tasks/pve_host/`: Tasks for configuring Proxmox Virtual Environment hosts.
+Tailscale SSH (`tailscale up --ssh`) is the only supported remote-access
+path once a host is bootstrapped. There is no root SSH key installed and no
+password set - `roles/base/tasks/ssh.yml` keeps plain sshd key-only and
+reachable over the tailnet, but nothing supplies a key for it. If Tailscale
+is ever unreachable, the fallback is the Proxmox web console (root, no
+password - see `roles/base/tasks/autologin.yml`), not plain SSH.
 
-## Configuration
+All Ansible-managed hosts on the tailnet must have the `tag:ansible`
+Tailscale tag so the tailnet ACL permits management traffic.
 
-All Ansible-managed tailnet hosts must have the `tag:ansible` Tailscale tag so the tailnet ACL permits management traffic.
+## Conventions
 
-- `ansible.cfg`: Main Ansible configuration file. Sets inventory, disables host-key checking, and auto-detects Python.
-- `inventory.yaml`: Defines the hosts and groups for Ansible to manage.
-- `requirements.txt`: Lists the Python dependencies for the Ansible environment.
-- `.ansible-lint`: Configuration file for the Ansible Lint tool.
-
-## Developer Setup
-
-1.  **Navigate to the `ansible` directory**:
-    ```bash
-    cd ansible
-    ```
-2.  **Create and activate a Python virtual environment**:
-    ```bash
-    python3 -m venv .venv
-    source .venv/bin/activate
-    ```
-3.  **Install dependencies**:
-    ```bash
-    python -m pip install --upgrade pip
-    python -m pip install -r requirements.txt
-    ```
-4.  **Verify setup**:
-    ```bash
-    ansible --version
-    ansible-lint --version
-    ansible-config dump --only-changed
-    ansible-inventory --graph
-    ```
-5.  **Run the linter**:
-    ```bash
-    ansible-lint
-    ```
-
-## Invoking Playbooks
-
--   **Syntax Check**:
-    ```bash
-    ansible-playbook <playbook.yaml> --syntax-check
-    ```
-    Example:
-    ```bash
-    ansible-playbook playbooks/local-bootstrap-pve.yaml --syntax-check
-    ```
-
--   **Preview Changes (Check Mode)**:
-    ```bash
-    ansible-playbook <playbook.yaml> --check --diff
-    ```
-    Example:
-    ```bash
-    ansible-playbook playbooks/local-bootstrap-pve.yaml --check --diff
-    ```
-
--   **Limit Execution to a Specific Host**:
-    ```bash
-    ansible-playbook <playbook.yaml> --check --diff --limit <hostname>
-    ```
-    Example:
-    ```bash
-    ansible-playbook playbooks/local-bootstrap-pve.yaml --check --diff --limit caba-host
-    ```
-
--   **Apply Playbooks**:
-    *   **PVE Host**:
-        ```bash
-        ansible-playbook playbooks/local-bootstrap-pve.yaml
-        ```
-    *   **LXC Container**:
-        ```bash
-        ansible-playbook playbooks/local-bootstrap-lxc.yaml \
-          --extra-vars lxc_pve_host=<pve_host> \
-          --extra-vars lxc_prepare_ctid=<container_id>
-        ```
-        Example:
-        ```bash
-        ansible-playbook playbooks/local-bootstrap-lxc.yaml \
-          --extra-vars lxc_pve_host=caba-host \
-          --extra-vars lxc_prepare_ctid=105
-        ```
-
--   **Increase Verbosity**:
-    ```bash
-    ansible-playbook <playbook.yaml> -v
-    ansible-playbook <playbook.yaml> -vvv
-    ```
+- **DRY:** shared configuration lives once in a role; playbooks and task
+  files compose roles, they don't duplicate their logic.
+- **No dead feature flags:** if a role always does something, it isn't
+  gated behind a variable. To skip a feature, don't apply that role or task
+  file (e.g. bootstrap borrows `roles/base` tasks_from: `users` only).
+- **Idempotency:** `workloads.yaml` must be safe to run repeatedly with no
+  unintended changes on a converged host.

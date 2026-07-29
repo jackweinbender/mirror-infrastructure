@@ -31,6 +31,11 @@
   loop: "{{ base_autologin_gettys }}"
   register: base_autologin_overrides
 
+- name: Reload systemd so it picks up the new overrides
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when: base_autologin_overrides.changed
+
 - name: Restart running getty units to apply auto-login
   ansible.builtin.command:
     argv:

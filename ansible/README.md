@@ -80,12 +80,19 @@ Apply the PVE playbook:
 ansible-playbook playbooks/local-bootstrap-pve.yaml
 ```
 
-Bootstrap an existing LXC container by passing the PVE host and container ID:
+Bootstrap an existing LXC container by passing the PVE host, container ID, and a Tailscale auth key (required - bootstrap's job is to put the container on the tailnet):
 
 ```bash
 ansible-playbook playbooks/local-bootstrap-lxc.yaml \
   --extra-vars lxc_pve_host=caba-host \
-  --extra-vars lxc_prepare_ctid=105
+  --extra-vars lxc_prepare_ctid=105 \
+  --extra-vars lxc_bootstrap_tailscale_authkey=tskey-...
+```
+
+Omit any of the three and the playbook prompts for it interactively (the PVE host prompt is a numbered menu built from the `hypervisors` inventory group). Once bootstrapped, the container manages itself via `workloads.yaml`:
+
+```bash
+ansible-playbook playbooks/workloads.yaml
 ```
 
 Increase verbosity when diagnosing task or connection failures:

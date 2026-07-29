@@ -4,7 +4,11 @@
 # (see tasks/lxc_bootstrap/main.yml).
 
 base_ansible_user: ansible
-base_github_user: jackweinbender
+
+# Personal login accounts that also get passwordless sudo, beyond the
+# management user above. jlw: personal PC login.
+base_extra_sudo_users:
+  - jlw
 
 # Console getty units a Debian LXC may serve, with the tty argument each
 # expects. Both get an auto-login override; the unused one is inert.

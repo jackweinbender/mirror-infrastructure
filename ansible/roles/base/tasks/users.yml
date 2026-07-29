@@ -1,8 +1,15 @@
 ---
 # Everything steady-state management depends on: the ansible user with
-# passwordless sudo, and root's SSH keys. Bootstrap imports exactly this
-# file (import_role tasks_from: users) so a fresh container can hand off
-# to workloads.yaml; keep it free of anything beyond that contract.
+# passwordless sudo, plus any personal accounts in base_extra_sudo_users
+# (same treatment - user + passwordless sudo, nothing more). Bootstrap
+# imports exactly this file (import_role tasks_from: users) so a fresh
+# container can hand off to workloads.yaml; keep it free of anything
+# beyond that contract.
+#
+# No SSH keys are installed for any of these accounts, on purpose:
+# Tailscale SSH is the only supported remote-access path, with the Proxmox
+# console (see roles/base/tasks/autologin.yml) as the fallback. Plain sshd
+# stays key-only and reachable over the tailnet - see roles/base/tasks/ssh.yml.
 
 - name: Ensure sudo is installed
   ansible.builtin.apt:
@@ -11,41 +18,20 @@
     update_cache: true
     cache_valid_time: 3600
 
-- name: Create the management user
+- name: Create sudo-enabled accounts
   ansible.builtin.user:
-    name: "{{ base_ansible_user }}"
+    name: "{{ item }}"
     shell: /bin/bash
     create_home: true
+  loop: "{{ [base_ansible_user] + base_extra_sudo_users }}"
 
-- name: Grant the management user passwordless sudo
+- name: Grant sudo-enabled accounts passwordless sudo
   ansible.builtin.copy:
-    content: "{{ base_ansible_user }} ALL=(ALL) NOPASSWD:ALL\n"
-    dest: "/etc/sudoers.d/{{ base_ansible_user }}"
+    content: "{{ item }} ALL=(ALL) NOPASSWD:ALL\n"
+    dest: "/etc/sudoers.d/{{ item }}"
     owner: root
     group: root
     mode: "0440"
     validate: "visudo -cf %s"
+  loop: "{{ [base_ansible_user] + base_extra_sudo_users }}"
 
-- name: Fetch root's SSH keys from GitHub
-  ansible.builtin.uri:
-    url: "https://github.com/{{ base_github_user }}.keys"
-    return_content: true
-  register: base_github_keys
-  # An empty key set would lock root out of plain SSH - refuse to proceed.
-  failed_when: base_github_keys.content | trim | length == 0
-
-- name: Ensure root's .ssh directory exists
-  ansible.builtin.file:
-    path: /root/.ssh
-    state: directory
-    owner: root
-    group: root
-    mode: "0700"
-
-- name: Make GitHub the authoritative source of root's authorized_keys
-  ansible.builtin.copy:
-    content: "{{ base_github_keys.content | trim }}\n"
-    dest: /root/.ssh/authorized_keys
-    owner: root
-    group: root
-    mode: "0600"

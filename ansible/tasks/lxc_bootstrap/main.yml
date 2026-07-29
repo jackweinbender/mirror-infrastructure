@@ -72,5 +72,6 @@
     msg: >-
       {{ tailscale_hostname }} is on the tailnet (Tailscale SSH enabled) and
       registered in ansible/inventory.yaml under workloads. Run
-      workloads.yaml to apply the full baseline. Root remains reachable at
-      {{ ansible_host }} over plain SSH via your GitHub keys.
+      workloads.yaml to apply the full baseline. Tailscale SSH is the only
+      supported remote-access path; if it's ever unreachable, use the
+      Proxmox console (root, no password) as the fallback.
