@@ -1,0 +1,12 @@
+---
+# Each task file is one self-contained feature. No feature flags: applying
+# the role means applying Docker + the compose plugin + group membership.
+
+- name: Verify the LXC has the feature flags Docker requires
+  ansible.builtin.import_tasks: preflight.yml
+
+- name: Install Docker Engine from the official apt repository
+  ansible.builtin.import_tasks: install.yml
+
+- name: Grant docker-group membership
+  ansible.builtin.import_tasks: group.yml

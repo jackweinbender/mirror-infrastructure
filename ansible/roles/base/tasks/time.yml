@@ -1,0 +1,35 @@
+---
+# Correct time matters more than it looks: wrong clocks break TLS
+# validation, Tailscale's own auth, and make correlating logs across the
+# fleet impossible.
+
+- name: Read the current timezone and NTP sync status
+  ansible.builtin.command:
+    argv:
+      - timedatectl
+      - show
+      - -p
+      - Timezone
+      - -p
+      - NTP
+      - --value
+  register: base_time_status
+  changed_when: false
+
+- name: Set the timezone
+  ansible.builtin.command:
+    argv:
+      - timedatectl
+      - set-timezone
+      - "{{ base_timezone }}"
+  when: base_time_status.stdout_lines[0] != base_timezone
+  changed_when: true
+
+- name: Enable NTP time synchronization
+  ansible.builtin.command:
+    argv:
+      - timedatectl
+      - set-ntp
+      - "true"
+  when: base_time_status.stdout_lines[1] != 'yes'
+  changed_when: true

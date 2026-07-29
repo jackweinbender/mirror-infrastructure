@@ -1,0 +1,35 @@
+---
+# A tidy login banner - hostname, Tailscale hostname/IP, physical IP, disk.
+# Shown on every interactive login (SSH, Tailscale SSH, Proxmox console) via
+# Debian's pam_motd + update-motd.d mechanism, which fires regardless of
+# login shell - unlike /etc/profile.d/*.sh, which zsh doesn't source by
+# default. /etc/motd (the static Debian disclaimer PAM also prints) is
+# emptied so only this banner shows.
+
+- name: Empty the static /etc/motd disclaimer
+  ansible.builtin.copy:
+    content: ""
+    dest: /etc/motd
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Find stock update-motd.d scripts
+  ansible.builtin.find:
+    paths: /etc/update-motd.d
+    excludes: 10-hermes-banner
+  register: base_motd_stock_scripts
+
+- name: Disable stock update-motd.d scripts
+  ansible.builtin.file:
+    path: "{{ item.path }}"
+    mode: "0644"
+  loop: "{{ base_motd_stock_scripts.files }}"
+
+- name: Install the login banner
+  ansible.builtin.template:
+    src: 10-hermes-banner.j2
+    dest: /etc/update-motd.d/10-hermes-banner
+    owner: root
+    group: root
+    mode: "0755"

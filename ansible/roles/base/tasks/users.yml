@@ -21,7 +21,7 @@
 - name: Create sudo-enabled accounts
   ansible.builtin.user:
     name: "{{ item }}"
-    shell: /bin/bash
+    shell: "{{ base_user_shells[item] | default('/bin/bash') }}"
     create_home: true
   loop: "{{ [base_ansible_user] + base_extra_sudo_users }}"
 
@@ -34,4 +34,9 @@
     mode: "0440"
     validate: "visudo -cf %s"
   loop: "{{ [base_ansible_user] + base_extra_sudo_users }}"
+
+- name: Set root's shell
+  ansible.builtin.user:
+    name: root
+    shell: "{{ base_user_shells['root'] | default('/bin/bash') }}"
 

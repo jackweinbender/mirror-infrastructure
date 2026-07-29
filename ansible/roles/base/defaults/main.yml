@@ -10,6 +10,16 @@ base_ansible_user: ansible
 base_extra_sudo_users:
   - jlw
 
+# Default shell per account. ansible stays on bash - it's a scripted
+# automation account, not an interactive login. jlw and root are personal
+# logins and get zsh. Keyed by literal usernames (not a Jinja expression -
+# Ansible doesn't template YAML dict keys, only values); falls back to
+# /bin/bash for any account with no entry here.
+base_user_shells:
+  ansible: /bin/bash
+  root: /usr/bin/zsh
+  jlw: /usr/bin/zsh
+
 # Console getty units a Debian LXC may serve, with the tty argument each
 # expects. Both get an auto-login override; the unused one is inert.
 base_autologin_gettys:
@@ -17,3 +27,12 @@ base_autologin_gettys:
     tty: pts/%I
   - unit: console-getty.service # /dev/console fallback
     tty: console
+
+# Local log retention caps. Bounds journald and logrotate to a sane size on
+# these small LXCs; not a substitute for centralized/shipped logging.
+base_journald_max_use: 200M
+base_journald_max_retention: 2week
+base_logrotate_weeks: 4
+
+base_locale: en_US.UTF-8
+base_timezone: Etc/UTC

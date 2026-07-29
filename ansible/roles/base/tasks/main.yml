@@ -6,8 +6,11 @@
 - name: Upgrade and install baseline packages
   ansible.builtin.import_tasks: packages.yml
 
-- name: Create the management user and install SSH keys
+- name: Create the management user and configure sudo
   ansible.builtin.import_tasks: users.yml
+
+- name: Regenerate SSH host keys if cloned from a shared template
+  ansible.builtin.import_tasks: ssh_host_keys.yml
 
 - name: Enforce key-only SSH authentication
   ansible.builtin.import_tasks: ssh.yml
@@ -15,5 +18,20 @@
 - name: Configure automatic security updates
   ansible.builtin.import_tasks: updates.yml
 
+- name: Automatically restart services after patching
+  ansible.builtin.import_tasks: needrestart.yml
+
+- name: Configure the system locale
+  ansible.builtin.import_tasks: locale.yml
+
+- name: Configure timezone and time sync
+  ansible.builtin.import_tasks: time.yml
+
 - name: Configure root auto-login on the container console
   ansible.builtin.import_tasks: autologin.yml
+
+- name: Configure the login banner
+  ansible.builtin.import_tasks: motd.yml
+
+- name: Cap local log retention
+  ansible.builtin.import_tasks: logs.yml

@@ -1,0 +1,11 @@
+---
+# Passwordless docker access for docker_group_users - no sudo needed to run
+# docker/docker compose commands. Group membership only takes effect on the
+# account's next login/session, not the current one.
+
+- name: Add accounts to the docker group
+  ansible.builtin.user:
+    name: "{{ item }}"
+    groups: docker
+    append: true
+  loop: "{{ docker_group_users }}"

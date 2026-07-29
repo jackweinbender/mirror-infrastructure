@@ -1,6 +1,11 @@
 # Maintains non-hypervisor Debian servers after bootstrap. These hosts may be
 # LXC containers, VMs, or bare metal, and must already be reachable over Tailscale
 # using the configured Ansible user. This playbook is intended for CI/CD.
+#
+# Every host gets the base + tailscale baseline. Anything beyond that is
+# declared per-host in inventory.yaml via host_roles (e.g. host_roles:
+# [docker]) - this playbook is generic and doesn't hardcode which host gets
+# which specialized role; that decision lives in inventory, in one place.
 ---
 - name: Configure workloads
   hosts: workloads
@@ -9,3 +14,10 @@
   roles:
     - base
     - tailscale
+  tasks:
+    - name: Apply this host's specialized roles
+      ansible.builtin.include_role:
+        name: "{{ specialized_role }}"
+      loop: "{{ host_roles | default([]) }}"
+      loop_control:
+        loop_var: specialized_role

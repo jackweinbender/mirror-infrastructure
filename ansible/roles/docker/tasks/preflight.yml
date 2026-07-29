@@ -1,0 +1,66 @@
+---
+# LXC-specific preflight: dockerd needs two Proxmox-level container feature
+# flags that can only be set from the PVE host at container creation/edit
+# time (pct set <ctid> --features nesting=1,keyctl=1) - there is no
+# in-guest equivalent, so this role can't set them itself. Fail fast with
+# an actionable message instead of installing Docker and having dockerd
+# fail mysteriously later.
+#
+# Neither flag has a direct /proc readout from inside the guest, so each
+# check tests the actual capability Docker depends on:
+#   - keyctl: the keyctl() syscall itself, via the keyctl(1) command.
+#   - nesting: cgroup delegation - dockerd needs to create its own cgroup
+#     subdirectories under /sys/fs/cgroup, which nesting=0 blocks.
+
+- name: Ensure keyutils is installed (provides the keyctl command)
+  ansible.builtin.apt:
+    name: keyutils
+    state: present
+
+- name: Check whether the keyctl() syscall is permitted
+  ansible.builtin.command:
+    argv:
+      - keyctl
+      - show
+  register: base_preflight_keyctl
+  failed_when: false
+  changed_when: false
+
+- name: Fail if keyctl is disabled at the LXC level
+  ansible.builtin.fail:
+    msg: >-
+      keyctl() is not permitted in this container. Docker requires the LXC
+      keyctl feature flag. On the Proxmox host, run:
+      pct set {{ ansible_hostname }} --features nesting=1,keyctl=1
+      (the container's CTID may differ from its hostname - check `pct list`)
+      then reboot the container and re-run this playbook.
+  when: base_preflight_keyctl.rc != 0
+
+- name: Check whether cgroup delegation is available (requires nesting)
+  ansible.builtin.command:
+    argv:
+      - mkdir
+      - /sys/fs/cgroup/base-preflight-check
+  register: base_preflight_cgroup
+  failed_when: false
+  changed_when: false
+
+- name: Clean up the cgroup delegation probe
+  ansible.builtin.command:
+    argv:
+      - rmdir
+      - /sys/fs/cgroup/base-preflight-check
+  when: base_preflight_cgroup.rc == 0
+  changed_when: false
+  failed_when: false
+
+- name: Fail if cgroup delegation is unavailable (nesting disabled)
+  ansible.builtin.fail:
+    msg: >-
+      /sys/fs/cgroup is not writable in this container - dockerd cannot
+      create its own cgroups. Docker requires the LXC nesting feature flag.
+      On the Proxmox host, run:
+      pct set {{ ansible_hostname }} --features nesting=1,keyctl=1
+      (the container's CTID may differ from its hostname - check `pct list`)
+      then reboot the container and re-run this playbook.
+  when: base_preflight_cgroup.rc != 0

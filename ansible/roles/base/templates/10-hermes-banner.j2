@@ -1,0 +1,86 @@
+#!/bin/sh
+# Managed by Ansible (roles/base). Do not edit by hand.
+
+BOLD='\033[1m'
+DIM='\033[2m'
+GREEN='\033[32m'
+YELLOW='\033[33m'
+RED='\033[31m'
+CYAN='\033[36m'
+RESET='\033[0m'
+
+host_display=$(hostname)
+
+# Physical (LAN) IP: first global-scope address on any interface except
+# tailscale0, so this stays distinct from the tailnet IP below even when
+# both are assigned.
+physical_ip=$(ip -4 -o addr show scope global 2>/dev/null | awk '$2 != "tailscale0" {print $4}' | cut -d/ -f1 | head -n1)
+
+# Tailscale: one JSON call, parsed for backend state + this host's own
+# DNSName/IP. Distinguishes *why* it isn't connected instead of collapsing
+# every non-running state into a single misleading label.
+ts_color="$RED"
+ts_hostname_display="not installed"
+ts_ip_display=""
+if command -v tailscale >/dev/null 2>&1; then
+  ts_status=$(tailscale status --json 2>/dev/null)
+  ts_state=$(echo "$ts_status" | grep -o '"BackendState":"[^"]*"' | head -n1 | cut -d'"' -f4)
+  case "$ts_state" in
+  Running)
+    ts_hostname_display=$(echo "$ts_status" | grep -o '"DNSName":"[^"]*"' | head -n1 | cut -d'"' -f4 | sed 's/\.$//')
+    ts_ip_display=$(echo "$ts_status" | grep -o '"TailscaleIPs":\[[^]]*\]' | head -n1 | grep -o '"[0-9.]*"' | head -n1 | tr -d '"')
+    if [ -n "$ts_ip_display" ]; then
+      ts_color="$GREEN"
+    else
+      ts_color="$YELLOW"
+      ts_hostname_display="running, no IP yet"
+    fi
+    ;;
+  Starting)
+    ts_color="$YELLOW"
+    ts_hostname_display="starting..."
+    ;;
+  NeedsLogin)
+    ts_color="$YELLOW"
+    ts_hostname_display="needs login (tailscale up)"
+    ;;
+  Stopped)
+    ts_color="$RED"
+    ts_hostname_display="stopped"
+    ;;
+  "")
+    ts_color="$RED"
+    ts_hostname_display="unreachable"
+    ;;
+  *)
+    ts_color="$YELLOW"
+    ts_hostname_display="$ts_state"
+    ;;
+  esac
+fi
+
+# Color disk usage by how full it is - a quick, glanceable warning.
+disk_color="$GREEN"
+disk_display="n/a"
+disk_line=$(df -h / 2>/dev/null | awk 'NR==2 {print $3, $2, $5}')
+if [ -n "$disk_line" ]; then
+  disk_used=$(echo "$disk_line" | cut -d' ' -f1)
+  disk_total=$(echo "$disk_line" | cut -d' ' -f2)
+  disk_pct=$(echo "$disk_line" | cut -d' ' -f3 | tr -d '%')
+  disk_display="${disk_used}/${disk_total} (${disk_pct}%)"
+  if [ "${disk_pct:-0}" -ge 90 ] 2>/dev/null; then
+    disk_color="$RED"
+  elif [ "${disk_pct:-0}" -ge 75 ] 2>/dev/null; then
+    disk_color="$YELLOW"
+  fi
+fi
+
+rule=$(printf '%.0s-' $(seq 1 40))
+
+printf "\n"
+printf "${BOLD}${CYAN}%s${RESET}\n" "$host_display"
+printf "${DIM}%s${RESET}\n" "$rule"
+printf "  %-10s ${ts_color}%s${RESET}%s\n" "tailscale" "$ts_hostname_display" "${ts_ip_display:+ ($ts_ip_display)}"
+printf "  %-10s %s\n" "physical ip" "${physical_ip:-n/a}"
+printf "  %-10s ${disk_color}%s${RESET}\n" "disk" "$disk_display"
+printf "\n"

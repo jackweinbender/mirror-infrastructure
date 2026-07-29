@@ -1,0 +1,20 @@
+---
+- name: Ensure locales is installed
+  ansible.builtin.apt:
+    name: locales
+    state: present
+
+- name: Generate the configured locale
+  ansible.builtin.locale_gen:
+    name: "{{ base_locale }}"
+    state: present
+
+- name: Set the default system locale
+  ansible.builtin.copy:
+    content: |
+      LANG={{ base_locale }}
+      LANGUAGE={{ base_locale }}
+    dest: /etc/default/locale
+    owner: root
+    group: root
+    mode: "0644"

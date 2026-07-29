@@ -1,0 +1,11 @@
+---
+# docker role: Docker Engine (official apt repo) + compose plugin, for any
+# compose-stack workload host. Grants docker-group membership (passwordless
+# docker access, no sudo) to base_docker_group_users. This role is the
+# missing prerequisite compose-stacks/.github/workflows/deploy.yaml assumes
+# already exists on the target host - it never provisions Docker itself.
+
+# Accounts that get passwordless docker access (added to the docker group).
+docker_group_users:
+  - "{{ base_ansible_user | default('ansible') }}"
+  - jlw
