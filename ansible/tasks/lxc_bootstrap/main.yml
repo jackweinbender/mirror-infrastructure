@@ -2,13 +2,13 @@
 - name: Include LXC bootstrap variables
   ansible.builtin.include_vars: vars.yml
 
-- name: Map LXC bootstrap variables to common role variables
+- name: Map LXC bootstrap variables to base role variables
   ansible.builtin.set_fact:
-    common_upgrade_packages: "{{ lxc_bootstrap_upgrade_packages }}"
-    common_ansible_user: "{{ lxc_bootstrap_ansible_user }}"
-    common_github_user: "{{ lxc_bootstrap_github_user }}"
-    common_install_tailscale: "{{ lxc_bootstrap_install_tailscale }}"
-    common_tailscale_authkey: "{{ lxc_bootstrap_tailscale_authkey }}"
+    base_upgrade_packages: "{{ lxc_bootstrap_upgrade_packages }}"
+    base_ansible_user: "{{ lxc_bootstrap_ansible_user }}"
+    base_github_user: "{{ lxc_bootstrap_github_user }}"
+    base_install_tailscale: "{{ lxc_bootstrap_install_tailscale }}"
+    base_tailscale_authkey: "{{ lxc_bootstrap_tailscale_authkey }}"
 
 - name: Wait for outbound network connectivity
   ansible.builtin.uri:
@@ -24,10 +24,10 @@
   delay: 5
   changed_when: false
 
-# Apply common configuration using the common role
-- name: Include common server configuration
+# Baseline provisioning: packages, users, SSH hardening, auto updates.
+- name: Include base server configuration
   ansible.builtin.import_role:
-    name: common
+    name: base
   when: ansible_facts['os_family'] == 'Debian' # Example condition, adjust as needed
 
 # Console auto-login configuration remains here as it's a provisioning step
@@ -131,8 +131,8 @@
 - name: Require Tailscale configuration
   ansible.builtin.assert:
     that:
-      - common_install_tailscale | bool
-      - common_tailscale_authkey | length > 0
+      - base_install_tailscale | bool
+      - base_tailscale_authkey | length > 0
     fail_msg: >-
       LXC bootstrap requires Tailscale and a non-empty
       lxc_bootstrap_tailscale_authkey so the container can be added to inventory.
@@ -162,11 +162,11 @@
       {{
         (lxc_bootstrap_inventory_raw.content | b64decode | from_yaml)
         | combine({
-            'lxc': {
+            'workloads': {
               'hosts': {
                 tailscale_hostname: {
                   'ansible_host': tailscale_hostname,
-                  'ansible_user': common_ansible_user | default('ansible')
+                  'ansible_user': base_ansible_user | default('ansible')
                 }
               }
             }
@@ -187,12 +187,12 @@
       {{ inventory_hostname }} ({{ ansible_host }}) is bootstrapped and
       joined to the tailnet with Tailscale SSH enabled as
       {{ tailscale_hostname | default('<pending - check `tailscale status` on the host>') }}.
-      Connect as {{ common_ansible_user | default('ansible') }}@{{ tailscale_hostname | default('<tailscale-hostname>') }}
+      Connect as {{ base_ansible_user | default('ansible') }}@{{ tailscale_hostname | default('<tailscale-hostname>') }}
       via `tailscale ssh` (or plain `ssh` once Tailscale SSH access is
       configured) - it has no local authorized_keys, so plain SSH from
       outside the tailnet won't reach it. root@{{ ansible_host }} remains
       reachable via your GitHub key over plain SSH.
       {{ tailscale_hostname | default(inventory_hostname) }}
-      has been added to ansible/inventory.yaml under the `lxc` group
+      has been added to ansible/inventory.yaml under the `workloads` group
       automatically.
   changed_when: false

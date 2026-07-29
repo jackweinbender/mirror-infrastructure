@@ -1,6 +1,3 @@
-# all:
-#   vars:
-#     ansible_user: ansible
 workloads:
   hosts:
     jellyfin-lxc.tortoise-noodlefish.ts.net:

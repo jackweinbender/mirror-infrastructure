@@ -1,0 +1,16 @@
+---
+- name: Upgrade installed packages (Debian/Ubuntu)
+  ansible.builtin.apt:
+    upgrade: safe
+    update_cache: true
+    cache_valid_time: 3600
+  when: base_upgrade_packages
+
+- name: Ensure baseline packages are installed (Debian/Ubuntu)
+  ansible.builtin.apt:
+    name:
+      - curl
+      - git
+      - sudo
+    state: present
+    update_cache: true

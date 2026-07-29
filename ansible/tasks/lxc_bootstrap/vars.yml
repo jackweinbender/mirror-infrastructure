@@ -14,13 +14,6 @@ lxc_bootstrap_upgrade_packages: true
 # Install the Tailscale package inside the container.
 lxc_bootstrap_install_tailscale: true
 
-# Tailscale auth key used to run `tailscale up --authkey=...` automatically
-# after install. Normally passed via -e/interactive prompt (see `make
-# bootstrap-lxc`) rather than set here. Leave blank to skip joining the
-# tailnet automatically - `sudo tailscale up` remains available as a
-# manual step.
-lxc_bootstrap_tailscale_authkey: ""
-
 # Auto-login root on the Proxmox web UI's noVNC console (the container's
 # actual getty, not SSH - an SSH key does nothing there). ON by default as
 # a permanent part of the bootstrap: it means anyone with access to the

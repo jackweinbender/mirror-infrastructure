@@ -1,0 +1,40 @@
+---
+- name: Create the ansible management user
+  ansible.builtin.user:
+    name: "{{ base_ansible_user }}"
+    shell: /bin/bash
+    create_home: true
+
+- name: Configure passwordless sudo for the ansible user
+  ansible.builtin.copy:
+    content: "{{ base_ansible_user }} ALL=(ALL) NOPASSWD:ALL\n"
+    dest: "/etc/sudoers.d/{{ base_ansible_user }}"
+    owner: root
+    group: root
+    mode: "0440"
+    validate: "visudo -cf %s"
+
+- name: Ensure root's .ssh directory exists
+  ansible.builtin.file:
+    path: /root/.ssh
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Fetch GitHub public keys for root
+  ansible.builtin.uri:
+    url: "https://github.com/{{ base_github_user }}.keys"
+    return_content: true
+  register: base_github_keys
+
+- name: Install GitHub SSH keys for root
+  ansible.builtin.lineinfile:
+    path: /root/.ssh/authorized_keys
+    line: "{{ item }}"
+    create: true
+    owner: root
+    group: root
+    mode: "0600"
+  loop: "{{ base_github_keys.content.splitlines() }}"
+  when: item | trim | length > 0

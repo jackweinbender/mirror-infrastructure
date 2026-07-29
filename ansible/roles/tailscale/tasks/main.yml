@@ -8,7 +8,7 @@
   register: tailscale_check
   failed_when: false
   changed_when: false
-  when: common_install_tailscale | default(true)
+  when: base_install_tailscale | default(true)
 
 - name: Download the Tailscale install script
   ansible.builtin.get_url:
@@ -16,7 +16,7 @@
     dest: /tmp/tailscale-install.sh
     mode: "0755"
   when:
-    - common_install_tailscale | default(true)
+    - base_install_tailscale | default(true)
     - tailscale_check.rc != 0
 
 - name: Run the Tailscale install script
@@ -25,7 +25,7 @@
       - sh
       - /tmp/tailscale-install.sh
   when:
-    - common_install_tailscale | default(true)
+    - base_install_tailscale | default(true)
     - tailscale_check.rc != 0
   changed_when: true
 
@@ -33,7 +33,7 @@
   ansible.builtin.file:
     path: /tmp/tailscale-install.sh
     state: absent
-  when: common_install_tailscale | default(true)
+  when: base_install_tailscale | default(true)
 
 - name: Check whether Tailscale already has an IP (already joined)
   ansible.builtin.command:
@@ -45,19 +45,30 @@
   changed_when: false
   failed_when: false
   when:
-    - common_install_tailscale | default(true)
-    - common_tailscale_authkey | default('') | length > 0
+    - base_install_tailscale | default(true)
+    - base_tailscale_authkey | default('') | length > 0
+
+- name: Print Tailscale approval instructions
+  ansible.builtin.debug:
+    msg: >-
+      The container is joining the tailnet. If device approval is enabled,
+      approve the new device in the Tailscale admin UI while the next task waits.
+      Ensure the machine has the tag:ansible tag before continuing.
+  when:
+    - base_install_tailscale | default(true)
+    - base_tailscale_authkey | default('') | length > 0
+    - tailscale_ip.rc != 0
 
 - name: Join the tailnet
   ansible.builtin.command:
     argv:
       - tailscale
       - up
-      - "--authkey={{ common_tailscale_authkey }}"
+      - "--authkey={{ base_tailscale_authkey }}"
       - --ssh
   when:
-    - common_install_tailscale | default(true)
-    - common_tailscale_authkey | default('') | length > 0
+    - base_install_tailscale | default(true)
+    - base_tailscale_authkey | default('') | length > 0
     - tailscale_ip.rc != 0
   no_log: true
   changed_when: true
@@ -73,15 +84,15 @@
   changed_when: false
   failed_when: false
   when:
-    - common_install_tailscale | default(true)
-    - common_tailscale_authkey | default('') | length > 0
+    - base_install_tailscale | default(true)
+    - base_tailscale_authkey | default('') | length > 0
 
 - name: Source the Tailscale hostname
   ansible.builtin.set_fact:
-    tailscale_hostname: >
-      {{ (tailscale_status.stdout | from_json).Self.DNSName | default('') | trim('.') }}
+    tailscale_hostname: >-
+      {{ (tailscale_status.stdout | from_json).Self.DNSName | default('') | trim | trim('.') }}
   when:
-    - common_install_tailscale | default(true)
-    - common_tailscale_authkey | default('') | length > 0
+    - base_install_tailscale | default(true)
+    - base_tailscale_authkey | default('') | length > 0
     - tailscale_status.rc == 0
     - tailscale_status.stdout | trim | length > 0

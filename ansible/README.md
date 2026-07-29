@@ -5,7 +5,7 @@
 This repository utilizes Ansible to manage infrastructure configurations. The organization of playbooks and roles follows these core principles:
 
 *   **Separation of Concerns:**
-    *   **Steady-State Configuration:** Defined in reusable Ansible roles (e.g., `roles/common/`, `roles/tailscale/`). These roles encapsulate idempotent configurations that ensure a server reaches and maintains a desired end-state. They are applied by playbooks like `workloads.yaml`.
+    *   **Steady-State Configuration:** Defined in reusable Ansible roles (e.g., `roles/base/`, `roles/tailscale/`). These roles encapsulate idempotent configurations that ensure a server reaches and maintains a desired end-state. They are applied by playbooks like `workloads.yaml`.
     *   **Bootstrap Process:** Orchestrated by dedicated playbook files (e.g., `playbooks/local-bootstrap-lxc.yaml`). These playbooks handle the initial provisioning of new infrastructure. They include procedural, one-off tasks specific to the setup sequence inline or in task files (e.g., `tasks/lxc_bootstrap/main.yml`, `tasks/lxc_prepare/main.yml`), and call upon Ansible roles for steady-state configurations where applicable.
 
 *   **DRY (Don't Repeat Yourself):** Common configurations are defined once in roles and applied consistently across hosts and playbooks.

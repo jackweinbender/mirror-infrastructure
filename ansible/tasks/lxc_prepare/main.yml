@@ -58,7 +58,7 @@
       {{
         range(0, 256)
         | map('string')
-        | map('regex_replace', '^(.*)$', 'dev\\1')
+        | map('regex_replace', '^', 'dev')
         | difference(lxc_prepare_used_device_slots)
         | sort
         | list
