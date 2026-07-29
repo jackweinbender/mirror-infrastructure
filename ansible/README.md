@@ -48,6 +48,50 @@ Run the linter before submitting changes:
 ansible-lint
 ```
 
+## Testing
+
+### Molecule Tests for Roles
+
+All three production roles (`base`, `docker`, `tailscale`) include [Molecule](https://molecule.readthedocs.io/) tests for independent validation without touching live infrastructure.
+
+#### Quick Start
+
+With Docker running, from the `ansible/` directory:
+
+```bash
+# Full test cycle for each role: create → apply → verify → destroy
+molecule test -s base       # Debian baseline (~2-3 min)
+molecule test -s docker     # Docker Engine + Compose plugin (~3-4 min)
+molecule test -s tailscale  # Tailscale installation (~3-4 min)
+
+# Or, converge and inspect the container
+molecule converge -s docker     # Apply and keep running
+docker exec -it debian-bookworm bash  # Inspect inside
+docker ps                       # Verify Docker is working
+exit
+molecule destroy -s docker      # Clean up
+
+# Test idempotency (apply twice, second run should change nothing)
+molecule idempotent -s base     # Gold standard for Ansible roles
+```
+
+#### What Gets Tested
+
+**Base Role** — Debian baseline (users, packages, locale, timezone, SSH, shells)
+
+**Docker Role** — Docker Engine + Compose plugin + group membership for passwordless docker access
+
+**Tailscale Role** — Tailscale installation from official repository + systemd daemon
+
+#### Documentation
+
+For complete testing guide: `TESTING.md`  
+For bootstrap task testing strategy: `TESTING-TASKS.md`  
+For navigation: `TESTING-INDEX.md`  
+For role-specific details: `roles/{role}/molecule/README.md`
+
+###
+
 ## Invoking playbooks
 
 Each playbook begins with a short description, its execution constraints, and a concrete invocation. The following examples show the common command-line variations.

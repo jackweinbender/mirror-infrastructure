@@ -1,0 +1,16 @@
+---
+# Converge playbook for Docker role.
+# First applies base role (required: creates ansible user + base_extra_sudo_users + base_ansible_user),
+# then applies docker role.
+
+- name: Converge Docker role
+  hosts: all
+  gather_facts: true
+  tasks:
+    - name: Include base role (prerequisite)
+      ansible.builtin.include_role:
+        name: base
+
+    - name: Include docker role
+      ansible.builtin.include_role:
+        name: docker

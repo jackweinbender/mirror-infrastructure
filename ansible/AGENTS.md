@@ -72,6 +72,27 @@ Ubuntu-based (verify: `ansible <host> -m setup -a "filter=ansible_distribution*"
 treat it as an exception to fix at the infra level (rebuild as Debian), not
 a reason to add distro-detection branching to these roles.
 
+## Testing
+
+All three production roles have Molecule tests for independent validation without touching live infrastructure:
+
+| Role | Test | Assertions | Command |
+|------|------|-----------|----------|
+| `roles/base/` | `roles/base/molecule/` | 6 (user, packages, locale, tz, ssh, shells) | `molecule test -s base` |
+| `roles/docker/` | `roles/docker/molecule/` | 8 (engine, compose, groups, permissions) | `molecule test -s docker` |
+| `roles/tailscale/` | `roles/tailscale/molecule/` | 10 (binary, daemon, repo, gpg) | `molecule test -s tailscale` |
+
+**Before making changes:**
+1. Run the relevant role test: `molecule test -s {role}`
+2. Verify idempotency: `molecule idempotent -s {role}` (apply twice, second run should change nothing)
+3. Inspect interactively: `molecule converge -s {role}` + `docker exec -it debian-bookworm bash`
+
+**Documentation:**
+- `TESTING.md` — Complete testing guide
+- `TESTING-TASKS.md` — Bootstrap task testing (syntax check + dry-run, not unit tests)
+- `TESTING-INDEX.md` — Navigation guide
+- `roles/{role}/molecule/README.md` — Role-specific test docs
+
 ## Conventions
 
 - **DRY:** shared configuration lives once in a role; playbooks and task

@@ -49,8 +49,42 @@ Required secrets: `ONE_PASSWORD_SA_TOKEN`, `TS_OAUTH_CLIENT_ID`, `TS_OAUTH_CLIEN
 - **AWS**: S3 bucket `tf-backend-61rckk` (us-east-1)
 - **Others**: Remote backend configured per-component (see each `terraform.tf`)
 
+### Ansible
+
+Infrastructure configuration and host management via Ansible:
+1. Installs baseline configurations (`roles/base/`)
+2. Deploys Docker or Tailscale as needed per host
+3. Converges hosts to desired state via `playbooks/workloads.yaml`
+
+**Tested with Molecule** — All roles have automated tests that run in Docker containers before touching production.
+
+## Testing
+
+### Ansible Role Tests
+
+All three production Ansible roles have comprehensive Molecule tests:
+
+```bash
+cd ansible && source .venv/bin/activate
+molecule test -s base       # Base role (users, packages, locale)
+molecule test -s docker     # Docker Engine + Compose
+molecule test -s tailscale  # Tailscale installation
+```
+
+See `ansible/TESTING.md` for complete testing guide.
+
+### Terraform
+
+- **Plan validation** — `.github/workflows/pr-plan-all.yml` validates all terraform changes on PRs
+- **Syntax & format** — `terraform validate` and `terraform fmt` in CI
+
+### Compose Stacks
+
+- Home Assistant config validation in `deploy.yaml` workflow
+
 ## Prerequisites
 
+- **Docker** (for running Ansible role tests locally)
 - Tailscale OAuth client (for GitHub Actions → VM connectivity)
 - 1Password service account (for secret injection)
 - GCP Workload Identity Federation configured

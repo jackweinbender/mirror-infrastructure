@@ -1,0 +1,143 @@
+---
+# Verify that the docker role installed and configured everything correctly.
+
+- name: Verify Docker role
+  hosts: all
+  gather_facts: true
+  tasks:
+    # Verify Docker is installed
+    - name: Check Docker version
+      ansible.builtin.command:
+        argv:
+          - docker
+          - --version
+      register: docker_version
+      changed_when: false
+      failed_when: docker_version.rc != 0
+
+    - name: Assert Docker version output
+      ansible.builtin.assert:
+        that:
+          - "'Docker version' in docker_version.stdout"
+        fail_msg: "Docker not properly installed"
+
+    # Verify Docker Compose plugin is installed
+    - name: Check Docker Compose plugin
+      ansible.builtin.command:
+        argv:
+          - docker
+          - compose
+          - version
+      register: compose_version
+      changed_when: false
+      failed_when: compose_version.rc != 0
+
+    - name: Assert Docker Compose version output
+      ansible.builtin.assert:
+        that:
+          - "'Docker Compose version' in compose_version.stdout or 'version' in compose_version.stdout"
+        fail_msg: "Docker Compose plugin not installed"
+
+    # Verify docker group exists
+    - name: Check docker group exists
+      ansible.builtin.getent:
+        database: group
+        key: docker
+      failed_when: ansible_facts.getent_group is not defined or 'docker' not in ansible_facts.getent_group
+
+    # Verify ansible user is in docker group
+    - name: Check ansible user in docker group
+      ansible.builtin.command:
+        argv:
+          - id
+          - -Gn
+          - ansible
+      register: ansible_groups
+      changed_when: false
+
+    - name: Assert ansible user in docker group
+      ansible.builtin.assert:
+        that:
+          - "'docker' in ansible_groups.stdout"
+        fail_msg: "ansible user not in docker group"
+
+    # Verify jlw user is in docker group (from base_extra_sudo_users)
+    - name: Check jlw user in docker group
+      ansible.builtin.command:
+        argv:
+          - id
+          - -Gn
+          - jlw
+      register: jlw_groups
+      changed_when: false
+      failed_when: jlw_groups.rc != 0
+
+    - name: Assert jlw user in docker group
+      ansible.builtin.assert:
+        that:
+          - "'docker' in jlw_groups.stdout"
+        fail_msg: "jlw user not in docker group"
+
+    # Verify dockerd service is running
+    - name: Check Docker daemon is running
+      ansible.builtin.command:
+        argv:
+          - systemctl
+          - is-active
+          - docker
+      register: docker_status
+      changed_when: false
+      failed_when: docker_status.rc != 0
+
+    - name: Assert Docker daemon running
+      ansible.builtin.assert:
+        that:
+          - docker_status.stdout.strip() == "active"
+        fail_msg: "Docker daemon not running"
+
+    # Verify dockerd is enabled
+    - name: Check Docker daemon is enabled
+      ansible.builtin.command:
+        argv:
+          - systemctl
+          - is-enabled
+          - docker
+      register: docker_enabled
+      changed_when: false
+      failed_when: docker_enabled.rc != 0
+
+    - name: Assert Docker daemon enabled
+      ansible.builtin.assert:
+        that:
+          - docker_enabled.stdout.strip() == "enabled"
+        fail_msg: "Docker daemon not enabled"
+
+    # Test that ansible user can run docker without sudo
+    - name: Test ansible user can run docker
+      ansible.builtin.command:
+        argv:
+          - docker
+          - ps
+      become: true
+      become_user: ansible
+      register: docker_test
+      changed_when: false
+      failed_when: docker_test.rc != 0
+
+    - name: Assert docker ps works
+      ansible.builtin.assert:
+        that:
+          - docker_test.rc == 0
+        fail_msg: "ansible user cannot run docker"
+
+    # Verify Official Docker repo is configured
+    - name: Check Docker official repo is configured
+      ansible.builtin.command:
+        argv:
+          - grep
+          - -r
+          - "docker.com"
+          - /etc/apt/sources.list.d/
+      register: docker_repo
+      changed_when: false
+      failed_when: docker_repo.rc != 0

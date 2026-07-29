@@ -1,0 +1,137 @@
+---
+# Verify that the tailscale role installed and configured everything correctly.
+
+- name: Verify Tailscale role
+  hosts: all
+  gather_facts: true
+  tasks:
+    # Verify Tailscale is installed
+    - name: Check Tailscale is installed
+      ansible.builtin.command:
+        argv:
+          - tailscale
+          - version
+      register: tailscale_version
+      changed_when: false
+      failed_when: tailscale_version.rc != 0
+
+    - name: Assert Tailscale version output
+      ansible.builtin.assert:
+        that:
+          - "'tailscale' in tailscale_version.stdout.lower()"
+        fail_msg: "Tailscale not properly installed"
+
+    # Verify tailscale command exists
+    - name: Check tailscale binary exists
+      ansible.builtin.stat:
+        path: /usr/bin/tailscale
+      register: tailscale_binary
+      failed_when: not tailscale_binary.stat.exists
+
+    - name: Assert tailscale binary executable
+      ansible.builtin.assert:
+        that:
+          - tailscale_binary.stat.executable
+        fail_msg: "tailscale binary not executable"
+
+    # Verify tailscaled daemon binary exists
+    - name: Check tailscaled daemon binary exists
+      ansible.builtin.stat:
+        path: /usr/sbin/tailscaled
+      register: tailscaled_binary
+      failed_when: not tailscaled_binary.stat.exists
+
+    # Verify tailscale systemd service exists
+    - name: Check tailscale systemd service
+      ansible.builtin.stat:
+        path: /etc/systemd/system/tailscale.service
+      register: tailscale_service
+      failed_when: not tailscale_service.stat.exists
+
+    # Verify tailscaled is running (daemon that manages VPN connection)
+    - name: Check tailscaled daemon is running
+      ansible.builtin.command:
+        argv:
+          - systemctl
+          - is-active
+          - tailscaled
+      register: tailscaled_status
+      changed_when: false
+      failed_when: tailscaled_status.rc != 0
+
+    - name: Assert tailscaled daemon running
+      ansible.builtin.assert:
+        that:
+          - tailscaled_status.stdout.strip() == "active"
+        fail_msg: "tailscaled daemon not running"
+
+    # Verify tailscaled is enabled
+    - name: Check tailscaled daemon is enabled
+      ansible.builtin.command:
+        argv:
+          - systemctl
+          - is-enabled
+          - tailscaled
+      register: tailscaled_enabled
+      changed_when: false
+      failed_when: tailscaled_enabled.rc != 0
+
+    - name: Assert tailscaled daemon enabled
+      ansible.builtin.assert:
+        that:
+          - tailscaled_enabled.stdout.strip() == "enabled"
+        fail_msg: "tailscaled daemon not enabled"
+
+    # Verify Tailscale apt repository is configured
+    - name: Check Tailscale apt repository
+      ansible.builtin.stat:
+        path: /etc/apt/sources.list.d/tailscale.sources
+      register: tailscale_repo
+      failed_when: not tailscale_repo.stat.exists
+
+    - name: Assert Tailscale repository file
+      ansible.builtin.assert:
+        that:
+          - tailscale_repo.stat.isreg
+        fail_msg: "Tailscale apt repository not configured"
+
+    # Verify Tailscale GPG key is installed
+    - name: Check Tailscale GPG key
+      ansible.builtin.stat:
+        path: /etc/apt/keyrings/tailscale.asc
+      register: tailscale_gpg_key
+      failed_when: not tailscale_gpg_key.stat.exists
+
+    - name: Assert Tailscale GPG key exists
+      ansible.builtin.assert:
+        that:
+          - tailscale_gpg_key.stat.isreg
+        fail_msg: "Tailscale GPG key not installed"
+
+    # Verify the package is installed
+    - name: Get Tailscale package facts
+      ansible.builtin.package_facts:
+        manager: apt
+      register: package_facts
+
+    - name: Assert Tailscale package installed
+      ansible.builtin.assert:
+        that:
+          - "'tailscale' in package_facts.ansible_facts.packages"
+        fail_msg: "tailscale package not installed via apt"
+
+    # Verify tailscale command works (not joined, but the command should work)
+    - name: Test tailscale help command
+      ansible.builtin.command:
+        argv:
+          - tailscale
+          - help
+      register: tailscale_help
+      changed_when: false
+      failed_when: tailscale_help.rc != 0
+
+    - name: Assert tailscale help works
+      ansible.builtin.assert:
+        that:
+          - "'Usage:' in tailscale_help.stdout or 'tailscale' in tailscale_help.stdout.lower()"
+        fail_msg: "tailscale help command not working"

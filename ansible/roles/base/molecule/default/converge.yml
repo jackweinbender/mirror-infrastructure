@@ -1,0 +1,11 @@
+---
+# Playbook to converge the test instance by applying the base role.
+# This runs multiple times to test idempotency.
+
+- name: Converge base role
+  hosts: all
+  gather_facts: true
+  tasks:
+    - name: Include base role
+      ansible.builtin.include_role:
+        name: base

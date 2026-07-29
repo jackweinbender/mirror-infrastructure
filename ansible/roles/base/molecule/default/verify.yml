@@ -1,0 +1,69 @@
+---
+# Post-apply verification that the base role configured everything correctly.
+
+- name: Verify base role
+  hosts: all
+  gather_facts: true
+  tasks:
+    # Verify ansible user exists
+    - name: Check ansible user exists
+      ansible.builtin.user:
+        name: ansible
+        state: present
+      check_mode: true
+      register: ansible_user_check
+      failed_when: ansible_user_check.changed
+
+    # Verify required base packages are installed
+    - name: Check for required packages
+      ansible.builtin.package_facts:
+        manager: apt
+      register: package_facts
+
+    - name: Ensure critical packages installed
+      ansible.builtin.assert:
+        that:
+          - "'openssh-server' in package_facts.ansible_facts.packages"
+          - "'sudo' in package_facts.ansible_facts.packages"
+          - "'curl' in package_facts.ansible_facts.packages"
+          - "'git' in package_facts.ansible_facts.packages"
+          - "'vim' in package_facts.ansible_facts.packages"
+        fail_msg: "Critical packages missing from base role installation"
+
+    # Verify locale is set correctly
+    - name: Check locale configuration
+      ansible.builtin.command: grep -c "en_US.UTF-8" /etc/locale.gen
+      register: locale_check
+      changed_when: false
+      failed_when: locale_check.rc != 0
+
+    # Verify timezone symlink exists
+    - name: Check timezone is set
+      ansible.builtin.stat:
+        path: /etc/localtime
+      register: localtime_stat
+      failed_when: not localtime_stat.stat.exists
+
+    # Verify sshd is running
+    - name: Check sshd service status
+      ansible.builtin.service_facts:
+      register: service_facts
+
+    - name: Ensure sshd is enabled
+      ansible.builtin.assert:
+        that:
+          - "'ssh.service' in service_facts.ansible_facts.services or 'sshd.service' in service_facts.ansible_facts.services"
+        fail_msg: "SSH service not found"
+
+    # Verify shell for root and ansible users
+    - name: Check ansible user shell
+      ansible.builtin.command: getent passwd ansible | cut -d: -f7
+      register: ansible_shell
+      changed_when: false
+      failed_when: ansible_shell.stdout != "/bin/bash"
+
+    - name: Check root user shell
+      ansible.builtin.command: getent passwd root | cut -d: -f7
+      register: root_shell
+      changed_when: false
+      failed_when: root_shell.stdout != "/usr/bin/zsh"

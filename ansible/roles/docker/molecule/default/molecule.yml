@@ -1,0 +1,31 @@
+---
+# Molecule configuration for Docker role testing.
+# Tests Docker Engine installation (official repo) + compose plugin + group membership.
+
+dependency:
+  name: galaxy
+
+driver:
+  name: docker
+
+platforms:
+  - name: debian-bookworm
+    image: debian:bookworm
+    pre_build_image: true
+    privileged: true
+    volumes:
+      - /sys/fs/cgroup:/sys/fs/cgroup:rw
+    cgroupns_mode: host
+    command: /lib/systemd/systemd-cgroups-agent
+
+provisioner:
+  name: ansible
+  playbooks:
+    converge: converge.yml
+    verify: verify.yml
+  config_options:
+    defaults:
+      roles_path: ../../..
+
+verifier:
+  name: ansible

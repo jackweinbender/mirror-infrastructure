@@ -1,0 +1,18 @@
+---
+# Converge playbook for Tailscale role.
+# Applies base role (prerequisite), then tailscale role (without authkey - install only).
+
+- name: Converge Tailscale role
+  hosts: all
+  gather_facts: true
+  tasks:
+    - name: Include base role (prerequisite)
+      ansible.builtin.include_role:
+        name: base
+
+    - name: Include tailscale role
+      ansible.builtin.include_role:
+        name: tailscale
+      vars:
+        # Don't join the tailnet in tests - we don't have a valid authkey
+        tailscale_authkey: ""
