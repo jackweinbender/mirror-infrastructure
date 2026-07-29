@@ -5,7 +5,7 @@
 This repository utilizes Ansible to manage infrastructure configurations. The organization of playbooks and roles follows these core principles:
 
 *   **Separation of Concerns:**
-    *   **Steady-State Configuration:** Defined in reusable Ansible roles (e.g., `roles/base/`, `roles/tailscale/`). These roles encapsulate idempotent configurations that ensure a server reaches and maintains a desired end-state. They are applied by playbooks like `workloads.yaml`.
+    *   **Steady-State Configuration:** Defined in reusable Ansible roles (e.g., `roles/base/`, `roles/tailscale/`, `roles/docker/`). These roles encapsulate idempotent configurations that ensure a server reaches and maintains a desired end-state. `base` + `tailscale` are applied to every host in `workloads.yaml`; specialized roles like `docker` are applied only to hosts that declare them via `host_roles` in `inventory.yaml`.
     *   **Bootstrap Process:** Orchestrated by dedicated playbook files (e.g., `playbooks/local-bootstrap-lxc.yaml`). These playbooks handle the initial provisioning of new infrastructure. They include procedural, one-off tasks specific to the setup sequence inline or in task files (e.g., `tasks/lxc_bootstrap/main.yml`, `tasks/lxc_prepare/main.yml`), and call upon Ansible roles for steady-state configurations where applicable.
 
 *   **DRY (Don't Repeat Yourself):** Common configurations are defined once in roles and applied consistently across hosts and playbooks.
@@ -101,3 +101,25 @@ Increase verbosity when diagnosing task or connection failures:
 ansible-playbook playbooks/local-bootstrap-pve.yaml -v
 ansible-playbook playbooks/local-bootstrap-pve.yaml -vvv
 ```
+
+## Specialized roles per host
+
+`workloads.yaml` applies `base` + `tailscale` to every host, then loops
+over each host's `host_roles` list (declared in `inventory.yaml`) to apply
+anything beyond the baseline:
+
+```yaml
+# inventory.yaml
+workloads:
+  hosts:
+    traefik-lxc.tortoise-noodlefish.ts.net:
+      host_roles: [docker]
+```
+
+To add a specialized role to a host, edit `inventory.yaml` only - never
+`workloads.yaml`. Check what a host will actually run:
+
+```bash
+ansible-inventory --host traefik-lxc.tortoise-noodlefish.ts.net
+```
+
