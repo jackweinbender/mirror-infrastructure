@@ -25,6 +25,8 @@ Infrastructure management and bootstrap orchestration using Ansible roles and pl
 
 ## Setup
 
+### Initial Setup (One-Time)
+
 ```bash
 cd ansible
 python3 -m venv .venv
@@ -34,24 +36,63 @@ ansible-lint                           # Syntax + style check
 ansible-inventory --graph               # Verify inventory
 ```
 
-## Testing
-
-All production roles have Molecule tests using Docker:
+### Activate for Each Session
 
 ```bash
-molecule test -s base       # Debian baseline (~2 min)
-molecule test -s docker     # Docker Engine + Compose (~3 min)
-molecule test -s tailscale  # Tailscale VPN (~3 min)
-molecule idempotent -s base # Test idempotency (apply twice, no changes)
-molecule converge -s docker # Apply and inspect: docker exec -it debian-bookworm bash
-molecule destroy -s docker  # Clean up
+cd ansible
+source .venv/bin/activate
+# Now run playbooks
+ansible-playbook playbooks/local-bootstrap-lxc.yaml
 ```
 
-See `roles/{role}/molecule/` for test details.
+### Shell Integration (Optional: Auto-activate venv)
 
-Bootstrap tasks (`tasks/lxc_*`) can't be easily unit-tested (they requires Proxmox) but are validated via:
+Add to your shell profile (`~/.zshrc`, `~/.bashrc`, etc.):
+
+```bash
+# Auto-activate Ansible venv when entering the ansible directory
+cd /path/to/infrastructure/ansible && source .venv/bin/activate
+```
+
+Or use direnv for automatic activation:
+
+```bash
+echo 'layout python .venv' > .envrc
+direnv allow
+```
+
+**Critical Note**: The virtual environment **must be active** before running any playbooks. It provides Ansible, ansible-lint, and Molecule - all required for bootstrap playbooks and testing.
+
+## Testing
+
+### Playbook Validation
+Bootstrap tasks (`tasks/lxc_*`) can't be easily unit-tested (they require Proxmox) but are validated via:
 - Syntax check: `ansible-playbook playbooks/local-bootstrap-lxc.yaml --syntax-check`
+- Linting: `ansible-lint playbooks/local-bootstrap-lxc.yaml`
 - Dry-run: `ansible-playbook playbooks/workloads.yaml --check --diff`
+
+### Role Unit Tests (Molecule)
+All production roles have Molecule tests using Docker. **Note**: On systems with a system-wide Ansible installation, ensure the venv Python is used:
+
+```bash
+# Explicitly use venv Python for Molecule
+.venv/bin/python -m molecule test -s default
+
+# Or within a role:
+cd roles/base
+../../.venv/bin/python -m molecule test
+```
+
+Example tests:
+```bash
+cd roles/base
+../../.venv/bin/molecule test           # Full test (create, converge, verify, destroy)
+../../.venv/bin/molecule converge        # Create and converge (stop before destroy)
+../../.venv/bin/molecule verify          # Run verify tasks on existing container
+../../.venv/bin/molecule destroy         # Clean up Docker container
+```
+
+See `roles/{role}/molecule/` for test playbooks and configuration.
 
 ## Playbooks
 
@@ -76,17 +117,48 @@ workloads:
 
 ### local-bootstrap-lxc.yaml (One-Shot: New Container)
 
-Create and bootstrap an LXC interactively with prompts, or non-interactively:
+Create and bootstrap an LXC container with interactive selection menus.
+
+**Interactive (Recommended)**:
 
 ```bash
-# Interactive
 ansible-playbook playbooks/local-bootstrap-lxc.yaml
+```
 
-# Non-interactive (existing container)
+You'll be prompted to:
+1. **Create new container?** - Type `y` (or press Enter) for yes, `n` for no
+2. **Select Proxmox host** - Interactive numbered menu of available hypervisors
+3. **Enter container ID** - Defaults to next available ID on the host (press Enter to accept)
+4. **Enter hostname** - Defaults to `lxc-<ctid>` if not provided (press Enter to accept)
+5. **Select SSH public key** - Interactive numbered menu of keys in `~/.ssh/*.pub`
+6. **CPU cores** - Default 2 cores (press Enter to accept)
+7. **Memory in MB** - Default 2048 MB (press Enter to accept)
+8. **Container template** - Default `debian-13-standard_13.6-1_amd64` (press Enter to accept)
+9. **Enable Docker?** - Type `y` for yes, `n` (or press Enter) for no
+10. **Tailscale auth key** - Required to join the tailnet (no default)
+
+**Non-interactive (CI/CD, existing container)**:
+
+```bash
 ansible-playbook playbooks/local-bootstrap-lxc.yaml \
   -e skip_creation=true \
-  -e lxc_pve_host=my-proxmox-host \
+  -e lxc_pve_host=caba-host \
   -e lxc_prepare_ctid=105 \
+  -e lxc_bootstrap_tailscale_authkey=tskey-...
+```
+
+**Non-interactive (CI/CD, create new container)**:
+
+```bash
+ansible-playbook playbooks/local-bootstrap-lxc.yaml \
+  -e lxc_pve_host=caba-host \
+  -e lxc_create_ctid=105 \
+  -e lxc_create_hostname=myhost \
+  -e lxc_create_cores=2 \
+  -e lxc_create_memory=2048 \
+  -e lxc_create_storage=local-zfs \
+  -e lxc_create_template=debian-13-standard_13.6-1_amd64 \
+  -e lxc_create_ssh_pubkey="ssh-rsa ..." \
   -e lxc_bootstrap_tailscale_authkey=tskey-...
 ```
 
@@ -156,8 +228,17 @@ Installs Tailscale. If `tailscale_authkey` is set and host isn't already joined,
 ```bash
 ansible-lint                                      # All files
 ansible-playbook playbooks/workloads.yaml --syntax-check
+ansible-playbook playbooks/local-bootstrap-lxc.yaml --syntax-check
 ansible-playbook playbooks/local-bootstrap-lxc.yaml -vvv  # Verbose debug
 ```
+
+## Dependencies
+
+- **ansible-core**: Orchestration engine
+- **ansible-lint**: Playbook linting and validation
+- **molecule + molecule-docker**: Testing framework for roles
+
+All requirements are in `requirements.txt` and installed in the venv. Interactive selection menus use bash built-ins and don't require additional packages.
 
 ## Key Decisions
 
@@ -166,3 +247,4 @@ ansible-playbook playbooks/local-bootstrap-lxc.yaml -vvv  # Verbose debug
 3. **Idempotency**: Every role is safe to replay multiple times. `workloads.yaml` can run daily or on-demand.
 4. **Bootstrap ≠ Steady State**: Bootstrap creates the user and joins tailnet. Everything else (packages, sshd policy, updates, shells) is owned by roles and applied on the first steady-state run.
 5. **Inventory-Driven Specialization**: `workloads.yaml` is generic; `host_roles` in inventory drives which roles apply to which hosts. Adding a role to a host means editing inventory only.
+6. **Interactive Prompts Over Manual Entry**: Bootstrap playbooks use interactive bash menus for repetitive choices (Proxmox hosts, SSH keys) to reduce typos and improve UX.

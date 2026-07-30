@@ -41,7 +41,7 @@
       - set-timezone
       - "{{ base_timezone }}"
   when: base_time_status.stdout_lines[0] != base_timezone
-  changed_when: true
+  changed_when: base_time_status.stdout_lines[0] != base_timezone
 
 - name: Enable NTP time synchronization
   ansible.builtin.command:
@@ -50,4 +50,4 @@
       - set-ntp
       - "true"
   when: base_time_status.stdout_lines[1] != 'yes'
-  changed_when: true
+  changed_when: base_time_status.stdout_lines[1] != 'yes'

@@ -5,10 +5,7 @@ workloads:
     jellyfin-lxc.tortoise-noodlefish.ts.net: null
     traefik-lxc.tortoise-noodlefish.ts.net:
       host_roles:
-        - docker
-    testt.tortoise-noodlefish.ts.net:
-      host_roles:
-        - docker
+      - docker
 hypervisors:
   vars:
     ansible_user: root

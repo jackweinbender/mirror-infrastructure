@@ -1,0 +1,12 @@
+---
+# Restart, not reload: on Debian hosts where ssh.service is socket-activated
+# (TriggeredBy: ssh.socket), a reload SIGHUPs sshd, which re-execs and tries
+# to bind port 22 itself - but systemd's ssh.socket already holds the port,
+# so sshd dies with "fatal: Cannot bind any address." A restart goes through
+# systemd, which hands the socket to the new sshd. Existing sessions survive
+# a restart (child processes are unaffected), and remote access is Tailscale
+# SSH anyway.
+- name: Restart sshd
+  ansible.builtin.systemd:
+    name: ssh
+    state: restarted

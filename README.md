@@ -55,23 +55,54 @@ Infrastructure configuration and host management via Ansible:
 1. Installs baseline configurations (`roles/base/`)
 2. Deploys Docker or Tailscale as needed per host
 3. Converges hosts to desired state via `playbooks/workloads.yaml`
+4. Bootstrap playbooks with interactive menu selection for Proxmox hosts and SSH keys
 
 **Tested with Molecule** — All roles have automated tests that run in Docker containers before touching production.
 
-## Testing
-
-### Ansible Role Tests
-
-All three production Ansible roles have comprehensive Molecule tests:
+**Setup**:
 
 ```bash
-cd ansible && source .venv/bin/activate
-molecule test -s base       # Base role (users, packages, locale)
-molecule test -s docker     # Docker Engine + Compose
-molecule test -s tailscale  # Tailscale installation
+cd ansible
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
 ```
 
-See `ansible/TESTING.md` for complete testing guide.
+For each session, activate the venv before running playbooks:
+
+```bash
+cd ansible
+source .venv/bin/activate
+ansible-playbook playbooks/local-bootstrap-lxc.yaml  # Interactive menus
+```
+
+## Testing
+
+### Ansible
+
+All playbooks are syntax-checked and linted. Roles have comprehensive Molecule tests in Docker:
+
+**Setup** (one-time):
+```bash
+cd ansible
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+**Run tests**:
+```bash
+# Playbook validation
+ansible-lint
+ansible-playbook playbooks/local-bootstrap-lxc.yaml --syntax-check
+
+# Role unit tests (requires Docker)
+cd roles/base && ../../.venv/bin/molecule test
+cd roles/docker && ../../.venv/bin/molecule test
+cd roles/tailscale && ../../.venv/bin/molecule test
+```
+
+See **[`ansible/TESTING.md`](ansible/TESTING.md)** for comprehensive testing guide and troubleshooting.
 
 ### Terraform
 

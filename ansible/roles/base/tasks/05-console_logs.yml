@@ -36,7 +36,7 @@
       - console-getty.service
       - container-getty@*.service
   when: base_autologin_overrides.changed
-  changed_when: true
+  changed_when: base_autologin_overrides.changed
 
 - name: Empty the static /etc/motd disclaimer
   ansible.builtin.copy:

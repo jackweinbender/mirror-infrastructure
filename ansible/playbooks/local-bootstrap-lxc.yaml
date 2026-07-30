@@ -16,8 +16,8 @@
 #     -e lxc_create_hostname=myhost \
 #     -e lxc_create_cores=2 \
 #     -e lxc_create_memory=2048 \
-#     -e lxc_create_storage=local-lvm \
-#     -e lxc_create_template=debian-12-standard \
+#     -e lxc_create_storage=local-zfs \
+#     -e lxc_create_template=debian-13-standard_13.6-1_amd64 \
 #     -e lxc_create_ssh_pubkey="ssh-rsa ..." \
 #     -e lxc_bootstrap_tailscale_authkey=tskey-...
 #
@@ -43,32 +43,40 @@
         skip_creation: "{{ (lxc_bootstrap_create_enable_prompt.user_input | default('') | trim | lower in ['n', 'no']) }}"
       when: skip_creation is not defined
 
-    - name: Prompt for the PVE host by number
-      ansible.builtin.pause:
-        prompt: |-
-          Proxmox host managing the container:
-          {% for host in groups['hypervisors'] %}
-          {{ loop.index }}) {{ host }}
-          {% endfor %}
-          Enter a number
-      register: lxc_bootstrap_pve_host_menu
-      vars:
-        selection: "{{ lxc_bootstrap_pve_host_menu.user_input | default('') | trim }}"
-      until: selection is regex('^[0-9]+$') and 1 <= (selection | int) <= (groups['hypervisors'] | length)
-      retries: 5
-      delay: 0
-      when: lxc_pve_host is not defined
+    - name: Select PVE host interactively
+      block:
+        - name: Build PVE host menu prompt
+          ansible.builtin.pause:
+            prompt: "\nSelect Proxmox host:\n{% for host in groups['hypervisors'] %}{{ loop.index }}) {{ host }}\n{% endfor %}Enter number"
+          register: lxc_bootstrap_pve_host_prompt
+          when: lxc_pve_host is not defined
+
+        - name: Parse PVE host selection
+          ansible.builtin.set_fact:
+            lxc_pve_host_index: "{{ ((lxc_bootstrap_pve_host_prompt.user_input | default('') | trim | regex_replace('\n', '')) or '1') | int }}"
+            lxc_pve_host_list: "{{ groups['hypervisors'] | list }}"
+          when: lxc_pve_host is not defined
+
+        - name: Get selected PVE host
+          ansible.builtin.set_fact:
+            lxc_bootstrap_pve_host_prompt:
+              stdout: "{{ lxc_pve_host_list[lxc_pve_host_index - 1] }}"
+          when: lxc_pve_host is not defined
 
     - name: Record the selected PVE host
       ansible.builtin.set_fact:
-        lxc_pve_host: "{{ groups['hypervisors'][(lxc_bootstrap_pve_host_menu.user_input | int) - 1] }}"
+        lxc_pve_host: "{{ lxc_bootstrap_pve_host_prompt.stdout | trim }}"
       when: lxc_pve_host is not defined
+
+    - name: Display selected PVE host
+      ansible.builtin.debug:
+        msg: "Selected PVE host: {{ lxc_pve_host }}"
 
     - name: Confirm the PVE host is a known hypervisor (guards -e input)
       ansible.builtin.assert:
         that:
           - lxc_pve_host in groups['hypervisors']
-        fail_msg: >-
+        fail_msg: >
           {{ lxc_pve_host }} is not in the hypervisors inventory group
           ({{ groups['hypervisors'] | join(', ') }}).
 
@@ -76,36 +84,46 @@
     - name: Prompt for container creation details
       when: not (skip_creation | default(false) | bool)
       block:
+        - name: Get all container IDs from cluster (search all nodes)
+          ansible.builtin.raw: "grep -r vmid: /etc/pve/nodes/ 2>/dev/null | awk -F'vmid: ' '{print $2}' | awk '{print $1}' | sort -n | tail -1"
+          register: lxc_bootstrap_max_ctid_result
+          delegate_to: "{{ lxc_pve_host }}"
+          changed_when: false
+          failed_when: false
+
+        - name: Calculate next available container ID (cluster-wide)
+          ansible.builtin.set_fact:
+            lxc_next_available_ctid: "{{ ((lxc_bootstrap_max_ctid_result.stdout | int) + 1) if (lxc_bootstrap_max_ctid_result.stdout | length > 0) else 100 }}"
+
         - name: Prompt for the container ID
           ansible.builtin.pause:
-            prompt: LXC container ID (e.g. 105)
+            prompt: "LXC container ID (default {{ lxc_next_available_ctid }})"
           register: lxc_bootstrap_create_ctid_prompt
-          vars:
-            ctid: "{{ lxc_bootstrap_create_ctid_prompt.user_input | default('') | trim }}"
-          until: ctid is regex('^[0-9]+$')
-          retries: 5
-          delay: 0
           when: lxc_create_ctid is not defined
 
         - name: Record the container ID for creation
           ansible.builtin.set_fact:
-            lxc_create_ctid: "{{ lxc_bootstrap_create_ctid_prompt.user_input | trim }}"
+            lxc_create_ctid: "{{ (lxc_bootstrap_create_ctid_prompt.user_input | default('') | trim | regex_replace('\n', '')) or (lxc_next_available_ctid | string) }}"
           when: lxc_create_ctid is not defined
+
+        - name: Generate default hostname from container ID
+          ansible.builtin.set_fact:
+            lxc_default_hostname: "lxc-{{ lxc_create_ctid }}"
 
         - name: Prompt for container hostname
           ansible.builtin.pause:
-            prompt: Container hostname (e.g. myhost)
+            prompt: "Container hostname (default {{ lxc_default_hostname }})"
           register: lxc_bootstrap_create_hostname_prompt
           vars:
-            hostname: "{{ lxc_bootstrap_create_hostname_prompt.user_input | default('') | trim }}"
-          until: hostname | regex('^[a-z0-9][a-z0-9-]*[a-z0-9]$')
+            hostname: "{{ lxc_bootstrap_create_hostname_prompt.user_input | trim or lxc_default_hostname }}"
+          until: hostname is match('^[a-z0-9][a-z0-9-]*[a-z0-9]$')
           retries: 5
           delay: 0
           when: lxc_create_hostname is not defined
 
         - name: Record the hostname
           ansible.builtin.set_fact:
-            lxc_create_hostname: "{{ lxc_bootstrap_create_hostname_prompt.user_input | trim }}"
+            lxc_create_hostname: "{{ (lxc_bootstrap_create_hostname_prompt.user_input | default('') | trim | regex_replace('\n', '')) or lxc_default_hostname }}"
           when: lxc_create_hostname is not defined
 
         - name: Prompt for CPU cores
@@ -116,7 +134,7 @@
 
         - name: Record CPU cores
           ansible.builtin.set_fact:
-            lxc_create_cores: "{{ (lxc_bootstrap_create_cores_prompt.user_input | trim or '2') | int }}"
+            lxc_create_cores: "{{ ((lxc_bootstrap_create_cores_prompt.user_input | default('') | trim | regex_replace('\n', '')) or '2') | int }}"
           when: lxc_create_cores is not defined
 
         - name: Prompt for memory in MB
@@ -127,46 +145,53 @@
 
         - name: Record memory
           ansible.builtin.set_fact:
-            lxc_create_memory: "{{ (lxc_bootstrap_create_memory_prompt.user_input | trim or '2048') | int }}"
+            lxc_create_memory: "{{ ((lxc_bootstrap_create_memory_prompt.user_input | default('') | trim | regex_replace('\n', '')) or '2048') | int }}"
           when: lxc_create_memory is not defined
 
-        - name: Prompt for storage location
-          ansible.builtin.pause:
-            prompt: Storage location (default local-lvm)
-          register: lxc_bootstrap_create_storage_prompt
-          when: lxc_create_storage is not defined
-
-        - name: Record storage location
+        - name: Set storage location to local-zfs
           ansible.builtin.set_fact:
-            lxc_create_storage: "{{ lxc_bootstrap_create_storage_prompt.user_input | trim or 'local-lvm' }}"
+            lxc_create_storage: "{{ lxc_create_storage | default('local-zfs') }}"
           when: lxc_create_storage is not defined
 
         - name: Prompt for container template
           ansible.builtin.pause:
-            prompt: Container template (default debian-12-standard)
+            prompt: Container template (default debian-13-standard_13.6-1_amd64)
           register: lxc_bootstrap_create_template_prompt
           when: lxc_create_template is not defined
 
         - name: Record template
           ansible.builtin.set_fact:
-            lxc_create_template: "{{ lxc_bootstrap_create_template_prompt.user_input | trim or 'debian-12-standard' }}"
+            lxc_create_template: "{{ (lxc_bootstrap_create_template_prompt.user_input | default('') | trim | regex_replace('\n', '')) or 'debian-13-standard_13.6-1_amd64' }}"
           when: lxc_create_template is not defined
 
-        - name: Prompt for SSH public key
+        - name: Find available SSH public keys
+          ansible.builtin.find:
+            paths: ~/.ssh
+            patterns: '*.pub'
+            file_type: file
+          register: lxc_bootstrap_ssh_pubkeys
+          delegate_to: localhost
+          changed_when: false
+
+        - name: Build SSH key choices with paths
+          ansible.builtin.set_fact:
+            lxc_ssh_key_choices: "{{ lxc_bootstrap_ssh_pubkeys.files | map(attribute='path') | list }}"
+
+        - name: Select SSH public key interactively
           ansible.builtin.pause:
-            prompt: SSH public key (paste the entire key)
-            echo: false
-          register: lxc_bootstrap_create_ssh_pubkey_prompt
-          vars:
-            pubkey: "{{ lxc_bootstrap_create_ssh_pubkey_prompt.user_input | default('') | trim }}"
-          until: pubkey | length > 0
-          retries: 3
-          delay: 0
+            prompt: "\nSelect SSH public key:\n{% for key in lxc_bootstrap_ssh_pubkeys.files %}{{ loop.index }}) {{ key.path | basename }}\n{% endfor %}Enter number"
+          register: lxc_bootstrap_ssh_key_selection_prompt
           when: lxc_create_ssh_pubkey is not defined
 
-        - name: Record SSH public key
+        - name: Parse SSH key selection
           ansible.builtin.set_fact:
-            lxc_create_ssh_pubkey: "{{ lxc_bootstrap_create_ssh_pubkey_prompt.user_input | trim }}"
+            lxc_ssh_key_index: "{{ ((lxc_bootstrap_ssh_key_selection_prompt.user_input | default('') | trim | regex_replace('\n', '')) or '1') | int }}"
+            lxc_ssh_key_files: "{{ lxc_bootstrap_ssh_pubkeys.files | map(attribute='path') | list }}"
+          when: lxc_create_ssh_pubkey is not defined
+
+        - name: Load selected SSH public key
+          ansible.builtin.set_fact:
+            lxc_create_ssh_pubkey: "{{ lookup('file', lxc_ssh_key_files[lxc_ssh_key_index - 1]) | trim }}"
           no_log: true
           when: lxc_create_ssh_pubkey is not defined
 
@@ -177,7 +202,7 @@
       register: lxc_bootstrap_prepare_ctid_prompt
       vars:
         ctid: "{{ lxc_bootstrap_prepare_ctid_prompt.user_input | default('') | trim }}"
-      until: ctid is regex('^[0-9]+$')
+      until: ctid is match('^[0-9]+$')
       retries: 5
       delay: 0
       when:
@@ -186,7 +211,7 @@
 
     - name: Record the container ID for prep
       ansible.builtin.set_fact:
-        lxc_prepare_ctid: "{{ lxc_bootstrap_prepare_ctid_prompt.user_input | trim }}"
+        lxc_prepare_ctid: "{{ lxc_bootstrap_prepare_ctid_prompt.user_input | trim | regex_replace('\n', '') }}"
       when:
         - skip_creation | default(false) | bool
         - lxc_prepare_ctid is not defined
@@ -204,7 +229,7 @@
 
     - name: Record whether this container will run Docker
       ansible.builtin.set_fact:
-        lxc_prepare_enable_docker: "{{ lxc_bootstrap_prepare_enable_docker_prompt.user_input | default('') | trim | lower in ['y', 'yes'] }}"
+        lxc_prepare_enable_docker: "{{ (lxc_bootstrap_prepare_enable_docker_prompt.user_input | default('') | trim | regex_replace('\n', '')) | lower in ['y', 'yes'] }}"
       when: lxc_prepare_enable_docker is not defined
 
     - name: Prompt for the Tailscale auth key
@@ -221,13 +246,17 @@
 
     - name: Record the Tailscale auth key
       ansible.builtin.set_fact:
-        lxc_bootstrap_tailscale_authkey: "{{ lxc_bootstrap_authkey_prompt.user_input | trim }}"
+        lxc_bootstrap_tailscale_authkey: "{{ lxc_bootstrap_authkey_prompt.user_input | trim | regex_replace('\n', '') }}"
       no_log: true
       when: lxc_bootstrap_tailscale_authkey is not defined
 
 - name: Create the LXC container on its PVE host
   hosts: "{{ hostvars.localhost.lxc_pve_host | default('localhost') }}"
   gather_facts: false
+  pre_tasks:
+    - name: Display target PVE host for container creation
+      ansible.builtin.debug:
+        msg: "Creating container on host: {{ inventory_hostname }}"
   vars:
     lxc_create_ctid: "{{ hostvars.localhost.lxc_create_ctid }}"
     lxc_create_hostname: "{{ hostvars.localhost.lxc_create_hostname }}"
@@ -257,6 +286,10 @@
   vars:
     lxc_bootstrap_tailscale_authkey: "{{ hostvars.localhost.lxc_bootstrap_tailscale_authkey }}"
     lxc_bootstrap_enable_docker: "{{ hostvars.localhost.lxc_prepare_enable_docker }}"
+  pre_tasks:
+    - name: Load base role defaults for bootstrap tasks
+      ansible.builtin.include_vars:
+        file: ../roles/base/defaults/main.yml
   tasks:
     - name: Include LXC bootstrap tasks
       ansible.builtin.import_tasks: ../tasks/lxc_bootstrap/main.yml

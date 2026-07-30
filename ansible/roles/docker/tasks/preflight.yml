@@ -28,10 +28,10 @@
 
 - name: Fail if keyctl is disabled at the LXC level
   ansible.builtin.fail:
-    msg: >-
+    msg: >
       keyctl() is not permitted in this container. Docker requires the LXC
       keyctl feature flag. On the Proxmox host, run:
-      pct set {{ ansible_hostname }} --features nesting=1,keyctl=1
+      pct set {{ ansible_facts['hostname'] }} --features nesting=1,keyctl=1
       (the container's CTID may differ from its hostname - check `pct list`)
       then reboot the container and re-run this playbook.
   when: docker_preflight_keyctl.rc != 0
@@ -56,11 +56,11 @@
 
 - name: Fail if cgroup delegation is unavailable (nesting disabled)
   ansible.builtin.fail:
-    msg: >-
+    msg: >
       /sys/fs/cgroup is not writable in this container - dockerd cannot
       create its own cgroups. Docker requires the LXC nesting feature flag.
       On the Proxmox host, run:
-      pct set {{ ansible_hostname }} --features nesting=1,keyctl=1
+      pct set {{ ansible_facts['hostname'] }} --features nesting=1,keyctl=1
       (the container's CTID may differ from its hostname - check `pct list`)
       then reboot the container and re-run this playbook.
   when: docker_preflight_cgroup.rc != 0

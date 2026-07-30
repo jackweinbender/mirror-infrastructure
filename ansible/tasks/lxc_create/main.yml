@@ -10,6 +10,7 @@
 #   lxc_create_ssh_pubkey: SSH public key to add to root
 # Optional variables:
 #   lxc_create_bridge: Network bridge (default: vmbr0)
+#   lxc_create_features: LXC features to enable (default: nesting=1,keyctl=1 for Docker)
 
 
 - name: Validate required variables
@@ -27,31 +28,42 @@
       lxc_create_ctid, lxc_create_hostname, lxc_create_cores, lxc_create_memory,
       lxc_create_storage, lxc_create_template, lxc_create_ssh_pubkey
 
-- name: Check if LXC container already exists
-  ansible.builtin.command:
-    argv:
-      - pct
-      - config
-      - "{{ lxc_create_ctid }}"
-  register: lxc_create_ctid_check
-  failed_when: false
+- name: Check if LXC container already exists cluster-wide
+  ansible.builtin.raw: "grep -r 'vmid: {{ lxc_create_ctid }}' /etc/pve/nodes/ 2>/dev/null || true"
+  register: lxc_create_ctid_search
   changed_when: false
+  failed_when: false
 
-- name: Fail if container already exists
+- name: Determine which node the container exists on (if any)
+  ansible.builtin.set_fact:
+    lxc_create_ctid_node: "{{ (lxc_create_ctid_search.stdout.split('/')[4] if lxc_create_ctid_search.stdout else '') }}"
+  when: lxc_create_ctid_search.stdout | length > 0
+
+- name: Fail if container already exists on any node
   ansible.builtin.fail:
-    msg: "Container {{ lxc_create_ctid }} already exists on this Proxmox node"
-  when: lxc_create_ctid_check.rc == 0
+    msg: "Container {{ lxc_create_ctid }} already exists on node {{ lxc_create_ctid_node }} (Proxmox cluster-wide IDs must be unique)"
+  when: lxc_create_ctid_search.stdout | length > 0
+
+- name: Extract base template name (without version info)
+  ansible.builtin.set_fact:
+    lxc_create_template_base: "{{ lxc_create_template.split('_')[0] }}"
+
+- name: Check if template file exists in cache
+  ansible.builtin.stat:
+    path: "/var/lib/vz/template/cache/{{ lxc_create_template }}.tar.zst"
+  register: lxc_create_template_file
 
 - name: Download the container template if not present
   ansible.builtin.command:
     argv:
       - pveam
       - download
-      - "{{ lxc_create_storage }}"
-      - "{{ lxc_create_template }}"
+      - "local"
+      - "{{ lxc_create_template_base }}"
   register: lxc_create_template_download
-  ignore_errors: true
-  changed_when: "'root@' in lxc_create_template_download.stderr or 'Downloaded' in lxc_create_template_download.stdout"
+  failed_when: lxc_create_template_download.rc != 0 and lxc_create_template_download.rc != 255
+  changed_when: "'Downloaded' in lxc_create_template_download.stdout"
+  when: not lxc_create_template_file.stat.exists
 
 - name: Create the LXC container
   ansible.builtin.command:
@@ -59,7 +71,7 @@
       - pct
       - create
       - "{{ lxc_create_ctid }}"
-      - "{{ lxc_create_storage }}:vztmpl:{{ lxc_create_template }}"
+      - "/var/lib/vz/template/cache/{{ lxc_create_template }}.tar.zst"
       - --hostname
       - "{{ lxc_create_hostname }}"
       - --cores
@@ -70,6 +82,8 @@
       - "name=eth0,bridge={{ lxc_create_bridge | default('vmbr0') }},ip=dhcp"
       - --rootfs
       - "{{ lxc_create_storage }}:{{ lxc_create_ctid }}"
+      - --features
+      - "{{ lxc_create_features | default('nesting=1,keyctl=1') }}"
       - --onboot
       - "1"
   register: lxc_create_result

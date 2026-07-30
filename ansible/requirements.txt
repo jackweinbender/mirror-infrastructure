@@ -2,5 +2,6 @@ ansible-core==2.20.3
 ansible-lint==26.6.0
 
 # Testing
+requests>=2.31.0
 molecule==26.4.0
 molecule-docker==2.1.0

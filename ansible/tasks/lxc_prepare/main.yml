@@ -59,7 +59,7 @@
   ansible.builtin.import_tasks: ../lxc_features/add_docker.yml
 
 - name: Apply LXC config changes
-  when: lxc_prepare_reboot_required | default(false)
+  when: (lxc_prepare_reboot_required | default(false)) or (lxc_features_reboot_required | default(false))
   block:
     - name: Reboot the container to apply LXC config changes
       ansible.builtin.command:
@@ -83,7 +83,11 @@
       delay: 5
       changed_when: false
 
-- name: Get the container's IP address
+    - name: Debug reboot completion
+      ansible.builtin.debug:
+        msg: "Container {{ lxc_prepare_ctid }} rebooted successfully and accepted pct exec"
+
+- name: Get the container's IP address (after any reboots)
   ansible.builtin.command:
     argv:
       - pct

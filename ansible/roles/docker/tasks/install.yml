@@ -12,10 +12,10 @@
 - name: Require a Debian host
   ansible.builtin.assert:
     that:
-      - ansible_distribution == 'Debian'
-    fail_msg: >-
-      This role only supports Debian ({{ ansible_distribution }}
-      {{ ansible_distribution_release }} detected on {{ inventory_hostname }}).
+      - ansible_facts['distribution'] == 'Debian'
+    fail_msg: >
+      This role only supports Debian ({{ ansible_facts['distribution'] }}
+      {{ ansible_facts['distribution_release'] }} detected on {{ inventory_hostname }}).
       Docker's linux/debian and linux/ubuntu apt repos are not interchangeable.
 
 - name: Ensure prerequisite packages are installed
@@ -43,10 +43,10 @@
 
 - name: Add Docker's apt repository
   ansible.builtin.apt_repository:
-    repo: >-
-      deb [arch={{ 'amd64' if ansible_architecture == 'x86_64' else ansible_architecture }}
+    repo: >
+      deb [arch={{ 'amd64' if ansible_facts['architecture'] == 'x86_64' else ansible_facts['architecture'] }}
       signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian
-      {{ ansible_distribution_release }} stable
+      {{ ansible_facts['distribution_release'] }} stable
     filename: docker
     state: present
 
