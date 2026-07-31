@@ -1,4 +1,4 @@
-ansible-core==2.20.3
+ansible-core==2.20.7rc1
 ansible-lint==26.6.0
 
 # Testing
