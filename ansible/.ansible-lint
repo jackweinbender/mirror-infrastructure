@@ -1,6 +1,3 @@
 ---
 kinds:
   - vars: "**/tasks/*/vars.yml"
-
-skip_list:
-  - yaml
