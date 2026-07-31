@@ -44,6 +44,6 @@ jobs:
             **/*requirements.txt
             **/*requirements.yaml
       - run: pip install -r requirements.txt
-      # - run: ansible-galaxy install -r ansible-requirements.yaml
+      - run: ansible-galaxy collection install -r ansible-requirements.yaml
       - run: ansible-lint
       - run: ansible-playbook playbooks/workloads.yaml

@@ -1,0 +1,6 @@
+---
+# Ansible Galaxy collection dependencies for CI and local runs.
+# Install with: ansible-galaxy collection install -r ansible-requirements.yaml
+collections:
+  - name: community.general
+    version: "10.0.0"
