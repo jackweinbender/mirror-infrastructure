@@ -102,7 +102,7 @@ cd roles/docker && ../../.venv/bin/molecule test
 cd roles/tailscale && ../../.venv/bin/molecule test
 ```
 
-See **[`ansible/TESTING.md`](ansible/TESTING.md)** for comprehensive testing guide and troubleshooting.
+
 
 ### Terraform
 

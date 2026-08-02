@@ -1,15 +1,15 @@
 ---
 - name: Install packages and enable automatic updates
-  ansible.builtin.import_tasks: 01-packages_updates.yml
+  ansible.builtin.import_tasks: packages_updates.yml
 
 - name: Create users and configure shells
-  ansible.builtin.import_tasks: 02-users_shells.yml
+  ansible.builtin.import_tasks: users_shells.yml
 
 - name: Harden SSH and regenerate host keys on clones
-  ansible.builtin.import_tasks: 03-ssh_security.yml
+  ansible.builtin.import_tasks: ssh_security.yml
 
 - name: Configure locale and time synchronization
-  ansible.builtin.import_tasks: 04-system_time_locale.yml
+  ansible.builtin.import_tasks: system_time_locale.yml
 
 - name: Configure console access, login banner, and log retention
-  ansible.builtin.import_tasks: 05-console_logs.yml
+  ansible.builtin.import_tasks: console_logs.yml

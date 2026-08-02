@@ -1,10 +1,3 @@
----
-# Bootstrap: the minimum to hand a fresh Debian LXC over to steady state
-# (workloads.yaml). Creates the management user, joins the tailnet, and
-# registers the host in inventory. Everything else - package upgrades, sshd
-# policy, unattended-upgrades, console auto-login - is desired-state config
-# owned by the base role and applied on the first steady-state run.
-
 - name: Require a Debian guest
   ansible.builtin.assert:
     that:
@@ -33,7 +26,7 @@
   changed_when: false
 
 - name: Create the management user steady state connects as
-  ansible.builtin.import_tasks: users.yml
+  ansible.builtin.import_tasks: ../roles/base/tasks/sudo_users.yml
 
 - name: Install Tailscale and join the tailnet
   ansible.builtin.import_role:

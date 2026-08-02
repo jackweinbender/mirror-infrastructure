@@ -8,11 +8,12 @@
   tasks:
     - name: Include base role (prerequisite)
       ansible.builtin.include_role:
-        name: base
+        name: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/../base"  # noqa role-name[path]
+        public: true
 
     - name: Include tailscale role
       ansible.builtin.include_role:
-        name: tailscale
+        name: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}"  # noqa role-name[path]
       vars:
         # Don't join the tailnet in tests - we don't have a valid authkey
         tailscale_authkey: ""

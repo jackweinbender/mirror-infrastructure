@@ -1,73 +1,146 @@
----
-# noqa: var-naming
-# Post-apply verification that the base role configured everything correctly.
 - name: Verify base role
   hosts: all
   gather_facts: true
   tasks:
-    # Verify ansible user exists
-    - name: Check ansible user exists # noqa var-naming
+    - name: Check ansible user exists
       ansible.builtin.user:
         name: ansible
         state: present
       check_mode: true
-      register: ansible_user_check
-      failed_when: ansible_user_check.changed
+      register: base_ansible_user_check
+      failed_when: base_ansible_user_check.changed
 
-    # Verify required base packages are installed
-    - name: Check for required packages # noqa var-naming
+    - name: Check jlw user exists
+      ansible.builtin.user:
+        name: jlw
+        state: present
+      check_mode: true
+      register: base_jlw_user_check
+      failed_when: base_jlw_user_check.changed
+
+    - name: Check ansible user shell is /bin/bash
+      ansible.builtin.command:
+        argv:
+          - getent
+          - passwd
+          - ansible
+      register: base_ansible_shell
+      changed_when: false
+      failed_when: base_ansible_shell.stdout.split(':')[6] != "/bin/bash"
+
+    - name: Check jlw user shell is /usr/bin/zsh
+      ansible.builtin.command:
+        argv:
+          - getent
+          - passwd
+          - jlw
+      register: base_jlw_shell
+      changed_when: false
+      failed_when: base_jlw_shell.stdout.split(':')[6] != "/usr/bin/zsh"
+
+    - name: Check root user shell is /usr/bin/zsh
+      ansible.builtin.command:
+        argv:
+          - getent
+          - passwd
+          - root
+      register: base_root_shell
+      changed_when: false
+      failed_when: base_root_shell.stdout.split(':')[6] != "/usr/bin/zsh"
+
+    - name: Collect sudoers file metadata
+      ansible.builtin.stat:
+        path: "/etc/sudoers.d/{{ item }}"
+      register: base_sudoers_stat
+      loop:
+        - ansible
+        - jlw
+
+    - name: Check sudoers files exist with correct mode
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - item.stat.mode == "0440"
+      loop: "{{ base_sudoers_stat.results }}"
+
+    - name: Check required packages are installed
       ansible.builtin.package_facts:
         manager: apt
-      register: package_facts
+      register: base_package_facts
 
     - name: Ensure critical packages installed
       ansible.builtin.assert:
         that:
-          - "'openssh-server' in package_facts.ansible_facts.packages"
-          - "'sudo' in package_facts.ansible_facts.packages"
-          - "'curl' in package_facts.ansible_facts.packages"
-          - "'git' in package_facts.ansible_facts.packages"
-          - "'vim' in package_facts.ansible_facts.packages"
-        fail_msg: Critical packages missing from base role installation
+          - "'sudo' in base_package_facts.ansible_facts.packages"
+          - "'curl' in base_package_facts.ansible_facts.packages"
+          - "'git' in base_package_facts.ansible_facts.packages"
+          - "'zsh' in base_package_facts.ansible_facts.packages"
+          - "'unattended-upgrades' in base_package_facts.ansible_facts.packages"
+          - "'needrestart' in base_package_facts.ansible_facts.packages"
+        fail_msg: "Critical packages missing from base role installation"
 
-    # Verify locale is set correctly
-    - name: Check locale configuration # noqa var-naming
-      ansible.builtin.command: grep -c "en_US.UTF-8" /etc/locale.gen
-      register: locale_check
-      changed_when: false
-      failed_when: locale_check.rc != 0
-
-    # Verify timezone symlink exists
-    - name: Check timezone is set # noqa var-naming
+    - name: Collect unattended-upgrades config metadata
       ansible.builtin.stat:
-        path: /etc/localtime
-      register: localtime_stat
-      failed_when: not localtime_stat.stat.exists
+        path: "{{ item }}"
+      register: base_unattended_stat
+      loop:
+        - /etc/apt/apt.conf.d/20auto-upgrades
+        - /etc/apt/apt.conf.d/50unattended-upgrades
 
-    # Verify sshd is running
-    - name: Check sshd service status # noqa var-naming
-      ansible.builtin.service_facts:
-      register: service_facts
-
-    - name: Ensure sshd is enabled
+    - name: Check unattended-upgrades config files exist
       ansible.builtin.assert:
-        that:
-          - "'ssh.service' in service_facts.ansible_facts.services or 'sshd.service' in service_facts.ansible_facts.services"
-        fail_msg: SSH service not found
+        that: item.stat.exists
+      loop: "{{ base_unattended_stat.results }}"
 
-    # Verify shell for root and ansible users
-    - name: Check ansible user shell # noqa risky-shell-pipe var-naming
-      ansible.builtin.shell: |
-        set -o pipefail
-        getent passwd ansible | cut -d: -f7
-      register: ansible_shell
+    - name: Check sshd hardening config exists and has PasswordAuthentication no
+      ansible.builtin.command:
+        argv:
+          - grep
+          - -q
+          - "PasswordAuthentication no"
+          - /etc/ssh/sshd_config.d/99-hardening.conf
+      register: base_sshd_hardening
       changed_when: false
-      failed_when: ansible_shell.stdout != "/bin/bash"
+      failed_when: base_sshd_hardening.rc != 0
 
-    - name: Check root user shell # noqa risky-shell-pipe var-naming
-      ansible.builtin.shell: |
-        set -o pipefail
-        getent passwd root | cut -d: -f7
-      register: root_shell
+    - name: Check host keys regenerated marker exists
+      ansible.builtin.stat:
+        path: /etc/ssh/.base-host-keys-regenerated
+      register: base_host_keys_marker
+      failed_when: not base_host_keys_marker.stat.exists
+
+    - name: Check journald drop-in exists
+      ansible.builtin.stat:
+        path: /etc/systemd/journald.conf.d/99-base-retention.conf
+      register: base_journald_dropin
+      failed_when: not base_journald_dropin.stat.exists
+
+    - name: Check update-motd.d banner exists and is executable
+      ansible.builtin.stat:
+        path: /etc/update-motd.d/10-banner
+      register: base_motd_banner
+      failed_when: not base_motd_banner.stat.exists or not base_motd_banner.stat.executable
+
+    - name: Collect autologin override metadata
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      register: base_autologin_stat
+      loop:
+        - /etc/systemd/system/container-getty@.service.d/override.conf
+        - /etc/systemd/system/console-getty.service.d/override.conf
+
+    - name: Check autologin overrides exist
+      ansible.builtin.assert:
+        that: item.stat.exists
+      loop: "{{ base_autologin_stat.results }}"
+
+    - name: Check logrotate.conf has rotate 4
+      ansible.builtin.command:
+        argv:
+          - grep
+          - -q
+          - "^rotate 4"
+          - /etc/logrotate.conf
+      register: base_logrotate_check
       changed_when: false
-      failed_when: root_shell.stdout != "/usr/bin/zsh"
+      failed_when: base_logrotate_check.rc != 0

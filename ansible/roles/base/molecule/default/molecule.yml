@@ -1,8 +1,3 @@
----
-# Molecule configuration for Debian base role testing.
-# This spins up a fresh Debian container, applies the base role,
-# and validates the configuration.
-
 dependency:
   name: galaxy
 
@@ -10,25 +5,22 @@ driver:
   name: docker
 
 platforms:
-  - name: debian-bookworm
-    image: debian:bookworm
+  - name: debian-trixie
+    image: geerlingguy/docker-debian13-ansible:latest
     pre_build_image: true
-    # Allow container to run systemd (important for some base role tasks)
     privileged: true
+    cgroupns_mode: host
     volumes:
       - /sys/fs/cgroup:/sys/fs/cgroup:rw
-    cgroupns_mode: host
-    command: /lib/systemd/systemd-cgroups-agent
+    command: /lib/systemd/systemd
 
 provisioner:
   name: ansible
+
   playbooks:
+    prepare: prepare.yml
     converge: converge.yml
     verify: verify.yml
-  # Use the ansible directory's ansible.cfg (parent of role)
-  config_options:
-    defaults:
-      roles_path: ../../..
 
 verifier:
   name: ansible

@@ -1,8 +1,3 @@
----
-# Molecule configuration for Tailscale role testing.
-# Tests Tailscale installation from official apt repository.
-# Note: Joining the tailnet requires a valid authkey; this tests installation only.
-
 dependency:
   name: galaxy
 
@@ -10,23 +5,22 @@ driver:
   name: docker
 
 platforms:
-  - name: debian-bookworm
-    image: debian:bookworm
+  - name: debian-trixie
+    image: geerlingguy/docker-debian13-ansible:latest
     pre_build_image: true
     privileged: true
+    cgroupns_mode: host
     volumes:
       - /sys/fs/cgroup:/sys/fs/cgroup:rw
-    cgroupns_mode: host
-    command: /lib/systemd/systemd-cgroups-agent
+    command: /lib/systemd/systemd
 
 provisioner:
   name: ansible
+
   playbooks:
+    prepare: prepare.yml
     converge: converge.yml
     verify: verify.yml
-  config_options:
-    defaults:
-      roles_path: ../../..
 
 verifier:
   name: ansible

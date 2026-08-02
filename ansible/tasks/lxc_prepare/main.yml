@@ -1,7 +1,3 @@
----
-- name: Include LXC prepare variables
-  ansible.builtin.include_vars: vars.yml
-
 - name: Assert required variables are set
   ansible.builtin.assert:
     that:
@@ -22,7 +18,7 @@
 
 - name: Fail if container does not exist
   ansible.builtin.fail:
-    msg: Container {{ lxc_prepare_ctid }} does not exist on this Proxmox node
+    msg: "Container {{ lxc_prepare_ctid }} does not exist on this Proxmox node"
   when: lxc_prepare_ctid_check.rc != 0
 
 - name: Wait for the container to accept pct exec
@@ -45,12 +41,6 @@
     lxc_features_enable_tailscale: true
   ansible.builtin.import_tasks: ../lxc_features/add_tailscale.yml
 
-# Docker needs two Proxmox-level LXC feature flags (nesting, keyctl) that
-# only take effect from the host side - see roles/docker/tasks/preflight.yml
-# for why they can't be set from inside the guest. Only enabled when the
-# caller actually intends to run Docker on this container (lxc_bootstrap
-# prompts for this) - most containers don't need the extra privileges, and
-# there's no reason to grant them by default (see AGENTS.md).
 - name: Add Docker features if requested
   when: lxc_prepare_enable_docker | default(false)
   vars:
@@ -59,33 +49,8 @@
   ansible.builtin.import_tasks: ../lxc_features/add_docker.yml
 
 - name: Apply LXC config changes
-  when: (lxc_prepare_reboot_required | default(false)) or (lxc_features_reboot_required | default(false))
-  block:
-    - name: Reboot the container to apply LXC config changes
-      ansible.builtin.command:
-        argv:
-          - pct
-          - reboot
-          - "{{ lxc_prepare_ctid }}"
-      changed_when: true
-
-    - name: Wait for the container to accept pct exec after reboot
-      ansible.builtin.command:
-        argv:
-          - pct
-          - exec
-          - "{{ lxc_prepare_ctid }}"
-          - --
-          - "true"
-      register: lxc_prepare_exec_check_post_reboot
-      until: lxc_prepare_exec_check_post_reboot.rc == 0
-      retries: 10
-      delay: 5
-      changed_when: false
-
-    - name: Debug reboot completion
-      ansible.builtin.debug:
-        msg: Container {{ lxc_prepare_ctid }} rebooted successfully and accepted pct exec
+  when: lxc_features_reboot_required | default(false)
+  ansible.builtin.import_tasks: ../lxc_features/reboot.yml
 
 - name: Get the container's IP address (after any reboots)
   ansible.builtin.command:
@@ -104,7 +69,7 @@
 
 - name: Add the container to in-memory inventory for the next play
   ansible.builtin.add_host:
-    name: lxc-{{ lxc_prepare_ctid }}
+    name: "lxc-{{ lxc_prepare_ctid }}"
     ansible_host: "{{ lxc_prepare_ip_result.stdout.split()[0] }}"
     ansible_user: root
     groups:

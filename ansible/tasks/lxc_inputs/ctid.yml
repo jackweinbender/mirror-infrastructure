@@ -1,0 +1,15 @@
+- name: Prompt for the container ID if not supplied
+  ansible.builtin.pause:
+    prompt: LXC container ID (e.g. 105)
+  register: lxc_ctid_prompt
+  vars:
+    ctid: "{{ lxc_ctid_prompt.user_input | default('') | trim }}"
+  until: ctid is regex('^[0-9]+$')
+  retries: 5
+  delay: 0
+  when: lxc_ctid is not defined
+
+- name: Record the container ID
+  ansible.builtin.set_fact:
+    "{{ lxc_ctid_output | default('lxc_ctid') }}": "{{ lxc_ctid_prompt.user_input | trim }}"
+  when: lxc_ctid is not defined

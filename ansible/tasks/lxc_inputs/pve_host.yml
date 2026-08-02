@@ -1,0 +1,28 @@
+- name: Prompt for the PVE host if not supplied
+  ansible.builtin.pause:
+    prompt: |-
+      Proxmox host managing the container:
+      {% for host in groups['hypervisors'] %}
+      {{ loop.index }}) {{ host }}
+      {% endfor %}
+      Enter a number
+  register: lxc_pve_host_menu
+  vars:
+    selection: "{{ lxc_pve_host_menu.user_input | default('') | trim }}"
+  until: selection is regex('^[0-9]+$') and 1 <= (selection | int) <= (groups['hypervisors'] | length)
+  retries: 5
+  delay: 0
+  when: lxc_pve_host is not defined
+
+- name: Record the selected PVE host
+  ansible.builtin.set_fact:
+    lxc_pve_host: "{{ groups['hypervisors'][(lxc_pve_host_menu.user_input | int) - 1] }}"
+  when: lxc_pve_host is not defined
+
+- name: Confirm the PVE host is a known hypervisor (guards -e input)
+  ansible.builtin.assert:
+    that:
+      - lxc_pve_host in groups['hypervisors']
+    fail_msg: >-
+      {{ lxc_pve_host }} is not in the hypervisors inventory group
+      ({{ groups['hypervisors'] | join(', ') }}).

@@ -1,6 +1,3 @@
----
-# Configure locale, timezone, and NTP time synchronization.
-
 - name: Ensure locales package is installed
   ansible.builtin.apt:
     name: locales
@@ -21,7 +18,7 @@
     group: root
     mode: "0644"
 
-- name: Read the current timezone and NTP sync status
+- name: Read the current timezone, NTP sync status, and CanNTP capability
   ansible.builtin.command:
     argv:
       - timedatectl
@@ -30,6 +27,8 @@
       - Timezone
       - -p
       - NTP
+      - -p
+      - CanNTP
       - --value
   register: base_time_status
   changed_when: false
@@ -49,5 +48,7 @@
       - timedatectl
       - set-ntp
       - "true"
-  when: base_time_status.stdout_lines[1] != 'yes'
+  when:
+    - base_time_status.stdout_lines[1] != 'yes'
+    - base_time_status.stdout_lines[2] == 'yes'
   changed_when: base_time_status.stdout_lines[1] != 'yes'

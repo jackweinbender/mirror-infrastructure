@@ -1,11 +1,7 @@
----
-# noqa: var-naming
-# Verify that the docker role installed and configured everything correctly.
 - name: Verify Docker role
   hosts: all
   gather_facts: true
   tasks:
-    # Verify Docker is installed
     - name: Check Docker version
       ansible.builtin.command:
         argv:
@@ -19,66 +15,49 @@
       ansible.builtin.assert:
         that:
           - "'Docker version' in docker_version.stdout"
-        fail_msg: Docker not properly installed
+        fail_msg: "Docker not properly installed"
 
-    # Verify Docker Compose plugin is installed
-    - name: Check Docker Compose plugin # noqa var-naming
+    - name: Check Docker Compose plugin
       ansible.builtin.command:
         argv:
           - docker
           - compose
           - version
-      register: compose_version
+      register: docker_compose_version
       changed_when: false
-      failed_when: compose_version.rc != 0
+      failed_when: docker_compose_version.rc != 0
 
     - name: Assert Docker Compose version output
       ansible.builtin.assert:
         that:
-          - "'Docker Compose version' in compose_version.stdout or 'version' in compose_version.stdout"
-        fail_msg: Docker Compose plugin not installed
+          - "'Docker Compose version' in docker_compose_version.stdout or 'version' in docker_compose_version.stdout"
+        fail_msg: "Docker Compose plugin not installed"
 
-    # Verify docker group exists
     - name: Check docker group exists
       ansible.builtin.getent:
         database: group
         key: docker
-      failed_when: ansible_facts.getent_group is not defined or 'docker' not in ansible_facts.getent_group
 
-    # Verify ansible user is in docker group
-    - name: Check ansible user in docker group # noqa var-naming
+    - name: Check ansible and jlw users are in docker group
       ansible.builtin.command:
         argv:
           - id
           - -Gn
-          - ansible
-      register: ansible_groups
+          - "{{ item }}"
+      register: docker_user_groups
       changed_when: false
+      failed_when: docker_user_groups.rc != 0
+      loop:
+        - ansible
+        - jlw
 
-    - name: Assert ansible user in docker group
+    - name: Assert users in docker group
       ansible.builtin.assert:
         that:
-          - "'docker' in ansible_groups.stdout"
-        fail_msg: ansible user not in docker group
+          - "'docker' in item.stdout"
+        fail_msg: "{{ item.item }} user not in docker group"
+      loop: "{{ docker_user_groups.results }}"
 
-    # Verify jlw user is in docker group (from base_extra_sudo_users)
-    - name: Check jlw user in docker group # noqa var-naming
-      ansible.builtin.command:
-        argv:
-          - id
-          - -Gn
-          - jlw
-      register: jlw_groups
-      changed_when: false
-      failed_when: jlw_groups.rc != 0
-
-    - name: Assert jlw user in docker group
-      ansible.builtin.assert:
-        that:
-          - "'docker' in jlw_groups.stdout"
-        fail_msg: jlw user not in docker group
-
-    # Verify dockerd service is running
     - name: Check Docker daemon is running
       ansible.builtin.command:
         argv:
@@ -93,9 +72,8 @@
       ansible.builtin.assert:
         that:
           - docker_status.stdout.strip() == "active"
-        fail_msg: Docker daemon not running
+        fail_msg: "Docker daemon not running"
 
-    # Verify dockerd is enabled
     - name: Check Docker daemon is enabled
       ansible.builtin.command:
         argv:
@@ -110,10 +88,9 @@
       ansible.builtin.assert:
         that:
           - docker_enabled.stdout.strip() == "enabled"
-        fail_msg: Docker daemon not enabled
+        fail_msg: "Docker daemon not enabled"
 
-    # Test that ansible user can run docker without sudo
-    - name: Test ansible user can run docker
+    - name: Test ansible user can run docker without sudo
       ansible.builtin.command:
         argv:
           - docker
@@ -128,15 +105,14 @@
       ansible.builtin.assert:
         that:
           - docker_test.rc == 0
-        fail_msg: ansible user cannot run docker
+        fail_msg: "ansible user cannot run docker"
 
-    # Verify Official Docker repo is configured
     - name: Check Docker official repo is configured
       ansible.builtin.command:
         argv:
           - grep
           - -r
-          - docker.com
+          - "docker.com"
           - /etc/apt/sources.list.d/
       register: docker_repo
       changed_when: false

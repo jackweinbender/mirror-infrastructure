@@ -1,0 +1,12 @@
+- name: Prepare test container
+  hosts: all
+  gather_facts: false
+  become: true
+  tasks:
+    - name: Install openssh-server and logrotate
+      ansible.builtin.apt:
+        name:
+          - openssh-server
+          - logrotate
+        state: present
+        update_cache: true
