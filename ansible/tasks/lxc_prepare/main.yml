@@ -50,6 +50,8 @@
 
 - name: Apply LXC config changes
   when: lxc_features_reboot_required | default(false)
+  vars:
+    lxc_features_ctid: "{{ lxc_prepare_ctid }}"
   ansible.builtin.import_tasks: ../lxc_features/reboot.yml
 
 - name: Get the container's IP address (after any reboots)
