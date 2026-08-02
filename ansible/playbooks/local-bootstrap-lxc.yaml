@@ -152,9 +152,18 @@
             lxc_ssh_key_files: "{{ lxc_bootstrap_ssh_pubkeys.files | map(attribute='path') | list }}"
           when: lxc_create_ssh_pubkey is not defined
 
+        - name: Validate SSH public key selection
+          ansible.builtin.assert:
+            that:
+              - lxc_ssh_key_index | int > 0
+              - lxc_ssh_key_index | int <= lxc_ssh_key_files | length
+            fail_msg: "Select an SSH public key number between 1 and {{ lxc_ssh_key_files | length }}"
+          when: lxc_create_ssh_pubkey is not defined
+
         - name: Load selected SSH public key
           ansible.builtin.set_fact:
-            lxc_create_ssh_pubkey: "{{ lookup('file', lxc_ssh_key_files[lxc_ssh_key_index - 1]) | trim }}"
+            lxc_create_ssh_pubkey: >-
+              {{ lookup('ansible.builtin.file', lxc_ssh_key_files[(lxc_ssh_key_index | int) - 1]) | trim }}
           no_log: true
           when: lxc_create_ssh_pubkey is not defined
 
