@@ -1,10 +1,11 @@
+---
 # Zigbee2MQTT configuration.
 # See https://www.zigbee2mqtt.io/guide/configuration/
 
 homeassistant:
-  enabled: true  # Publish MQTT discovery messages for HA auto-discovery
+  enabled: true # Publish MQTT discovery messages for HA auto-discovery
 
-permit_join: true  # Allow new devices to join; set to false after initial pairing
+permit_join: true # Allow new devices to join; set to false after initial pairing
 
 mqtt:
   base_topic: zigbee2mqtt

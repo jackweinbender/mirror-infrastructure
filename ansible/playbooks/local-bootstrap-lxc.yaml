@@ -97,22 +97,23 @@
 
         - name: Prompt for the container ID
           ansible.builtin.pause:
-            prompt: "LXC container ID (default {{ lxc_next_available_ctid }})"
+            prompt: LXC container ID (default {{ lxc_next_available_ctid }})
           register: lxc_bootstrap_create_ctid_prompt
           when: lxc_create_ctid is not defined
 
         - name: Record the container ID for creation
           ansible.builtin.set_fact:
-            lxc_create_ctid: "{{ (lxc_bootstrap_create_ctid_prompt.user_input | default('') | trim | regex_replace('\n', '')) or (lxc_next_available_ctid | string) }}"
+            lxc_create_ctid: "{{ (lxc_bootstrap_create_ctid_prompt.user_input | default('') | trim | regex_replace('\n', '')) or (lxc_next_available_ctid | string)
+              }}"
           when: lxc_create_ctid is not defined
 
         - name: Generate default hostname from container ID
           ansible.builtin.set_fact:
-            lxc_default_hostname: "lxc-{{ lxc_create_ctid }}"
+            lxc_default_hostname: lxc-{{ lxc_create_ctid }}
 
         - name: Prompt for container hostname
           ansible.builtin.pause:
-            prompt: "Container hostname (default {{ lxc_default_hostname }})"
+            prompt: Container hostname (default {{ lxc_default_hostname }})
           register: lxc_bootstrap_create_hostname_prompt
           vars:
             hostname: "{{ lxc_bootstrap_create_hostname_prompt.user_input | trim or lxc_default_hostname }}"
@@ -161,13 +162,14 @@
 
         - name: Record template
           ansible.builtin.set_fact:
-            lxc_create_template: "{{ (lxc_bootstrap_create_template_prompt.user_input | default('') | trim | regex_replace('\n', '')) or 'debian-13-standard_13.6-1_amd64' }}"
+            lxc_create_template: "{{ (lxc_bootstrap_create_template_prompt.user_input | default('') | trim | regex_replace('\n', '')) or 'debian-13-standard_13.6-1_amd64'
+              }}"
           when: lxc_create_template is not defined
 
         - name: Find available SSH public keys
           ansible.builtin.find:
             paths: ~/.ssh
-            patterns: '*.pub'
+            patterns: "*.pub"
             file_type: file
           register: lxc_bootstrap_ssh_pubkeys
           delegate_to: localhost
@@ -229,7 +231,8 @@
 
     - name: Record whether this container will run Docker
       ansible.builtin.set_fact:
-        lxc_prepare_enable_docker: "{{ (lxc_bootstrap_prepare_enable_docker_prompt.user_input | default('') | trim | regex_replace('\n', '')) | lower in ['y', 'yes'] }}"
+        lxc_prepare_enable_docker: "{{ (lxc_bootstrap_prepare_enable_docker_prompt.user_input | default('') | trim | regex_replace('\n', '')) | lower in ['y', 'yes']
+          }}"
       when: lxc_prepare_enable_docker is not defined
 
     - name: Prompt for the Tailscale auth key

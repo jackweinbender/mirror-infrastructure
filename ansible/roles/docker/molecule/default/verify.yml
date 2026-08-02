@@ -19,10 +19,10 @@
       ansible.builtin.assert:
         that:
           - "'Docker version' in docker_version.stdout"
-        fail_msg: "Docker not properly installed"
+        fail_msg: Docker not properly installed
 
     # Verify Docker Compose plugin is installed
-    - name: Check Docker Compose plugin  # noqa var-naming
+    - name: Check Docker Compose plugin # noqa var-naming
       ansible.builtin.command:
         argv:
           - docker
@@ -36,7 +36,7 @@
       ansible.builtin.assert:
         that:
           - "'Docker Compose version' in compose_version.stdout or 'version' in compose_version.stdout"
-        fail_msg: "Docker Compose plugin not installed"
+        fail_msg: Docker Compose plugin not installed
 
     # Verify docker group exists
     - name: Check docker group exists
@@ -46,7 +46,7 @@
       failed_when: ansible_facts.getent_group is not defined or 'docker' not in ansible_facts.getent_group
 
     # Verify ansible user is in docker group
-    - name: Check ansible user in docker group  # noqa var-naming
+    - name: Check ansible user in docker group # noqa var-naming
       ansible.builtin.command:
         argv:
           - id
@@ -59,10 +59,10 @@
       ansible.builtin.assert:
         that:
           - "'docker' in ansible_groups.stdout"
-        fail_msg: "ansible user not in docker group"
+        fail_msg: ansible user not in docker group
 
     # Verify jlw user is in docker group (from base_extra_sudo_users)
-    - name: Check jlw user in docker group  # noqa var-naming
+    - name: Check jlw user in docker group # noqa var-naming
       ansible.builtin.command:
         argv:
           - id
@@ -76,7 +76,7 @@
       ansible.builtin.assert:
         that:
           - "'docker' in jlw_groups.stdout"
-        fail_msg: "jlw user not in docker group"
+        fail_msg: jlw user not in docker group
 
     # Verify dockerd service is running
     - name: Check Docker daemon is running
@@ -93,7 +93,7 @@
       ansible.builtin.assert:
         that:
           - docker_status.stdout.strip() == "active"
-        fail_msg: "Docker daemon not running"
+        fail_msg: Docker daemon not running
 
     # Verify dockerd is enabled
     - name: Check Docker daemon is enabled
@@ -110,7 +110,7 @@
       ansible.builtin.assert:
         that:
           - docker_enabled.stdout.strip() == "enabled"
-        fail_msg: "Docker daemon not enabled"
+        fail_msg: Docker daemon not enabled
 
     # Test that ansible user can run docker without sudo
     - name: Test ansible user can run docker
@@ -128,7 +128,7 @@
       ansible.builtin.assert:
         that:
           - docker_test.rc == 0
-        fail_msg: "ansible user cannot run docker"
+        fail_msg: ansible user cannot run docker
 
     # Verify Official Docker repo is configured
     - name: Check Docker official repo is configured
@@ -136,7 +136,7 @@
         argv:
           - grep
           - -r
-          - "docker.com"
+          - docker.com
           - /etc/apt/sources.list.d/
       register: docker_repo
       changed_when: false

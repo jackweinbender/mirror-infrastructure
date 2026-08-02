@@ -3,7 +3,7 @@
 
 - name: Ensure getty override directories exist
   ansible.builtin.file:
-    path: "/etc/systemd/system/{{ item.unit }}.d"
+    path: /etc/systemd/system/{{ item.unit }}.d
     state: directory
     owner: root
     group: root
@@ -12,7 +12,7 @@
 
 - name: Configure root auto-login overrides
   ansible.builtin.copy:
-    dest: "/etc/systemd/system/{{ item.unit }}.d/override.conf"
+    dest: /etc/systemd/system/{{ item.unit }}.d/override.conf
     content: |
       [Service]
       ExecStart=
@@ -23,12 +23,12 @@
   loop: "{{ base_autologin_gettys }}"
   register: base_autologin_overrides
 
-- name: Reload systemd so it picks up the new overrides  # noqa no-handler
+- name: Reload systemd so it picks up the new overrides # noqa no-handler
   ansible.builtin.systemd:
     daemon_reload: true
   when: base_autologin_overrides.changed
 
-- name: Restart running getty units to apply auto-login  # noqa no-handler
+- name: Restart running getty units to apply auto-login # noqa no-handler
   ansible.builtin.command:
     argv:
       - systemctl
@@ -87,7 +87,7 @@
     mode: "0644"
   register: base_journald_config
 
-- name: Restart journald to apply the retention cap  # noqa no-handler
+- name: Restart journald to apply the retention cap # noqa no-handler
   ansible.builtin.systemd:
     name: systemd-journald
     state: restarted
@@ -96,5 +96,5 @@
 - name: Set the default logrotate retention
   ansible.builtin.lineinfile:
     path: /etc/logrotate.conf
-    regexp: '^(#\s*)?rotate\s+\d+'
-    line: "rotate {{ base_logrotate_weeks }}"
+    regexp: ^(#\s*)?rotate\s+\d+
+    line: rotate {{ base_logrotate_weeks }}

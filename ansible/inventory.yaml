@@ -1,11 +1,12 @@
+---
 workloads:
   vars:
     ansible_user: ansible
   hosts:
-    jellyfin-lxc.tortoise-noodlefish.ts.net: null
+    jellyfin-lxc.tortoise-noodlefish.ts.net:
     traefik-lxc.tortoise-noodlefish.ts.net:
       host_roles:
-      - docker
+        - docker
 hypervisors:
   vars:
     ansible_user: root

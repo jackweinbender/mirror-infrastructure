@@ -1,21 +1,22 @@
-name: "Plan & Apply Terraform (one)"
+---
+name: Plan & Apply Terraform (one)
 
 on:
   workflow_dispatch:
     inputs:
       component:
-        description: "Component to run Terraform against"
+        description: Component to run Terraform against
         type: choice
         options:
-          - "mgmt"
-          - "aws"
-          - "gcp-remind-me"
-          - "gcp-weinbender-io"
-          - "cloudflare"
-          - "proxmox"
-        default: "aws"
+          - mgmt
+          - aws
+          - gcp-remind-me
+          - gcp-weinbender-io
+          - cloudflare
+          - proxmox
+        default: aws
       apply:
-        description: "Apply Terraform"
+        description: Apply Terraform
         type: boolean
         default: false
 
@@ -26,7 +27,7 @@ permissions:
 jobs:
   terraform-apply-one:
     if: github.ref == 'refs/heads/main'
-    name: "Terraform Plan & Apply"
+    name: Terraform Plan & Apply
     runs-on: ubuntu-latest
     env:
       TF_VAR_cloudflare_zone_id: ${{ secrets.CLOUDFLARE_ZONE_ID }}
@@ -39,7 +40,7 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v2
         with:
           role-to-assume: arn:aws:iam::325498355308:role/GithubActionsRole
-          aws-region: "us-east-1"
+          aws-region: us-east-1
           role-session-name: GithubActionsRole
       - name: Auth with Google Cloud
         uses: google-github-actions/auth@v2
@@ -47,7 +48,7 @@ jobs:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
       - name: Run Terraform Action on ${{ github.event.inputs.component }}
-        uses: "./.github/actions/tf-plan-apply"
+        uses: ./.github/actions/tf-plan-apply
         with:
           op_token: ${{ secrets.ONE_PASSWORD_SA_TOKEN }}
           component: ${{ github.event.inputs.component }}

@@ -1,9 +1,10 @@
-name: "TF Plan"
+---
+name: TF Plan
 
 on:
   pull_request:
     paths:
-      - "terraform/**"
+      - terraform/**
 
 permissions:
   id-token: write
@@ -11,7 +12,7 @@ permissions:
 
 jobs:
   terraform-plan-all:
-    name: "PR Plan"
+    name: PR Plan
     runs-on: ubuntu-latest
     env:
       TF_VAR_cloudflare_zone_id: ${{ secrets.CLOUDFLARE_ZONE_ID }}
@@ -25,7 +26,7 @@ jobs:
       - name: Auth with AWS
         uses: aws-actions/configure-aws-credentials@v2
         with:
-          aws-region: "us-east-1"
+          aws-region: us-east-1
           role-to-assume: arn:aws:iam::325498355308:role/GithubActionsRole
           role-session-name: GithubActionsRole
       - name: Auth with Google Cloud
@@ -34,7 +35,7 @@ jobs:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
       - name: Plan ${{ matrix.component }}
-        uses: "./.github/actions/tf-plan-apply"
+        uses: ./.github/actions/tf-plan-apply
         with:
           op_token: ${{ secrets.ONE_PASSWORD_SA_TOKEN }}
           component: ${{ matrix.component }}

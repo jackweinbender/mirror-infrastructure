@@ -1,25 +1,26 @@
-name: "Deploy stack"
+---
+name: Deploy stack
 
 on:
   workflow_dispatch:
     inputs:
       stack:
-        description: "Stack to deploy"
+        description: Stack to deploy
         required: true
         type: choice
         options:
           - public-gateway
           - homeassistant
       host:
-        description: "Host to deploy to (Tailscale MagicDNS name or IP)"
+        description: Host to deploy to (Tailscale MagicDNS name or IP)
         required: true
         type: choice
         options:
           - docker-vm-dmz
       user:
-        description: "SSH user on the host"
+        description: SSH user on the host
         required: false
-        default: "deploy"
+        default: deploy
         type: string
 
 env:
@@ -30,7 +31,7 @@ env:
 
 jobs:
   deploy:
-    name: "Deploy ${{ inputs.stack }} to ${{ inputs.host }}"
+    name: Deploy ${{ inputs.stack }} to ${{ inputs.host }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -53,8 +54,8 @@ jobs:
           export-env: true
         env:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.ONE_PASSWORD_SA_TOKEN }}
-          TS_OAUTH_CLIENT_ID: "op://network/tailscale-oauth-github-actions/client-id"
-          TS_OAUTH_CLIENT_SECRET: "op://network/tailscale-oauth-github-actions/client-secret"
+          TS_OAUTH_CLIENT_ID: op://network/tailscale-oauth-github-actions/client-id
+          TS_OAUTH_CLIENT_SECRET: op://network/tailscale-oauth-github-actions/client-secret
 
       - name: Connect to Tailscale
         uses: tailscale/github-action@v2

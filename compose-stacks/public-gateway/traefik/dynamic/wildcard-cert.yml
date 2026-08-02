@@ -1,3 +1,4 @@
+---
 # Pre-provision wildcard cert for *.weinbender.io via ACME DNS-01.
 #
 # Traefik v3 removed the `domains` field from the static certificatesResolvers
@@ -10,7 +11,7 @@
 http:
   routers:
     wildcard-cert:
-      rule: "Host(`weinbender.io`)"
+      rule: Host(`weinbender.io`)
       entryPoints:
         - websecure
       tls:
@@ -18,5 +19,5 @@ http:
         domains:
           - main: "*.weinbender.io"
             sans:
-              - "weinbender.io"
+              - weinbender.io
       service: noop@internal

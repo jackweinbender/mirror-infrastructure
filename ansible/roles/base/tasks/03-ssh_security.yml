@@ -12,7 +12,7 @@
     - name: Find existing SSH host key files
       ansible.builtin.find:
         paths: /etc/ssh
-        patterns: "ssh_host_*_key*"
+        patterns: ssh_host_*_key*
       register: base_host_key_files
 
     - name: Remove existing SSH host keys
@@ -61,7 +61,7 @@
   register: base_sshd_config
   notify: Restart sshd
 
-- name: Validate the merged sshd configuration  # noqa no-handler
+- name: Validate the merged sshd configuration # noqa no-handler
   ansible.builtin.command:
     argv:
       - /usr/sbin/sshd

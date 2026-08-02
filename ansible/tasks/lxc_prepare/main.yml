@@ -22,7 +22,7 @@
 
 - name: Fail if container does not exist
   ansible.builtin.fail:
-    msg: "Container {{ lxc_prepare_ctid }} does not exist on this Proxmox node"
+    msg: Container {{ lxc_prepare_ctid }} does not exist on this Proxmox node
   when: lxc_prepare_ctid_check.rc != 0
 
 - name: Wait for the container to accept pct exec
@@ -85,7 +85,7 @@
 
     - name: Debug reboot completion
       ansible.builtin.debug:
-        msg: "Container {{ lxc_prepare_ctid }} rebooted successfully and accepted pct exec"
+        msg: Container {{ lxc_prepare_ctid }} rebooted successfully and accepted pct exec
 
 - name: Get the container's IP address (after any reboots)
   ansible.builtin.command:
@@ -104,7 +104,7 @@
 
 - name: Add the container to in-memory inventory for the next play
   ansible.builtin.add_host:
-    name: "lxc-{{ lxc_prepare_ctid }}"
+    name: lxc-{{ lxc_prepare_ctid }}
     ansible_host: "{{ lxc_prepare_ip_result.stdout.split()[0] }}"
     ansible_user: root
     groups:

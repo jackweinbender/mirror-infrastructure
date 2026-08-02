@@ -1,5 +1,5 @@
+---
 default_config:
-
 homeassistant:
   name: Weinbender Home
   country: US

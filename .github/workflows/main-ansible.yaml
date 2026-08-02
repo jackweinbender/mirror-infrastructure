@@ -1,12 +1,13 @@
-name: "Ansible Playbook"
+---
+name: Ansible Playbook
 
 on:
   schedule:
-    - cron: "0 5 * * *"
+    - cron: 0 5 * * *
   workflow_dispatch:
   push:
     branches:
-      - "main"
+      - main
 
 # Only let one of these workflows run at a time
 concurrency:
@@ -28,8 +29,8 @@ jobs:
           export-env: true
         env:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.ONE_PASSWORD_SA_TOKEN }}
-          TS_OAUTH_CLIENT_ID: "op://network/tailscale-oauth-github-actions/client-id"
-          TS_OAUTH_CLIENT_SECRET: "op://network/tailscale-oauth-github-actions/client-secret"
+          TS_OAUTH_CLIENT_ID: op://network/tailscale-oauth-github-actions/client-id
+          TS_OAUTH_CLIENT_SECRET: op://network/tailscale-oauth-github-actions/client-secret
       - name: Tailscale
         uses: tailscale/github-action@v2
         with:
@@ -39,7 +40,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.14"
-          cache: "pip"
+          cache: pip
           cache-dependency-path: |
             **/*requirements.txt
             **/*requirements.yaml

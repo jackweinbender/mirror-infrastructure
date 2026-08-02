@@ -37,7 +37,7 @@
 
     - name: Download Tailscale's GPG key
       ansible.builtin.get_url:
-        url: "https://pkgs.tailscale.com/stable/debian/{{ ansible_facts['distribution_release'] }}.noarmor.gpg"
+        url: https://pkgs.tailscale.com/stable/debian/{{ ansible_facts['distribution_release'] }}.noarmor.gpg
         dest: /etc/apt/keyrings/tailscale.asc
         owner: root
         group: root
@@ -85,7 +85,7 @@
         argv:
           - tailscale
           - up
-          - "--authkey={{ tailscale_authkey }}"
+          - --authkey={{ tailscale_authkey }}
           - --ssh
       no_log: true
       changed_when: true

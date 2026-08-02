@@ -1,21 +1,22 @@
-name: "Terraform Plan & Apply"
-description: "Terraform plan and apply for a Component / Subdirectory"
+---
+name: Terraform Plan & Apply
+description: Terraform plan and apply for a Component / Subdirectory
 
 inputs:
   component:
-    description: "Component / Subdirectory Name"
+    description: Component / Subdirectory Name
     required: true
   apply:
-    description: "Apply the plan as a part of this action?"
+    description: Apply the plan as a part of this action?
     default: "false"
   skip_fmt:
-    description: "Skip terraform fmt?"
+    description: Skip terraform fmt?
     default: "false"
   skip_validate:
-    description: "Skip terraform validate?"
+    description: Skip terraform validate?
     default: "false"
   op_token:
-    description: "One Password Token"
+    description: One Password Token
 
 runs:
   using: composite
@@ -28,13 +29,13 @@ runs:
       # runs here, cuz we can't run `op inject` like we do locally
       env:
         OP_SERVICE_ACCOUNT_TOKEN: ${{ inputs.op_token }}
-        TS_OAUTH_CLIENT_ID: "op://network/tailscale-oauth-github-actions/client-id"
-        TS_OAUTH_CLIENT_SECRET: "op://network/tailscale-oauth-github-actions/client-secret"
-        CLOUDFLARE_API_TOKEN: "op://network/cloudflare-terraform/credential"
+        TS_OAUTH_CLIENT_ID: op://network/tailscale-oauth-github-actions/client-id
+        TS_OAUTH_CLIENT_SECRET: op://network/tailscale-oauth-github-actions/client-secret
+        CLOUDFLARE_API_TOKEN: op://network/cloudflare-terraform/credential
         # Proxmox API token — create in 1Password (see this plan's "Manual
         # prerequisites") and update the op:// path if the item/field names differ.
-        PROXMOX_VE_API_TOKEN: "op://network/proxmox-terraform/api-token"
-        PROXMOX_VE_ENDPOINT: "op://network/proxmox-terraform/endpoint"
+        PROXMOX_VE_API_TOKEN: op://network/proxmox-terraform/api-token
+        PROXMOX_VE_ENDPOINT: op://network/proxmox-terraform/endpoint
 
     - name: Tailscale
       uses: tailscale/github-action@v2
