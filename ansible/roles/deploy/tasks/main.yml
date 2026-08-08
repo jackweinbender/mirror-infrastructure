@@ -5,3 +5,11 @@
     create_home: true
     shell: "{{ deploy_user_shell }}"
     state: present
+
+- name: Create the compose stacks directory
+  ansible.builtin.file:
+    path: /etc/compose-stacks
+    state: directory
+    owner: "{{ deploy_user }}"
+    group: "{{ deploy_user }}"
+    mode: "0755"
