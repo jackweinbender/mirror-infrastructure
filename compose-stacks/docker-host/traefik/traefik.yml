@@ -5,6 +5,9 @@
 log:
   level: INFO
 
+api:
+  dashboard: true
+
 entryPoints:
   web:
     address: :80

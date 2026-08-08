@@ -6,6 +6,7 @@ This is the host-level platform deployed to every Docker LXC host. It is intenti
 
 - An idempotently created, attachable Docker bridge network named `proxy`.
 - Traefik on ports 80 and 443 with Docker label discovery.
+- An unauthenticated dashboard accessible by host IP.
 - Persistent ACME state in the `traefik_acme` Docker volume.
 - Cloudflare DNS-01 certificate issuance using the `letsencrypt` resolver.
 
@@ -40,6 +41,11 @@ Use `.github/workflows/deploy-docker-host.yaml` with the host's Tailscale name a
 6. Reconciles Traefik with Docker Compose.
 
 The operation is safe to repeat for every host. A host needs Docker, Tailscale connectivity from the runner, and an SSH user permitted to run Docker. No Ansible is involved.
+
+## Dashboard
+
+The Traefik dashboard is exposed without authentication over HTTP at
+`http://<host-ip>/dashboard/`.
 
 ## Secrets
 
