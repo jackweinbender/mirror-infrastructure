@@ -1,0 +1,7 @@
+---
+- name: Create the deployment account
+  ansible.builtin.user:
+    name: "{{ deploy_user }}"
+    create_home: true
+    shell: "{{ deploy_user_shell }}"
+    state: present

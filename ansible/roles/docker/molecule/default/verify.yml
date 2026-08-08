@@ -39,7 +39,7 @@
         database: group
         key: docker
 
-    - name: Check ansible and jlw users are in docker group
+    - name: Check Docker users are in docker group
       ansible.builtin.command:
         argv:
           - id
@@ -51,6 +51,7 @@
       loop:
         - ansible
         - jlw
+        - deploy
 
     - name: Assert users in docker group
       ansible.builtin.assert:
@@ -91,22 +92,31 @@
           - docker_enabled.stdout.strip() == "enabled"
         fail_msg: Docker daemon not enabled
 
-    - name: Test ansible user can run docker without sudo
+    - name: Test Docker users can run Docker without sudo
       ansible.builtin.command:
         argv:
           - docker
           - ps
       become: true
-      become_user: ansible
-      register: docker_test
+      become_user: "{{ item }}"
+      register: docker_tests
       changed_when: false
-      failed_when: docker_test.rc != 0
+      failed_when: docker_tests.rc != 0
+      loop:
+        - ansible
+        - deploy
 
     - name: Assert docker ps works
       ansible.builtin.assert:
         that:
-          - docker_test.rc == 0
-        fail_msg: ansible user cannot run docker
+          - item.rc == 0
+        fail_msg: "{{ item.item }} user cannot run docker"
+      loop: "{{ docker_tests.results }}"
+
+    - name: Check deploy user exists
+      ansible.builtin.getent:
+        database: passwd
+        key: deploy
 
     - name: Check Docker official repo is configured
       ansible.builtin.command:

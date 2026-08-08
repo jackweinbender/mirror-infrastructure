@@ -8,7 +8,8 @@ Debian host configuration and Proxmox LXC bootstrap.
   time, console fallback, MOTD, and log retention.
 - `roles/tailscale/` installs Tailscale and joins a tailnet only when supplied an
   auth key.
-- `roles/docker/` installs Docker Engine and Compose for hosts that need it.
+- `roles/deploy/` creates the local GitHub Actions account used over Tailscale SSH.
+- `roles/docker/` installs Docker Engine and Compose, and grants configured users Docker access.
 - `tasks/lxc_*` and `tasks/pve_host/` are procedural Proxmox workflows. They
   create and prepare infrastructure; they are not steady-state roles.
 - `playbooks/workloads.yaml` applies the baseline and inventory-selected roles.
@@ -49,7 +50,7 @@ Use the project interpreter for every command:
 A workload selects specialized roles with `host_roles`:
 
 ```yaml
-host_roles: [docker]
+host_roles: [deploy, docker]
 ```
 
 ## Playbooks

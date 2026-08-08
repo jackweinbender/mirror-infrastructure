@@ -12,6 +12,10 @@
         name: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/../base" # noqa role-name[path]
         public: true
 
+    - name: Include deploy role
+      ansible.builtin.include_role:
+        name: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/../deploy" # noqa role-name[path]
+
     - name: Include docker role
       ansible.builtin.include_role:
         name: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}" # noqa role-name[path]

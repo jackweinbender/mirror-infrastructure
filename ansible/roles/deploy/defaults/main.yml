@@ -1,0 +1,4 @@
+---
+# Local account used by GitHub Actions over Tailscale SSH.
+deploy_user: deploy
+deploy_user_shell: /bin/bash

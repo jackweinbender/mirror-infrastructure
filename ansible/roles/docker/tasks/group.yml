@@ -1,5 +1,5 @@
 ---
-# Passwordless docker access for docker_group_users - no sudo needed to run
+# Passwordless Docker access for docker_group_users - no sudo needed to run
 # docker/docker compose commands. Group membership only takes effect on the
 # account's next login/session, not the current one.
 

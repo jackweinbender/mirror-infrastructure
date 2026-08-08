@@ -5,7 +5,6 @@
 # prerequisite compose-stacks/.github/workflows/deploy.yaml assumes already
 # exists on the target host - it never provisions Docker itself.
 
-# Accounts that get passwordless docker access (added to the docker
-# group): every account roles/base creates. Derived, not duplicated - base
-# always runs before docker in workloads.yaml (see playbooks/workloads.yaml).
-docker_group_users: "{{ [base_ansible_user] + base_extra_sudo_users }}"
+# Accounts that get passwordless Docker access through the docker group.
+# base and deploy always run before docker in workloads.yaml.
+docker_group_users: "{{ [base_ansible_user] + base_extra_sudo_users + [deploy_user] }}"

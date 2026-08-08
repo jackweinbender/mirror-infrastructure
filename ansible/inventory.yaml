@@ -6,9 +6,11 @@ workloads:
     jellyfin-lxc.tortoise-noodlefish.ts.net:
     traefik-lxc.tortoise-noodlefish.ts.net:
       host_roles:
+        - deploy
         - docker
     docker0-lxc.tortoise-noodlefish.ts.net:
       host_roles:
+        - deploy
         - docker
 hypervisors:
   vars:
