@@ -26,7 +26,7 @@ Personal infrastructure as code — Terraform for cloud resources + Docker Compo
 | Layer | Tool | Target | Trigger |
 |-------|------|--------|---------|
 | Terraform | GitHub Actions (`tf-plan-apply`) | AWS, Cloudflare, GCP, Proxmox | Push to `main` (plan) / `workflow_dispatch` (apply) |
-| Docker host platform | GitHub Actions (`deploy-docker-host.yaml`) | Docker LXC hosts via Tailscale | `workflow_dispatch` |
+| Docker host platform | GitHub Actions (`deploy-docker-platform.yaml`) | Docker LXC hosts via Tailscale | `workflow_dispatch` |
 | Compose stacks | GitHub Actions (`deploy.yaml`) | Self-hosted VMs via Tailscale | `workflow_dispatch` |
 
 ### Terraform
@@ -38,7 +38,8 @@ Personal infrastructure as code — Terraform for cloud resources + Docker Compo
 
 ### Compose Stacks
 
-The host platform is deployed via `deploy-docker-host.yaml`; application stacks are deployed via `deploy.yaml`:
+The host platform is deployed via `deploy-docker-platform.yaml`; application stacks are deployed via `deploy.yaml`:
+Changes under `compose-stacks/docker-host/**` should be deployed by manually dispatching the platform workflow for each affected host.
 1. The host workflow creates the shared external `proxy` network if needed and deploys Traefik.
 2. The application workflow validates Home Assistant config (if applicable).
 3. Both workflows rsync over Tailscale and inject 1Password secrets directly to the remote `.env` — never touches runner disk.

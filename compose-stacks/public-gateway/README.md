@@ -57,7 +57,7 @@ cp .env.template .env
 docker compose up -d
 
 # CI/CD
-# 1. deploy-docker-host.yaml → host
+# 1. deploy-docker-platform.yaml → host
 # 2. deploy.yaml → stack: public-gateway
 ```
 

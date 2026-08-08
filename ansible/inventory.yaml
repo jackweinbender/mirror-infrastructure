@@ -12,6 +12,10 @@ workloads:
       host_roles:
         - deploy
         - docker
+    docker-vm-dmz.tortoise-noodlefish.ts.net:
+      host_roles:
+        - deploy
+        - docker
 hypervisors:
   vars:
     ansible_user: root

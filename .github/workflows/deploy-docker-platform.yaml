@@ -1,11 +1,11 @@
 ---
-name: Bootstrap Docker host
+name: Deploy Docker host platform
 
 on:
   workflow_dispatch:
     inputs:
       host:
-        description: Docker host to bootstrap
+        description: Docker host to deploy
         required: true
         type: choice
         options:
@@ -34,7 +34,7 @@ env:
 
 jobs:
   deploy:
-    name: Bootstrap ${{ inputs.host || 'docker0-lxc' }}
+    name: Deploy ${{ inputs.host || 'docker0-lxc' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

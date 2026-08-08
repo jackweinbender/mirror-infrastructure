@@ -9,7 +9,7 @@ GitHub Actions CI/CD pipelines for this infrastructure repo.
 | `pr-plan-all.yml` | Pull request | `terraform plan` for all components (no apply) |
 | `main-plan-apply-all.yml` | Push to `main`, `workflow_dispatch` | Plan all components on push; apply on manual dispatch |
 | `main-plan-apply.yml` | Push to `main` (paths), `workflow_dispatch` | Plan/apply single component |
-| `deploy-docker-host.yaml` | `workflow_dispatch` | Bootstrap/maintain Traefik and the shared Docker network on a host |
+| `deploy-docker-platform.yaml` | `workflow_dispatch` | Deploy/maintain Traefik and the shared Docker network on a host |
 | `deploy.yaml` | `workflow_dispatch` | Deploy application compose stacks to VMs via Tailscale |
 
 ## pr-plan-all.yml
@@ -32,14 +32,14 @@ GitHub Actions CI/CD pipelines for this infrastructure repo.
 - Single component per run
 - `workflow_dispatch` with `component` + `apply` inputs
 
-## deploy-docker-host.yaml
+## deploy-docker-platform.yaml
 
 - Manual `workflow_dispatch` only
 - Provides a `host` dropdown (`docker-vm-dmz` or `docker0-lxc`) and `user` (default: `deploy`)
 - `DOCKER_USER` can override the default SSH user
 - Creates the attachable external `proxy` network idempotently
 - Steps: validate → Tailscale → rsync → inject secrets on host → `docker compose up`
-- Repeat the workflow for each Docker host; no Ansible is used
+- Repeat the workflow for each Docker host. Ansible prepares the host; this workflow deploys the platform.
 
 ## deploy.yaml
 

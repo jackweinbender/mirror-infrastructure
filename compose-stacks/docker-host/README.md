@@ -31,7 +31,7 @@ networks:
 
 ## Deployment
 
-Use `.github/workflows/deploy-docker-host.yaml` with the host's Tailscale name and SSH user. The workflow:
+Use `.github/workflows/deploy-docker-platform.yaml` with the host's Tailscale name and SSH user. The workflow:
 
 1. Validates the Compose file.
 2. Connects the runner to Tailscale.
@@ -40,7 +40,7 @@ Use `.github/workflows/deploy-docker-host.yaml` with the host's Tailscale name a
 5. Resolves `.env.template` through 1Password directly into the host.
 6. Reconciles Traefik with Docker Compose.
 
-The operation is safe to repeat for every host. A host needs Docker, Tailscale connectivity from the runner, and an SSH user permitted to run Docker. No Ansible is involved.
+The operation is safe to repeat for every host. A host needs Docker, Tailscale connectivity from the runner, and an SSH user permitted to run Docker. Ansible prepares Docker, Tailscale, the deployment user, and the required host directories; this workflow deploys and maintains the platform stack.
 
 ## Dashboard
 

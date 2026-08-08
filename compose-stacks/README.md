@@ -11,7 +11,8 @@ Docker Compose stacks deployed to self-hosted VMs via GitHub Actions → Tailsca
 
 ## Deployment
 
-Application stacks are deployed by `.github/workflows/deploy.yaml` (`workflow_dispatch`). The host platform is deployed by `.github/workflows/deploy-docker-host.yaml` (`workflow_dispatch`):
+Application stacks are deployed by `.github/workflows/deploy.yaml` (`workflow_dispatch`). The host platform is deployed by `.github/workflows/deploy-docker-platform.yaml` (`workflow_dispatch`):
+Changes under `compose-stacks/docker-host/**` are deployed by manually dispatching the platform workflow for each affected host. Ansible remains responsible for preparing the host.
 
 1. **Validate** — `docker compose config` + Home Assistant config check (if applicable)
 2. **Sync** — `rsync` stack directory to target VM over Tailscale
