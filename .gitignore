@@ -46,3 +46,4 @@ compose-stacks/homeassistant/homeassistant/.cloud/
 compose-stacks/homeassistant/zigbee2mqtt/devices.js
 compose-stacks/homeassistant/zigbee2mqtt/database.db
 compose-stacks/homeassistant/.env
+compose-stacks/docker-host/.env

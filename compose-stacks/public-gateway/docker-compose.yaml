@@ -1,21 +1,6 @@
 ---
 services:
-  traefik:
-    image: traefik:v3.7
-    container_name: traefik
-    restart: unless-stopped
-    expose:
-      - "80"
-      - "443"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
-      - ./traefik/dynamic:/etc/traefik/dynamic:ro
-      - traefik_acme:/etc/traefik/acme
-    environment:
-      - CF_DNS_API_TOKEN=${CF_DNS_API_TOKEN}
-    networks:
-      - proxy
+
 
   cloudflared:
     image: cloudflare/cloudflared:latest
@@ -26,8 +11,7 @@ services:
       - TUNNEL_TOKEN=${CLOUDFLARE_TUNNEL_TOKEN}
     networks:
       - proxy
-    depends_on:
-      - traefik
+
 
   helloworld:
     image: nginx:alpine
@@ -42,7 +26,5 @@ services:
 
 networks:
   proxy:
+    external: true
     name: proxy
-
-volumes:
-  traefik_acme:

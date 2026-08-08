@@ -1,0 +1,93 @@
+---
+name: Bootstrap Docker host
+
+on:
+  workflow_dispatch:
+    inputs:
+      host:
+        description: Docker host to bootstrap
+        required: true
+        type: choice
+        options:
+          - docker-vm-dmz
+          - docker0-lxc
+      user:
+        description: SSH user with permission to run Docker
+        required: false
+        default: deploy
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docker-host-${{ inputs.host || 'docker-vm-dmz' }}
+  cancel-in-progress: false
+
+env:
+  LOCAL_DIR: compose-stacks/docker-host
+  REMOTE_DIR: /etc/compose-stacks/docker-host
+  TARGET_HOST: "${{ inputs.host || 'docker-vm-dmz' }}"
+  TARGET_USER: "${{ inputs.user || vars.DOCKER_USER || 'deploy' }}"
+  REMOTE: "${{ inputs.user || vars.DOCKER_USER || 'deploy' }}@${{ inputs.host || 'docker-vm-dmz' }}"
+  ENV_TEMPLATE: compose-stacks/docker-host/.env.template
+
+jobs:
+  deploy:
+    name: Bootstrap ${{ inputs.host || 'docker-vm-dmz' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate Compose configuration
+        run: docker compose --env-file "$ENV_TEMPLATE" -f "$LOCAL_DIR/docker-compose.yaml" config --quiet
+
+      - name: Install rsync
+        run: sudo apt-get update && sudo apt-get install -y rsync
+
+      - name: Load deployment secrets from 1Password
+        uses: 1password/load-secrets-action@v2
+        with:
+          export-env: true
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.ONE_PASSWORD_SA_TOKEN }}
+          TS_OAUTH_CLIENT_ID: op://network/tailscale-oauth-github-actions/client-id
+          TS_OAUTH_CLIENT_SECRET: op://network/tailscale-oauth-github-actions/client-secret
+
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v2
+        with:
+          oauth-client-id: ${{ env.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ env.TS_OAUTH_CLIENT_SECRET }}
+          tags: tag:ci
+          version: 1.76.1
+
+      - name: Install 1Password CLI
+        uses: 1password/install-cli-action@v3
+
+      - name: Configure SSH known hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H "$TARGET_HOST" >> ~/.ssh/known_hosts
+
+      - name: Prepare host and proxy network
+        run: |
+          ssh "$REMOTE" "mkdir -p '$REMOTE_DIR'"
+          ssh "$REMOTE" 'docker network inspect proxy >/dev/null 2>&1 || docker network create --driver bridge --attachable proxy'
+
+      - name: Sync host stack
+        run: |
+          rsync -r --delete --exclude-from="$LOCAL_DIR/.rsyncexclude" \
+            "$LOCAL_DIR/" "$REMOTE:$REMOTE_DIR/"
+
+      - name: Inject secrets on host
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.ONE_PASSWORD_SA_TOKEN }}
+        run: |
+          set -o pipefail
+          op inject -i "$ENV_TEMPLATE" | ssh "$REMOTE" "cat > '$REMOTE_DIR/.env'"
+
+      - name: Reconcile Traefik
+        run: |
+          ssh "$REMOTE" "cd '$REMOTE_DIR' && docker compose up -d --pull always --remove-orphans"

@@ -7,16 +7,18 @@ Docker Compose stacks deployed to self-hosted VMs via GitHub Actions → Tailsca
 | Stack | Services | Purpose |
 |-------|----------|---------|
 | `homeassistant/` | Home Assistant, Mosquitto (MQTT), Zigbee2MQTT | Home automation hub |
-| `public-gateway/` | Traefik, Cloudflare Tunnel, Hello World demo | Public ingress + tunnel |
+| `docker-host/` | Traefik | Host-level reverse proxy and shared `proxy` network |
 
 ## Deployment
 
-Triggered by `.github/workflows/deploy.yaml` (`workflow_dispatch`):
+Application stacks are deployed by `.github/workflows/deploy.yaml` (`workflow_dispatch`). The host platform is deployed by `.github/workflows/deploy-docker-host.yaml` (`workflow_dispatch`):
 
 1. **Validate** — `docker compose config` + Home Assistant config check (if applicable)
 2. **Sync** — `rsync` stack directory to target VM over Tailscale
 3. **Inject secrets** — `op inject` reads `.env.template` → writes `.env` on remote (never on runner)
 4. **Deploy** — `docker compose up -d --pull missing`
+
+For each Docker host, the platform workflow first creates the external `proxy` network if needed, then deploys Traefik and its persistent ACME volume.
 
 ## Required Secrets (GitHub)
 

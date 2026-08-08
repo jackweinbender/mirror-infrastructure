@@ -9,7 +9,8 @@ GitHub Actions CI/CD pipelines for this infrastructure repo.
 | `pr-plan-all.yml` | Pull request | `terraform plan` for all components (no apply) |
 | `main-plan-apply-all.yml` | Push to `main`, `workflow_dispatch` | Plan all components on push; apply on manual dispatch |
 | `main-plan-apply.yml` | Push to `main` (paths), `workflow_dispatch` | Plan/apply single component |
-| `deploy.yaml` | `workflow_dispatch` | Deploy compose stacks to VMs via Tailscale |
+| `deploy-docker-host.yaml` | `workflow_dispatch` | Bootstrap/maintain Traefik and the shared Docker network on a host |
+| `deploy.yaml` | `workflow_dispatch` | Deploy application compose stacks to VMs via Tailscale |
 
 ## pr-plan-all.yml
 
@@ -31,10 +32,19 @@ GitHub Actions CI/CD pipelines for this infrastructure repo.
 - Single component per run
 - `workflow_dispatch` with `component` + `apply` inputs
 
+## deploy-docker-host.yaml
+
+- Manual `workflow_dispatch` only
+- Provides a `host` dropdown (`docker-vm-dmz` or `docker0-lxc`) and `user` (default: `deploy`)
+- `DOCKER_USER` can override the default SSH user
+- Creates the attachable external `proxy` network idempotently
+- Steps: validate → Tailscale → rsync → inject secrets on host → `docker compose up`
+- Repeat the workflow for each Docker host; no Ansible is used
+
 ## deploy.yaml
 
 - Manual only (`workflow_dispatch`)
-- Inputs: `stack` (homeassistant|public-gateway), `host` (Tailscale MagicDNS), `user` (default: deploy)
+- Inputs: `stack` (homeassistant|public-gateway), `host` (Tailscale MagicDNS), `user` (default: `deploy`)
 - Steps: validate → rsync → inject secrets (1Password) → docker compose up
 
 ## Secrets Required

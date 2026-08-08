@@ -1,12 +1,12 @@
 # compose-stacks/public-gateway
 
-Public ingress stack: Traefik (reverse proxy, ACME via Cloudflare DNS-01) + Cloudflare Tunnel (Zero Trust Access) + demo service.
+Public ingress application stack: Cloudflare Tunnel (Zero Trust Access) + demo service. Traefik is deployed once per Docker host by `compose-stacks/docker-host`.
 
 ## Services
 
 | Service | Image | Purpose |
 |---------|-------|---------|
-| `traefik` | `traefik:v3.7` | L7 reverse proxy, auto-TLS (DNS-01 challenge via Cloudflare) |
+| Host Traefik | `traefik:v3.7` | Host-level L7 reverse proxy, auto-TLS (deployed separately) |
 | `cloudflared` | `cloudflare/cloudflared:latest` | Cloudflare Tunnel endpoint for Zero Trust |
 | `helloworld` | `nginx:alpine` | Demo service at `helloworld.weinbender.io` |
 
@@ -15,20 +15,17 @@ Public ingress stack: Traefik (reverse proxy, ACME via Cloudflare DNS-01) + Clou
 ```
 Internet → Cloudflare Edge
     ├─ Zero Trust Access (email OTP, service tokens)
-    └─ Cloudflare Tunnel → cloudflared (VM) → Traefik (VM) → Services
+    └─ Cloudflare Tunnel → cloudflared (host) → Traefik (host) → Services
 ```
 
 - **Cloudflare Tunnel**: Terminates at `cloudflared` on VM. Created by `terraform/cloudflare/` (Plan 001).
-- **Traefik**: Handles routing, TLS certs (via `certificatesresolver.cloudflare` using DNS-01), label-based service discovery.
+- **Traefik**: Deployed by `compose-stacks/docker-host`; handles routing, TLS certs (via the `letsencrypt` resolver using DNS-01), and label-based service discovery.
 - **Zero Trust Access**: Policies enforced at Cloudflare edge before traffic reaches tunnel.
 
 ## Traefik Configuration
 
-- Static: `traefik/traefik.yml`
-  - Entrypoints: `web` (80), `websecure` (443)
-  - Providers: `docker` (watch labels), `file` (dynamic config)
-  - CertificatesResolvers: `cloudflare` (ACME DNS-01 via `CF_DNS_API_TOKEN`)
-- Dynamic: `traefik/dynamic/*.yml` (middlewares, TLS options, etc.)
+Host-level configuration lives in `compose-stacks/docker-host/traefik/`. This stack joins the external `proxy` network and contributes application containers via Docker labels.
+
 
 ## Cloudflare Tunnel
 
@@ -50,8 +47,9 @@ Injected at deploy via `op inject` — never touches runner disk.
 
 ```bash
 # Prerequisites
-# 1. terraform apply in terraform/cloudflare/
-# 2. Store tunnel token + DNS API token in 1Password
+1. Deploy `compose-stacks/docker-host` to the host.
+2. Apply `terraform/cloudflare/` if using the tunnel.
+3. Store the tunnel token in 1Password.
 
 # Local
 cp .env.template .env
@@ -59,7 +57,8 @@ cp .env.template .env
 docker compose up -d
 
 # CI/CD
-# GitHub Actions workflow_dispatch → deploy.yaml → stack: public-gateway
+# 1. deploy-docker-host.yaml → host
+# 2. deploy.yaml → stack: public-gateway
 ```
 
 ## Add a New Service
@@ -73,7 +72,7 @@ docker compose up -d
       - "traefik.enable=true"
       - "traefik.http.routers.myservice.rule=Host(`myservice.weinbender.io`)"
       - "traefik.http.routers.myservice.entrypoints=websecure"
-      - "traefik.http.routers.myservice.tls.certresolver=cloudflare"
+      traefik.http.routers.myservice.tls.certresolver=letsencrypt
 ```
 
 2. Ensure DNS record exists (CNAME → tunnel) — either via Terraform or Cloudflare dashboard

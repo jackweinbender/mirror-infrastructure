@@ -13,8 +13,9 @@ Personal infrastructure as code — Terraform for cloud resources + Docker Compo
 │   ├── mgmt/               # Management/root resources
 │   └── proxmox/            # Proxmox VE resources
 ├── compose-stacks/         # Docker Compose stacks (deployed via GitHub Actions → Tailscale → VMs)
+│   ├── docker-host/        # Per-Docker-host Traefik + shared proxy network
 │   ├── homeassistant/      # Home Assistant + MQTT + Zigbee2MQTT
-│   └── public-gateway/     # Traefik + Cloudflare Tunnel + demo service
+│   └── public-gateway/     # Cloudflare Tunnel + demo service (uses host Traefik)
 └── .github/
     ├── workflows/          # CI/CD pipelines
     └── actions/            # Reusable composite actions (tf-plan-apply)
@@ -25,6 +26,7 @@ Personal infrastructure as code — Terraform for cloud resources + Docker Compo
 | Layer | Tool | Target | Trigger |
 |-------|------|--------|---------|
 | Terraform | GitHub Actions (`tf-plan-apply`) | AWS, Cloudflare, GCP, Proxmox | Push to `main` (plan) / `workflow_dispatch` (apply) |
+| Docker host platform | GitHub Actions (`deploy-docker-host.yaml`) | Docker LXC hosts via Tailscale | `workflow_dispatch` |
 | Compose stacks | GitHub Actions (`deploy.yaml`) | Self-hosted VMs via Tailscale | `workflow_dispatch` |
 
 ### Terraform
@@ -36,11 +38,11 @@ Personal infrastructure as code — Terraform for cloud resources + Docker Compo
 
 ### Compose Stacks
 
-Deployed via `deploy.yaml`:
-1. Validates Home Assistant config (if applicable)
-2. Rsyncs stack to target VM over Tailscale
-3. Injects secrets from 1Password (`op inject`) directly to remote `.env` — never touches runner disk
-4. Runs `docker compose up -d --pull missing`
+The host platform is deployed via `deploy-docker-host.yaml`; application stacks are deployed via `deploy.yaml`:
+1. The host workflow creates the shared external `proxy` network if needed and deploys Traefik.
+2. The application workflow validates Home Assistant config (if applicable).
+3. Both workflows rsync over Tailscale and inject 1Password secrets directly to the remote `.env` — never touches runner disk.
+4. Both reconcile their Compose project with Docker.
 
 Required secrets: `ONE_PASSWORD_SA_TOKEN`, `TS_OAUTH_CLIENT_ID`, `TS_OAUTH_CLIENT_SECRET`, `CLOUDFLARE_ZONE_ID`, `CLOUDFLARE_ACCOUNT_ID`, GCP WIF vars.
 
