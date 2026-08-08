@@ -6,5 +6,5 @@
 # exists on the target host - it never provisions Docker itself.
 
 # Accounts that get passwordless Docker access through the docker group.
-# base and deploy always run before docker in workloads.yaml.
-docker_group_users: "{{ [base_ansible_user] + base_extra_sudo_users + [deploy_user] }}"
+# The deploy account is created by the deploy role before this role runs.
+docker_group_users: "{{ [base_ansible_user] + base_extra_sudo_users + ['deploy'] }}"
