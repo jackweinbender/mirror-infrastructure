@@ -15,7 +15,7 @@ Personal infrastructure as code — Terraform for cloud resources + Docker Compo
 ├── compose-stacks/         # Docker Compose stacks (deployed via GitHub Actions → Tailscale → VMs)
 │   ├── docker-host/        # Per-Docker-host Traefik + shared proxy network
 │   ├── homeassistant/      # Home Assistant + MQTT + Zigbee2MQTT
-│   └── public-gateway/     # Cloudflare Tunnel + demo service (uses host Traefik)
+│   └── public-gateway/     # Cloudflare Tunnel ingress (uses host Traefik)
 └── .github/
     ├── workflows/          # CI/CD pipelines
     └── actions/            # Reusable composite actions (tf-plan-apply)

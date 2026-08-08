@@ -8,6 +8,7 @@ Docker Compose stacks deployed to self-hosted VMs via GitHub Actions → Tailsca
 |-------|----------|---------|
 | `homeassistant/` | Home Assistant, Mosquitto (MQTT), Zigbee2MQTT | Home automation hub |
 | `docker-host/` | Traefik | Host-level reverse proxy and shared `proxy` network |
+| `public-gateway/` | Cloudflare Tunnel | Public ingress through the host's Traefik instance |
 
 ## Deployment
 
