@@ -1,3 +1,4 @@
+---
 - name: Ensure sudo is installed
   ansible.builtin.apt:
     name: sudo
@@ -14,9 +15,9 @@
 - name: Grant sudo-enabled accounts passwordless sudo
   ansible.builtin.copy:
     content: "{{ item }} ALL=(ALL) NOPASSWD:ALL\n"
-    dest: "/etc/sudoers.d/{{ item }}"
+    dest: /etc/sudoers.d/{{ item }}
     owner: root
     group: root
     mode: "0440"
-    validate: "visudo -cf %s"
+    validate: visudo -cf %s
   loop: "{{ [base_ansible_user] + base_extra_sudo_users }}"

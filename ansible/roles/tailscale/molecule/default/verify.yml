@@ -1,3 +1,4 @@
+---
 - name: Verify Tailscale role
   hosts: all
   gather_facts: true
@@ -15,7 +16,7 @@
       ansible.builtin.assert:
         that:
           - "'tailscale' in tailscale_version.stdout.lower()"
-        fail_msg: "Tailscale not properly installed"
+        fail_msg: Tailscale not properly installed
 
     - name: Check tailscale binary exists
       ansible.builtin.stat:
@@ -27,7 +28,7 @@
       ansible.builtin.assert:
         that:
           - tailscale_binary.stat.executable
-        fail_msg: "tailscale binary not executable"
+        fail_msg: tailscale binary not executable
 
     - name: Check tailscaled daemon binary exists
       ansible.builtin.stat:
@@ -55,7 +56,7 @@
       ansible.builtin.assert:
         that:
           - tailscale_tailscaled_enabled.stdout.strip() == "enabled"
-        fail_msg: "tailscaled daemon not enabled"
+        fail_msg: tailscaled daemon not enabled
 
     - name: Check Tailscale apt repository is configured
       ansible.builtin.stat:
@@ -67,7 +68,7 @@
       ansible.builtin.assert:
         that:
           - tailscale_repo.stat.isreg
-        fail_msg: "Tailscale apt repository not configured"
+        fail_msg: Tailscale apt repository not configured
 
     - name: Check Tailscale GPG key is installed
       ansible.builtin.stat:
@@ -79,7 +80,7 @@
       ansible.builtin.assert:
         that:
           - tailscale_gpg_key.stat.isreg
-        fail_msg: "Tailscale GPG key not installed"
+        fail_msg: Tailscale GPG key not installed
 
     - name: Get Tailscale package facts
       ansible.builtin.package_facts:
@@ -90,4 +91,4 @@
       ansible.builtin.assert:
         that:
           - "'tailscale' in tailscale_package_facts.ansible_facts.packages"
-        fail_msg: "tailscale package not installed via apt"
+        fail_msg: tailscale package not installed via apt

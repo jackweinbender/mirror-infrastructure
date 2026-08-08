@@ -1,3 +1,4 @@
+---
 - name: Ensure locales package is installed
   ansible.builtin.apt:
     name: locales

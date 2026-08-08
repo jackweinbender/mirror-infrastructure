@@ -1,3 +1,4 @@
+---
 - name: Validate required variables
   ansible.builtin.assert:
     that:
@@ -26,7 +27,7 @@
 
 - name: Fail if container already exists on any node
   ansible.builtin.fail:
-    msg: "Container {{ lxc_create_ctid }} already exists on node {{ lxc_create_ctid_node }} (Proxmox cluster-wide IDs must be unique)"
+    msg: Container {{ lxc_create_ctid }} already exists on node {{ lxc_create_ctid_node }} (Proxmox cluster-wide IDs must be unique)
   when: lxc_create_ctid_search.stdout | length > 0
 
 - name: Extract base template name (without version info)
@@ -35,7 +36,7 @@
 
 - name: Check if template file exists in cache
   ansible.builtin.stat:
-    path: "/var/lib/vz/template/cache/{{ lxc_create_template }}.tar.zst"
+    path: /var/lib/vz/template/cache/{{ lxc_create_template }}.tar.zst
   register: lxc_create_template_file
 
 - name: Download the container template if not present
@@ -43,7 +44,7 @@
     argv:
       - pveam
       - download
-      - "local"
+      - local
       - "{{ lxc_create_template_base }}"
   register: lxc_create_template_download
   failed_when: lxc_create_template_download.rc != 0 and lxc_create_template_download.rc != 255
@@ -56,7 +57,7 @@
       - pct
       - create
       - "{{ lxc_create_ctid }}"
-      - "/var/lib/vz/template/cache/{{ lxc_create_template }}.tar.zst"
+      - /var/lib/vz/template/cache/{{ lxc_create_template }}.tar.zst
       - --hostname
       - "{{ lxc_create_hostname }}"
       - --cores
@@ -64,7 +65,7 @@
       - --memory
       - "{{ lxc_create_memory | string }}"
       - --net0
-      - "name=eth0,bridge={{ lxc_create_bridge | default('vmbr0') }},ip=dhcp"
+      - name=eth0,bridge={{ lxc_create_bridge | default('vmbr0') }},ip=dhcp
       - --rootfs
       - "{{ lxc_create_storage }}:{{ lxc_create_ctid }}"
       - --onboot
@@ -122,7 +123,7 @@
 
 - name: Add the container to in-memory inventory for the next play
   ansible.builtin.add_host:
-    name: "lxc-{{ lxc_create_ctid }}"
+    name: lxc-{{ lxc_create_ctid }}
     ansible_host: "{{ lxc_create_ip_result.stdout.split()[0] }}"
     ansible_user: root
     groups:

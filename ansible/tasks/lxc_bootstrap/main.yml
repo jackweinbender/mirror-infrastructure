@@ -1,3 +1,4 @@
+---
 - name: Require a Debian guest
   ansible.builtin.assert:
     that:

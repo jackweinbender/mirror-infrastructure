@@ -1,3 +1,4 @@
+---
 - name: Require a Debian host
   ansible.builtin.assert:
     that:

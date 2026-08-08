@@ -1,3 +1,4 @@
+---
 - name: Verify Docker role
   hosts: all
   gather_facts: true
@@ -15,7 +16,7 @@
       ansible.builtin.assert:
         that:
           - "'Docker version' in docker_version.stdout"
-        fail_msg: "Docker not properly installed"
+        fail_msg: Docker not properly installed
 
     - name: Check Docker Compose plugin
       ansible.builtin.command:
@@ -31,7 +32,7 @@
       ansible.builtin.assert:
         that:
           - "'Docker Compose version' in docker_compose_version.stdout or 'version' in docker_compose_version.stdout"
-        fail_msg: "Docker Compose plugin not installed"
+        fail_msg: Docker Compose plugin not installed
 
     - name: Check docker group exists
       ansible.builtin.getent:
@@ -72,7 +73,7 @@
       ansible.builtin.assert:
         that:
           - docker_status.stdout.strip() == "active"
-        fail_msg: "Docker daemon not running"
+        fail_msg: Docker daemon not running
 
     - name: Check Docker daemon is enabled
       ansible.builtin.command:
@@ -88,7 +89,7 @@
       ansible.builtin.assert:
         that:
           - docker_enabled.stdout.strip() == "enabled"
-        fail_msg: "Docker daemon not enabled"
+        fail_msg: Docker daemon not enabled
 
     - name: Test ansible user can run docker without sudo
       ansible.builtin.command:
@@ -105,14 +106,14 @@
       ansible.builtin.assert:
         that:
           - docker_test.rc == 0
-        fail_msg: "ansible user cannot run docker"
+        fail_msg: ansible user cannot run docker
 
     - name: Check Docker official repo is configured
       ansible.builtin.command:
         argv:
           - grep
           - -r
-          - "docker.com"
+          - docker.com
           - /etc/apt/sources.list.d/
       register: docker_repo
       changed_when: false

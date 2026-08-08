@@ -1,3 +1,4 @@
+---
 - name: Add TUN/TAP device for Tailscale
   block:
     - name: Get container configuration
@@ -15,7 +16,7 @@
 
     - name: Skip TUN addition if already present
       ansible.builtin.debug:
-        msg: "TUN device already present on container {{ lxc_features_ctid }}"
+        msg: TUN device already present on container {{ lxc_features_ctid }}
       when: lxc_features_tun_exists
 
     - name: Add TUN device to container
@@ -47,7 +48,7 @@
           ansible.builtin.assert:
             that:
               - lxc_features_available_device_slots | length > 0
-            fail_msg: "Container {{ lxc_features_ctid }} has no free device slots"
+            fail_msg: Container {{ lxc_features_ctid }} has no free device slots
 
         - name: Enable TUN/TAP for container
           ansible.builtin.command:
@@ -55,8 +56,8 @@
               - pct
               - set
               - "{{ lxc_features_ctid }}"
-              - "--{{ lxc_features_available_device_slots | first }}"
-              - "path=/dev/net/tun"
+              - --{{ lxc_features_available_device_slots | first }}
+              - path=/dev/net/tun
           register: lxc_features_tun_result
           changed_when: true
 

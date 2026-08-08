@@ -1,3 +1,4 @@
+---
 - name: Prompt for the PVE host if not supplied
   ansible.builtin.pause:
     prompt: |-

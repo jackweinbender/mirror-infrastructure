@@ -1,3 +1,4 @@
+---
 - name: Prompt for the container ID if not supplied
   ansible.builtin.pause:
     prompt: LXC container ID (e.g. 105)
@@ -11,5 +12,5 @@
 
 - name: Record the container ID
   ansible.builtin.set_fact:
-    "{{ lxc_ctid_output | default('lxc_ctid') }}": "{{ lxc_ctid_prompt.user_input | trim }}"
+    lxc_ctid: "{{ lxc_ctid_prompt.user_input | trim }}"
   when: lxc_ctid is not defined

@@ -1,3 +1,4 @@
+---
 - name: Assert required variables are set
   ansible.builtin.assert:
     that:
@@ -18,7 +19,7 @@
 
 - name: Fail if container does not exist
   ansible.builtin.fail:
-    msg: "Container {{ lxc_prepare_ctid }} does not exist on this Proxmox node"
+    msg: Container {{ lxc_prepare_ctid }} does not exist on this Proxmox node
   when: lxc_prepare_ctid_check.rc != 0
 
 - name: Wait for the container to accept pct exec
@@ -71,7 +72,7 @@
 
 - name: Add the container to in-memory inventory for the next play
   ansible.builtin.add_host:
-    name: "lxc-{{ lxc_prepare_ctid }}"
+    name: lxc-{{ lxc_prepare_ctid }}
     ansible_host: "{{ lxc_prepare_ip_result.stdout.split()[0] }}"
     ansible_user: root
     groups:

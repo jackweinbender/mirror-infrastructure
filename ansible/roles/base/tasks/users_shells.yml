@@ -1,3 +1,4 @@
+---
 - name: Create sudo-enabled accounts and grant passwordless sudo
   ansible.builtin.import_tasks: sudo_users.yml
 

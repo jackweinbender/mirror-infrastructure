@@ -1,3 +1,4 @@
+---
 - name: Reboot the container if features were added
   ansible.builtin.command:
     argv:

@@ -1,3 +1,4 @@
+---
 - name: Add Docker LXC features
   block:
     - name: Get container configuration
@@ -14,12 +15,12 @@
         lxc_features_features_line: >-
           {{ lxc_features_docker_config.stdout_lines | select('match', '^features:') | list | first | default('features:') }}
         lxc_features_features_list: "{{ lxc_features_features_line.split(':', 1)[1].strip().split(',') | reject('equalto', '') | list }}"
-        lxc_features_docker_flags: ["nesting=1", "keyctl=1"]
+        lxc_features_docker_flags: [nesting=1, keyctl=1]
         lxc_features_docker_missing: "{{ lxc_features_docker_flags | reject('in', lxc_features_features_list) | list }}"
       block:
         - name: Skip Docker features if already present
           ansible.builtin.debug:
-            msg: "Docker features (nesting, keyctl) already present on container {{ lxc_features_ctid }}"
+            msg: Docker features (nesting, keyctl) already present on container {{ lxc_features_ctid }}
           when: lxc_features_docker_missing | length == 0
 
         - name: Enable nesting and keyctl for Docker
