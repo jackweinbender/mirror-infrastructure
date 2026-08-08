@@ -12,6 +12,7 @@
     name:
       - curl
       - git
+      - logrotate
       - zsh
     state: present
 
