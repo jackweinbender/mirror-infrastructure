@@ -9,8 +9,8 @@ on:
         required: true
         type: choice
         options:
-          - docker-vm-dmz
           - docker0-lxc
+          - docker-vm-dmz
       user:
         description: SSH user with permission to run Docker
         required: false
@@ -21,20 +21,20 @@ permissions:
   contents: read
 
 concurrency:
-  group: docker-host-${{ inputs.host || 'docker-vm-dmz' }}
+  group: docker-host-${{ inputs.host || 'docker0-lxc' }}
   cancel-in-progress: false
 
 env:
   LOCAL_DIR: compose-stacks/docker-host
   REMOTE_DIR: /etc/compose-stacks/docker-host
-  TARGET_HOST: "${{ inputs.host || 'docker-vm-dmz' }}"
+  TARGET_HOST: "${{ inputs.host || 'docker0-lxc' }}"
   TARGET_USER: "${{ inputs.user || vars.DOCKER_USER || 'deploy' }}"
-  REMOTE: "${{ inputs.user || vars.DOCKER_USER || 'deploy' }}@${{ inputs.host || 'docker-vm-dmz' }}"
+  REMOTE: "${{ inputs.user || vars.DOCKER_USER || 'deploy' }}@${{ inputs.host || 'docker0-lxc' }}"
   ENV_TEMPLATE: compose-stacks/docker-host/.env.template
 
 jobs:
   deploy:
-    name: Bootstrap ${{ inputs.host || 'docker-vm-dmz' }}
+    name: Bootstrap ${{ inputs.host || 'docker0-lxc' }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
