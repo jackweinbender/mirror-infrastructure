@@ -44,8 +44,9 @@ GitHub Actions CI/CD pipelines for this infrastructure repo.
 ## deploy.yaml
 
 - Manual only (`workflow_dispatch`)
-- Inputs: `stack` (homeassistant|public-gateway), `host` (Tailscale MagicDNS), `user` (default: `deploy`)
-- Steps: validate → rsync → inject secrets (1Password) → docker compose up
+- Inputs: `stack` (Compose stack directory) and `host` (Tailscale MagicDNS name or IP)
+- Uses the standard `deploy` SSH user
+- Steps: rsync → inject secrets (1Password) → docker compose up
 
 ## Secrets Required
 

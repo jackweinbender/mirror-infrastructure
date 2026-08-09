@@ -7,26 +7,16 @@ on:
       stack:
         description: Stack to deploy
         required: true
-        type: choice
-        options:
-          - public-gateway
-          - homeassistant
+        type: string
       host:
         description: Host to deploy to (Tailscale MagicDNS name or IP)
         required: true
-        type: choice
-        options:
-          - docker-vm-dmz
-      user:
-        description: SSH user on the host
-        required: false
-        default: deploy
         type: string
 
 env:
   LOCAL_DIR: compose-stacks/${{ inputs.stack }}
   REMOTE_DIR: /etc/compose-stacks/${{ inputs.stack }}
-  REMOTE: ${{ inputs.user }}@${{ inputs.host }}
+  REMOTE: deploy@${{ inputs.host }}
   ENV_TEMPLATE: compose-stacks/${{ inputs.stack }}/.env.template
 
 jobs:
@@ -36,14 +26,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
-
-      - name: Validate HA config
-        if: inputs.stack == 'homeassistant'
-        run: |
-          docker run --rm \
-            -v ${{ github.workspace }}/${{ env.LOCAL_DIR }}/homeassistant:/config \
-            ghcr.io/home-assistant/home-assistant:stable \
-            hass --script check_config --config /config
 
       - name: Install rsync
         run: sudo apt-get install -y rsync

@@ -1,14 +1,13 @@
-# compose-stacks/public-gateway
+# compose-stacks/cloudflare-tunnel
 
-Public ingress application stack: Cloudflare Tunnel (Zero Trust Access) + demo service. Traefik is deployed once per Docker host by `compose-stacks/docker-host`.
+Cloudflare Tunnel stack for public ingress (Zero Trust Access). Traefik is deployed once per Docker host by `compose-stacks/docker-host`.
 
 ## Services
 
 | Service | Image | Purpose |
 |---------|-------|---------|
-| Host Traefik | `traefik:v3.7` | Host-level L7 reverse proxy, auto-TLS (deployed separately) |
 | `cloudflared` | `cloudflare/cloudflared:latest` | Cloudflare Tunnel endpoint for Zero Trust |
-| `helloworld` | `nginx:alpine` | Demo service at `helloworld.weinbender.io` |
+| Host Traefik | `traefik:v3.7` | Host-level L7 reverse proxy and auto-TLS (deployed separately) |
 
 ## Architecture
 
@@ -58,7 +57,7 @@ docker compose up -d
 
 # CI/CD
 # 1. deploy-docker-platform.yaml → host
-# 2. deploy.yaml → stack: public-gateway
+# 2. deploy.yaml → stack: cloudflare-tunnel (host: docker-vm-dmz)
 ```
 
 ## Add a New Service

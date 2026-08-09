@@ -35,15 +35,4 @@ terraform.rc
 
 *.secret
 
-# compose-stacks: HA runtime state (generated at runtime, not tracked)
-compose-stacks/homeassistant/homeassistant/.storage/
-compose-stacks/homeassistant/homeassistant/home-assistant_v2.db
-compose-stacks/homeassistant/homeassistant/home-assistant_v2.db-shm
-compose-stacks/homeassistant/homeassistant/home-assistant_v2.db-wal
-compose-stacks/homeassistant/homeassistant/home-assistant.log
-compose-stacks/homeassistant/homeassistant/home-assistant.log.1
-compose-stacks/homeassistant/homeassistant/.cloud/
-compose-stacks/homeassistant/zigbee2mqtt/devices.js
-compose-stacks/homeassistant/zigbee2mqtt/database.db
-compose-stacks/homeassistant/.env
 compose-stacks/docker-host/.env

@@ -14,8 +14,7 @@ Personal infrastructure as code — Terraform for cloud resources + Docker Compo
 │   └── proxmox/            # Proxmox VE resources
 ├── compose-stacks/         # Docker Compose stacks (deployed via GitHub Actions → Tailscale → VMs)
 │   ├── docker-host/        # Per-Docker-host Traefik + shared proxy network
-│   ├── homeassistant/      # Home Assistant + MQTT + Zigbee2MQTT
-│   └── public-gateway/     # Cloudflare Tunnel ingress (uses host Traefik)
+│   └── cloudflare-tunnel/  # Cloudflare Tunnel ingress (uses host Traefik)
 └── .github/
     ├── workflows/          # CI/CD pipelines
     └── actions/            # Reusable composite actions (tf-plan-apply)
@@ -41,9 +40,8 @@ Personal infrastructure as code — Terraform for cloud resources + Docker Compo
 The host platform is deployed via `deploy-docker-platform.yaml`; application stacks are deployed via `deploy.yaml`:
 Changes under `compose-stacks/docker-host/**` should be deployed by manually dispatching the platform workflow for each affected host.
 1. The host workflow creates the shared external `proxy` network if needed and deploys Traefik.
-2. The application workflow validates Home Assistant config (if applicable).
+2. The application workflow syncs the selected stack, injects its secrets, and reconciles its Compose project with Docker.
 3. Both workflows rsync over Tailscale and inject 1Password secrets directly to the remote `.env` — never touches runner disk.
-4. Both reconcile their Compose project with Docker.
 
 Required secrets: `ONE_PASSWORD_SA_TOKEN`, `TS_OAUTH_CLIENT_ID`, `TS_OAUTH_CLIENT_SECRET`, `CLOUDFLARE_ZONE_ID`, `CLOUDFLARE_ACCOUNT_ID`, GCP WIF vars.
 
@@ -111,10 +109,6 @@ cd roles/tailscale && ../../.venv/bin/molecule test
 
 - **Plan validation** — `.github/workflows/pr-plan-all.yml` validates all terraform changes on PRs
 - **Syntax & format** — `terraform validate` and `terraform fmt` in CI
-
-### Compose Stacks
-
-- Home Assistant config validation in `deploy.yaml` workflow
 
 ## Prerequisites
 
