@@ -1,6 +1,6 @@
 # Docker host platform stack
 
-This is the host-level platform deployed to every Docker LXC host. It is intentionally separate from application stacks.
+This is the host-level platform deployed to every Docker host with the platform workflow. It is intentionally separate from application stacks and is excluded from application reconciliation.
 
 ## What it provides
 
@@ -31,7 +31,7 @@ networks:
 
 ## Deployment
 
-Use `.github/workflows/deploy-docker-platform.yaml` with the host's Tailscale name and SSH user. The workflow:
+Use `.github/workflows/deploy-docker-platform.yaml` with `traefik-lxc`, `docker0-lxc`, or `docker-vm-dmz` and the SSH user. The workflow:
 
 1. Validates the Compose file.
 2. Connects the runner to Tailscale.

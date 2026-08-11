@@ -1,73 +1,17 @@
-# .github/workflows
+# GitHub Actions workflows
 
-GitHub Actions CI/CD pipelines for this infrastructure repo.
+## Compose deployment workflows
 
-## Workflows
+`deploy.yaml` is named **Compose stack deployments**. A push to `main` touching `compose-stacks/**`, `ansible/inventory.yaml`, or the workflow runs a complete reconciliation; `workflow_dispatch` runs the same complete reconciliation and has no required inputs.
 
-| File | Trigger | Purpose |
-|------|---------|---------|
-| `pr-plan-all.yml` | Pull request | `terraform plan` for all components (no apply) |
-| `main-plan-apply-all.yml` | Push to `main`, `workflow_dispatch` | Plan all components on push; apply on manual dispatch |
-| `main-plan-apply.yml` | Push to `main` (paths), `workflow_dispatch` | Plan/apply single component |
-| `deploy-docker-platform.yaml` | `workflow_dispatch` | Deploy/maintain Traefik and the shared Docker network on a host |
-| `deploy.yaml` | `workflow_dispatch` | Deploy application compose stacks to VMs via Tailscale |
+A preflight job first reads the parsed Ansible inventory and selects workload hosts with `host_roles: deploy`. It validates host and stack names (`^[a-z0-9][a-z0-9_-]*$`), assignment filenames, dotenv syntax, unknown hosts, reserved `docker-host`, and every assigned Compose file using representative values. No SSH connection occurs until preflight succeeds. One matrix job is created per discovered host, with stacks processed sequentially. Jobs use `docker-host-<short-host>` concurrency groups and do not cancel an in-progress deployment.
 
-## pr-plan-all.yml
+Assigned stacks merge `deployments/_shared.env` and `deployments/<host>.env`, resolve `op://` references with 1Password, stage privately, validate quietly, publish, and run Compose with a stable project name. Failed stacks are recorded while remaining stacks on that host are attempted; the host job fails at the end. Unassigned stacks are torn down before their marked remote directories are removed. Connectivity failures and failed teardowns never trigger cleanup. Entirely deleted local stacks are not automatically pruned.
 
-- Runs on PRs touching `terraform/**`
-- Matrix: `mgmt, aws, gcp-remind-me, gcp-weinbender-io, cloudflare, proxmox`
-- Uses `tf-plan-apply` action with `apply: false`
-- Posts plan summary as PR comment
+`deploy-docker-platform.yaml` remains separate and owns Traefik and the external `proxy` network. It supports `traefik-lxc`, `docker0-lxc`, and `docker-vm-dmz`, and uses the same host concurrency groups. Deploy the platform before assigning application stacks that require `proxy`.
 
-## main-plan-apply-all.yml
+## Secrets and trust boundary
 
-- Runs on push to `main` (always plan)
-- `workflow_dispatch` input `apply: boolean` (default false) — if true, applies all
-- Same matrix as pr-plan-all
-- Requires `id-token: write` for OIDC
+Required deployment secrets are `ONE_PASSWORD_SA_TOKEN` and the Tailscale OAuth credentials referenced through 1Password. Runners connect to hosts over the trusted Tailscale network using OpenSSH; `ssh-keyscan -H` populates runner `known_hosts`. Resolved environment values are streamed to remote staging, never printed, passed as arguments, or uploaded as artifacts.
 
-## main-plan-apply.yml
-
-- Path-filtered: triggers on `terraform/<component>/**` changes
-- Single component per run
-- `workflow_dispatch` with `component` + `apply` inputs
-
-## deploy-docker-platform.yaml
-
-- Manual `workflow_dispatch` only
-- Provides a `host` dropdown (`docker-vm-dmz` or `docker0-lxc`) and `user` (default: `deploy`)
-- `DOCKER_USER` can override the default SSH user
-- Creates the attachable external `proxy` network idempotently
-- Steps: validate → Tailscale → rsync → inject secrets on host → `docker compose up`
-- Repeat the workflow for each Docker host. Ansible prepares the host; this workflow deploys the platform.
-
-## deploy.yaml
-
-- Manual only (`workflow_dispatch`)
-- Inputs: `stack` (Compose stack directory) and `host` (Tailscale MagicDNS name or IP)
-- Uses the standard `deploy` SSH user
-- Steps: rsync → inject secrets (1Password) → docker compose up
-
-## Secrets Required
-
-| Secret | Workflows |
-|--------|-----------|
-| `ONE_PASSWORD_SA_TOKEN` | All Terraform + deploy |
-| `TS_OAUTH_CLIENT_ID` / `TS_OAUTH_CLIENT_SECRET` | All (Tailscale) |
-| `CLOUDFLARE_ZONE_ID` / `CLOUDFLARE_ACCOUNT_ID` | Terraform (Cloudflare) |
-| `GCP_WORKLOAD_IDENTITY_PROVIDER` / `GCP_SERVICE_ACCOUNT` | Terraform (GCP) |
-
-## OIDC Providers
-
-| Cloud | Role / Pool |
-|-------|-------------|
-| AWS | `arn:aws:iam::325498355308:role/GithubActionsRole` |
-| GCP | WIF pool `github-actions-pool`, provider `gha-jackweinbender` |
-
-## Composite Action: tf-plan-apply
-
-Located at `.github/actions/tf-plan-apply/action.yml`. Reusable step:
-- Loads 1Password secrets → env
-- Tailscale connect
-- `terraform init/fmt/validate/plan`
-- Optional `apply` if input `apply == 'true'`
+Other workflows cover Terraform planning/apply and Ansible maintenance. Ansible prepares the `deploy` account, Docker access, rsync, and `/etc/compose-stacks`.

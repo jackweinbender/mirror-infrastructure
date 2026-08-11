@@ -44,21 +44,14 @@ Injected at deploy via `op inject` — never touches runner disk.
 
 ## Deploy
 
-```bash
-# Prerequisites
-1. Deploy `compose-stacks/docker-host` to the host.
+The application assignment is represented by a file in `deployments/`, for example `deployments/docker-vm-dmz.env`. Add another `<deploy-host>.env` to run this stack on another inventory host. Remove the file to stop it there; the application workflow tears down Compose before deleting its remote files.
+
+Prerequisites:
+1. Deploy `compose-stacks/docker-host` with `deploy-docker-platform.yaml` so the external `proxy` network exists.
 2. Apply `terraform/cloudflare/` if using the tunnel.
 3. Store the tunnel token in 1Password.
 
-# Local
-cp .env.template .env
-# Fill secrets
-docker compose up -d
-
-# CI/CD
-# 1. deploy-docker-platform.yaml → host
-# 2. deploy.yaml → stack: cloudflare-tunnel (host: docker-vm-dmz)
-```
+For local validation, merge `deployments/_shared.env` and a host template using a representative token value and run `docker compose config --quiet`. CI resolves `op://` references with `op inject`; the resolved `.env` is never committed or stored on the runner.
 
 ## Add a New Service
 

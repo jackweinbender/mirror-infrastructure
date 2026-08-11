@@ -9,6 +9,7 @@ on:
         required: true
         type: choice
         options:
+          - traefik-lxc
           - docker0-lxc
           - docker-vm-dmz
       user:
@@ -90,4 +91,4 @@ jobs:
 
       - name: Reconcile Traefik
         run: |
-          ssh "$REMOTE" "cd '$REMOTE_DIR' && docker compose up -d --pull always --remove-orphans"
+          ssh "$REMOTE" "cd '$REMOTE_DIR' && if docker compose up --help 2>/dev/null | grep -q -- '--wait'; then docker compose --project-name docker-host --env-file .env up -d --pull always --remove-orphans --wait --wait-timeout 120; else docker compose --project-name docker-host --env-file .env up -d --pull always --remove-orphans; fi"

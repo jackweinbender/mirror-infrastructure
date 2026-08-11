@@ -1,35 +1,54 @@
 ---
-name: Deploy stack
+name: Compose stack deployments
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - compose-stacks/**
+      - ansible/inventory.yaml
+      - .github/workflows/deploy.yaml
   workflow_dispatch:
-    inputs:
-      stack:
-        description: Stack to deploy
-        required: true
-        type: string
-      host:
-        description: Host to deploy to (Tailscale MagicDNS name or IP)
-        required: true
-        type: string
+
+permissions:
+  contents: read
 
 env:
-  LOCAL_DIR: compose-stacks/${{ inputs.stack }}
-  REMOTE_DIR: /etc/compose-stacks/${{ inputs.stack }}
-  REMOTE: deploy@${{ inputs.host }}
-  ENV_TEMPLATE: compose-stacks/${{ inputs.stack }}/.env.template
+  DOCKER_USER: ${{ vars.DOCKER_USER || 'deploy' }}
 
 jobs:
-  deploy:
-    name: Deploy ${{ inputs.stack }} to ${{ inputs.host }}
+  preflight:
+    name: Validate inventory and stacks
     runs-on: ubuntu-latest
+    outputs:
+      hosts: ${{ steps.validate.outputs.hosts }}
+      stacks: ${{ steps.validate.outputs.stacks }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+      - name: Install Ansible inventory tool
+        run: sudo apt-get update && sudo apt-get install -y ansible-core
+      - name: Validate inventory, assignments, dotenv, and Compose
+        id: validate
+        run: node .github/scripts/preflight.mjs
 
-      - name: Install rsync
-        run: sudo apt-get install -y rsync
-
+  reconcile:
+    name: Reconcile ${{ matrix.host.id }}
+    needs: preflight
+    if: needs.preflight.result == 'success'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        host: ${{ fromJSON(needs.preflight.outputs.hosts) }}
+    concurrency:
+      group: docker-host-${{ matrix.host.id }}
+      cancel-in-progress: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install rsync and jq
+        run: sudo apt-get update && sudo apt-get install -y jq rsync
       - name: Load Tailscale credentials from 1Password
         uses: 1password/load-secrets-action@v2
         with:
@@ -38,7 +57,6 @@ jobs:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.ONE_PASSWORD_SA_TOKEN }}
           TS_OAUTH_CLIENT_ID: op://network/tailscale-oauth-github-actions/client-id
           TS_OAUTH_CLIENT_SECRET: op://network/tailscale-oauth-github-actions/client-secret
-
       - name: Connect to Tailscale
         uses: tailscale/github-action@v2
         with:
@@ -46,50 +64,19 @@ jobs:
           oauth-secret: ${{ env.TS_OAUTH_CLIENT_SECRET }}
           tags: tag:ci
           version: 1.76.1
-
       - name: Install 1Password CLI
         uses: 1password/install-cli-action@v3
-
       - name: Configure SSH known hosts
+        env:
+          HOST_ADDRESS: ${{ matrix.host.address }}
         run: |
           mkdir -p ~/.ssh
-          # ssh-keyscan is safe here — Tailscale authenticates the network,
-          # so the host we're scanning is trusted.
-          ssh-keyscan ${{ inputs.host }} >> ~/.ssh/known_hosts
-
-      - name: Annotate deployment
-        run: |
-          DEPLOY_TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-          {
-            echo "DEPLOY_SHA=${{ github.sha }}"
-            echo "DEPLOY_REF=${{ github.ref }}"
-            echo "DEPLOY_RUN_NUMBER=${{ github.run_number }}"
-            echo "DEPLOY_TIMESTAMP=$DEPLOY_TIMESTAMP"
-          } >> $ENV_TEMPLATE
-
-      - name: Prepare remote directory
-        run: ssh $REMOTE "mkdir -p $REMOTE_DIR"
-
-      - name: Sync compose stack
-        run: |
-          # If the stack has a .rsyncexclude file, use it to protect
-          # stack-specific runtime state from --delete.
-          RSYNC_OPTS="-r --delete"
-          if [ -f "$LOCAL_DIR/.rsyncexclude" ]; then
-            RSYNC_OPTS="$RSYNC_OPTS --exclude-from=$LOCAL_DIR/.rsyncexclude"
-          fi
-          rsync $RSYNC_OPTS $LOCAL_DIR/ $REMOTE:$REMOTE_DIR/
-
-      - name: Sync secrets
+          ssh-keyscan -H "$HOST_ADDRESS" >> ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+      - name: Reconcile all application stacks
         env:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.ONE_PASSWORD_SA_TOKEN }}
-        run: |
-          set -o pipefail
-          # Resolve op:// refs and pipe directly to the VM — secrets never
-          # touch the runner's disk. Runs after rsync so --delete can't
-          # remove .env. pipefail ensures op inject failures are visible.
-          op inject -i $ENV_TEMPLATE | ssh $REMOTE "cat > $REMOTE_DIR/.env"
-
-      - name: Bring up stack
-        run: |
-          ssh $REMOTE "cd $REMOTE_DIR && docker compose up -d --pull missing"
+          HOST_ID: ${{ matrix.host.id }}
+          HOST_ADDRESS: ${{ matrix.host.address }}
+          STACKS_JSON: ${{ needs.preflight.outputs.stacks }}
+        run: bash .github/scripts/reconcile-host.sh "$HOST_ID" "$HOST_ADDRESS" "$STACKS_JSON"
