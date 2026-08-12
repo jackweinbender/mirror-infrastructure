@@ -31,8 +31,8 @@ jobs:
         id: validate
         run: ruby .github/scripts/preflight.rb
 
-  reconcile:
-    name: Reconcile ${{ matrix.host.id }}
+  platform:
+    name: Reconcile docker-host on ${{ matrix.host.id }}
     needs: preflight
     if: needs.preflight.result == 'success'
     runs-on: ubuntu-latest
@@ -46,8 +46,54 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Install rsync and jq
-        run: sudo apt-get update && sudo apt-get install -y jq rsync
+      - name: Load Tailscale credentials from 1Password
+        uses: 1password/load-secrets-action@v2
+        with:
+          export-env: true
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.ONE_PASSWORD_SA_TOKEN }}
+          TS_OAUTH_CLIENT_ID: op://network/tailscale-oauth-github-actions/client-id
+          TS_OAUTH_CLIENT_SECRET: op://network/tailscale-oauth-github-actions/client-secret
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v2
+        with:
+          oauth-client-id: ${{ env.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ env.TS_OAUTH_CLIENT_SECRET }}
+          tags: tag:ci
+          version: 1.76.1
+      - name: Install 1Password CLI
+        uses: 1password/install-cli-action@v3
+      - name: Configure SSH known hosts
+        env:
+          HOST_ADDRESS: ${{ matrix.host.address }}
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H "$HOST_ADDRESS" >> ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+      - name: Reconcile docker-host platform
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.ONE_PASSWORD_SA_TOKEN }}
+          HOST_ID: ${{ matrix.host.id }}
+          HOST_ADDRESS: ${{ matrix.host.address }}
+        run: ruby .github/scripts/reconcile-platform.rb "$HOST_ID" "$HOST_ADDRESS"
+
+  reconcile:
+    name: Reconcile ${{ matrix.host.id }}
+    needs: [preflight, platform]
+    if: needs.preflight.result == 'success' && needs.platform.result == 'success'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        host: ${{ fromJSON(needs.preflight.outputs.hosts) }}
+    concurrency:
+      group: docker-host-${{ matrix.host.id }}
+      cancel-in-progress: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install rsync
+        run: sudo apt-get update && sudo apt-get install -y rsync
       - name: Load Tailscale credentials from 1Password
         uses: 1password/load-secrets-action@v2
         with:
