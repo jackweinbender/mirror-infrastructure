@@ -1,0 +1,13 @@
+http:
+  routers:
+    homeassistant:
+      rule: Host(`homeassistant.weinbender.io`)
+      service: homeassistant
+      tls:
+        certResolver: letsencrypt
+      entryPoints: [websecure]
+  services:
+    homeassistant:
+      loadBalancer:
+        servers:
+          - url: http://192.168.7.170:8123

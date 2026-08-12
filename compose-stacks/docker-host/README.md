@@ -31,14 +31,16 @@ networks:
 
 ## Deployment
 
-Changes under `compose-stacks/docker-host/` automatically run `.github/workflows/deploy-docker-platform.yaml` for every inventory workload host with `host_roles: deploy`. Manual dispatch can target `traefik-lxc`, `docker0-lxc`, or `docker-vm-dmz` with the SSH user. The workflow:
+Changes under `compose-stacks/docker-host/` automatically run `.github/workflows/deploy-docker-platform.yaml` for every inventory workload host with `host_roles: deploy`. Manual dispatch reconciles that same complete host set. The workflow:
 
-1. Validates the Compose file.
+1. Validates the inventory and Compose configuration before connecting to any host.
 2. Connects the runner to Tailscale.
-3. Creates `proxy` if it does not exist.
-4. Syncs this directory to `/etc/compose-stacks/docker-host`.
-5. Resolves `.env.template` through 1Password directly into the host.
-6. Reconciles Traefik with Docker Compose.
+3. Creates `proxy` if it does not exist; the platform workflow owns this external network.
+4. Syncs this directory to a unique private staging directory under `/etc/compose-stacks/.staging/`.
+5. Resolves `.env.template` through 1Password directly into staging.
+6. Validates the staged Compose project, publishes it only after validation, and reconciles Traefik with Docker Compose.
+
+A host-specific file named `docker-compose.<host>.yaml` is copied to the staged directory as `docker-compose.override.yaml` when it exists. This lets every host use the same automatic Compose merge command. The `traefik-lxc` host therefore uses `docker-compose.traefik-lxc.yaml` to mount additional files from `traefik/dynamic/`; other hosts receive the same source tree but have no override file.
 
 The operation is safe to repeat for every host. A host needs Docker, Tailscale connectivity from the runner, and an SSH user permitted to run Docker. Ansible prepares Docker, Tailscale, the deployment user, and the required host directories; this workflow deploys and maintains the platform stack.
 

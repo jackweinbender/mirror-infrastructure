@@ -1,0 +1,13 @@
+http:
+  routers:
+    jellyfin:
+      rule: Host(`jellyfin.weinbender.io`)
+      service: jellyfin
+      tls:
+        certResolver: letsencrypt
+      entryPoints: [websecure]
+  services:
+    jellyfin:
+      loadBalancer:
+        servers:
+          - url: http://192.168.10.194:8096

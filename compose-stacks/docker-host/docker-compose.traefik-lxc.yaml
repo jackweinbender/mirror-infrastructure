@@ -1,0 +1,8 @@
+---
+# Host-specific dynamic routes for services outside Docker discovery.
+services:
+  traefik:
+    volumes:
+      - ./traefik/dynamic/homeassistant.yaml:/etc/traefik/dynamic/homeassistant.yaml:ro
+      - ./traefik/dynamic/jellyfin.yaml:/etc/traefik/dynamic/jellyfin.yaml:ro
+      - ./traefik/dynamic/proxmox.yaml:/etc/traefik/dynamic/proxmox.yaml:ro

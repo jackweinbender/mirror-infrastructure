@@ -1,0 +1,17 @@
+http:
+  routers:
+    proxmox:
+      rule: Host(`proxmox.weinbender.io`)
+      service: proxmox
+      tls:
+        certResolver: letsencrypt
+      entryPoints: [websecure]
+  services:
+    proxmox:
+      loadBalancer:
+        serversTransport: proxmoxTransport
+        servers:
+          - url: https://192.168.1.144:8006
+  serversTransports:
+    proxmoxTransport:
+      insecureSkipVerify: true
