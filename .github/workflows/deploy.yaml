@@ -27,11 +27,9 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - name: Install Ansible inventory tool
-        run: sudo apt-get update && sudo apt-get install -y ansible-core
       - name: Validate inventory, assignments, dotenv, and Compose
         id: validate
-        run: node .github/scripts/preflight.mjs
+        run: ruby .github/scripts/preflight.rb
 
   reconcile:
     name: Reconcile ${{ matrix.host.id }}
@@ -80,4 +78,4 @@ jobs:
           HOST_ID: ${{ matrix.host.id }}
           HOST_ADDRESS: ${{ matrix.host.address }}
           STACKS_JSON: ${{ needs.preflight.outputs.stacks }}
-        run: bash .github/scripts/reconcile-host.sh "$HOST_ID" "$HOST_ADDRESS" "$STACKS_JSON"
+        run: ruby .github/scripts/reconcile-host.rb "$HOST_ID" "$HOST_ADDRESS" "$STACKS_JSON"
