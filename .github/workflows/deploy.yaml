@@ -8,6 +8,8 @@ on:
       - compose-stacks/**
       - ansible/inventory.yaml
       - .github/workflows/deploy.yaml
+  schedule:
+    - cron: '0 5 * * *'
   workflow_dispatch:
 
 permissions:

@@ -2,7 +2,7 @@
 
 ## Compose deployment workflows
 
-`deploy.yaml` is named **Compose stack deployments**. A push to `main` touching any path under `compose-stacks/**`, `ansible/inventory.yaml`, or the workflow runs a complete reconciliation; `workflow_dispatch` runs the same complete reconciliation and has no required inputs.
+`deploy.yaml` is named **Compose stack deployments**. A push to `main` touching any path under `compose-stacks/**`, `ansible/inventory.yaml`, or the workflow runs a complete reconciliation. A daily schedule runs at 05:00 UTC, and `workflow_dispatch` runs the same complete reconciliation with no required inputs.
 
 A preflight job first reads `ansible/inventory.yaml` with the repository’s lightweight Ruby YAML parser and selects workload hosts with `host_roles: deploy`. It validates host and stack names (`^[a-z0-9][a-z0-9_-]*$`), assignment filenames, dotenv syntax, unknown hosts, reserved `docker-host`, and every assigned Compose file using representative values. No SSH connection occurs until preflight succeeds. The workflow first reconciles the `docker-host` platform on every discovered host and waits for the entire platform matrix to complete, then starts one application matrix job per host with stacks processed sequentially. Jobs use `docker-host-<short-host>` concurrency groups and do not cancel an in-progress deployment.
 

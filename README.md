@@ -25,7 +25,7 @@ Personal infrastructure as code — Terraform for cloud resources + Docker Compo
 | Layer | Tool | Target | Trigger |
 |-------|------|--------|---------|
 | Terraform | GitHub Actions (`tf-plan-apply`) | AWS, Cloudflare, GCP, Proxmox | Push to `main` (plan) / `workflow_dispatch` (apply) |
-| Docker host platform and Compose stacks | GitHub Actions (`deploy.yaml`) | Docker hosts via Tailscale | Push to `main` / `workflow_dispatch` |
+| Docker host platform and Compose stacks | GitHub Actions (`deploy.yaml`) | Docker hosts via Tailscale | Push to `main` / daily at 05:00 UTC / `workflow_dispatch` |
 
 ### Terraform
 
