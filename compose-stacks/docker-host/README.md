@@ -31,7 +31,7 @@ networks:
 
 ## Deployment
 
-Use `.github/workflows/deploy-docker-platform.yaml` with `traefik-lxc`, `docker0-lxc`, or `docker-vm-dmz` and the SSH user. The workflow:
+Changes under `compose-stacks/docker-host/` automatically run `.github/workflows/deploy-docker-platform.yaml` for every inventory workload host with `host_roles: deploy`. Manual dispatch can target `traefik-lxc`, `docker0-lxc`, or `docker-vm-dmz` with the SSH user. The workflow:
 
 1. Validates the Compose file.
 2. Connects the runner to Tailscale.

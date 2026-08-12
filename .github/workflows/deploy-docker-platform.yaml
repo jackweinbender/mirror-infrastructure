@@ -2,10 +2,16 @@
 name: Deploy Docker host platform
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - compose-stacks/docker-host/**
+      - ansible/inventory.yaml
+      - .github/workflows/deploy-docker-platform.yaml
   workflow_dispatch:
     inputs:
       host:
-        description: Docker host to deploy
+        description: Docker host to deploy (manual runs only)
         required: true
         type: choice
         options:
@@ -21,22 +27,44 @@ on:
 permissions:
   contents: read
 
-concurrency:
-  group: docker-host-${{ inputs.host || 'docker0-lxc' }}
-  cancel-in-progress: false
-
 env:
   LOCAL_DIR: compose-stacks/docker-host
   REMOTE_DIR: /etc/compose-stacks/docker-host
-  TARGET_HOST: "${{ inputs.host || 'docker0-lxc' }}"
   TARGET_USER: "${{ inputs.user || vars.DOCKER_USER || 'deploy' }}"
-  REMOTE: "${{ inputs.user || vars.DOCKER_USER || 'deploy' }}@${{ inputs.host || 'docker0-lxc' }}"
   ENV_TEMPLATE: compose-stacks/docker-host/.env.template
 
 jobs:
-  deploy:
-    name: Deploy ${{ inputs.host || 'docker0-lxc' }}
+  discover:
+    name: Discover deploy hosts
     runs-on: ubuntu-latest
+    outputs:
+      hosts: ${{ steps.hosts.outputs.hosts }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install Ansible inventory tool
+        run: sudo apt-get update && sudo apt-get install -y ansible-core
+      - name: Validate inventory and stacks
+        id: hosts
+        env:
+          HOST_FILTER: ${{ inputs.host || '' }}
+        run: node .github/scripts/preflight.mjs
+
+  deploy:
+    name: Deploy ${{ matrix.host.id }}
+    needs: discover
+    if: needs.discover.result == 'success'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        host: ${{ fromJSON(needs.discover.outputs.hosts) }}
+    concurrency:
+      group: docker-host-${{ matrix.host.id }}
+      cancel-in-progress: false
+    env:
+      TARGET_HOST: ${{ matrix.host.address }}
+      REMOTE: "${{ inputs.user || vars.DOCKER_USER || 'deploy' }}@${{ matrix.host.address }}"
     steps:
       - name: Checkout
         uses: actions/checkout@v4

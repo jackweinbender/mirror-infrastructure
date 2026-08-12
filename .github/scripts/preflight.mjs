@@ -38,7 +38,12 @@ function parseInventory() {
   }
   if (!hosts.length) fail('no workload hosts have the deploy role');
   if (new Set(hosts.map((host) => host.id)).size !== hosts.length) fail('deploy host identifiers are not unique');
-  return hosts.sort((a, b) => a.id.localeCompare(b.id));
+  const sorted = hosts.sort((a, b) => a.id.localeCompare(b.id));
+  const selectedHost = process.env.HOST_FILTER || '';
+  if (!selectedHost) return sorted;
+  const selected = sorted.filter((host) => host.id === selectedHost);
+  if (!selected.length) fail(`selected host is not a deploy host: ${selectedHost}`);
+  return selected;
 }
 function mergedEnv(shared, assignment) {
   try {

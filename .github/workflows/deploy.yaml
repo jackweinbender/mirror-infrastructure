@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - compose-stacks/**
+      - '!compose-stacks/docker-host/**'
       - ansible/inventory.yaml
       - .github/workflows/deploy.yaml
   workflow_dispatch:
