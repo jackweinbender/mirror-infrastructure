@@ -32,7 +32,7 @@ jobs:
         component: [mgmt, aws, gcp-remind-me, gcp-weinbender-io, cloudflare, proxmox]
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v7
       - name: Auth with AWS
         uses: aws-actions/configure-aws-credentials@v2
         with:

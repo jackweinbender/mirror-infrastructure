@@ -27,7 +27,7 @@ jobs:
       stacks: ${{ steps.validate.outputs.stacks }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Validate inventory, assignments, dotenv, and Compose
         id: validate
         run: ruby .github/scripts/preflight.rb
@@ -46,7 +46,7 @@ jobs:
       cancel-in-progress: false
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Load Tailscale credentials from 1Password
         uses: 1password/load-secrets-action@v2
         with:
@@ -92,7 +92,7 @@ jobs:
       cancel-in-progress: false
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
       - name: Install rsync
         run: sudo apt-get update && sudo apt-get install -y rsync
       - name: Load Tailscale credentials from 1Password
