@@ -14,7 +14,7 @@ updates:
     schedule:
       interval: weekly
   - package-ecosystem: terraform
-    directory: /terraform/gcp-remindme
+    directory: /terraform/gcp-remind-me
     schedule:
       interval: weekly
   - package-ecosystem: terraform
