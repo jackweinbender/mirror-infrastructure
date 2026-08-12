@@ -1,6 +1,6 @@
 # Docker host platform stack
 
-This is the host-level platform deployed to every Docker host with the platform workflow. It is intentionally separate from application stacks and is excluded from application reconciliation.
+This is the host-level platform deployed to every Docker host by the platform phase of `deploy.yaml`. It is intentionally separate from application stacks, but is reconciled before them.
 
 ## What it provides
 
@@ -31,11 +31,11 @@ networks:
 
 ## Deployment
 
-Changes under `compose-stacks/docker-host/` automatically run `.github/workflows/deploy-docker-platform.yaml` for every inventory workload host with `host_roles: deploy`. Manual dispatch reconciles that same complete host set. The workflow:
+Changes under `compose-stacks/docker-host/` automatically run `.github/workflows/deploy.yaml` for every inventory workload host with `host_roles: deploy`. Manual dispatch reconciles that same complete host set. The workflow:
 
 1. Validates the inventory and Compose configuration before connecting to any host.
 2. Connects the runner to Tailscale.
-3. Creates `proxy` if it does not exist; the platform workflow owns this external network.
+3. Creates `proxy` if it does not exist; the platform phase owns this external network.
 4. Syncs this directory to a unique private staging directory under `/etc/compose-stacks/.staging/`.
 5. Resolves `.env.template` through 1Password directly into staging.
 6. Validates the staged Compose project, publishes it only after validation, and reconciles Traefik with Docker Compose.

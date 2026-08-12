@@ -47,7 +47,7 @@ Injected at deploy via `op inject` — never touches runner disk.
 The application assignment is represented by a file in `deployments/`, for example `deployments/docker-vm-dmz.env`. Add another `<deploy-host>.env` to run this stack on another inventory host. Remove the file to stop it there; the application workflow tears down Compose before deleting its remote files.
 
 Prerequisites:
-1. Deploy `compose-stacks/docker-host` with `deploy-docker-platform.yaml` so the external `proxy` network exists.
+1. Deploy with `deploy.yaml`; it reconciles `compose-stacks/docker-host` first so the external `proxy` network exists.
 2. Apply `terraform/cloudflare/` if using the tunnel.
 3. Store the tunnel token in 1Password.
 

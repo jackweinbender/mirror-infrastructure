@@ -25,8 +25,7 @@ Personal infrastructure as code — Terraform for cloud resources + Docker Compo
 | Layer | Tool | Target | Trigger |
 |-------|------|--------|---------|
 | Terraform | GitHub Actions (`tf-plan-apply`) | AWS, Cloudflare, GCP, Proxmox | Push to `main` (plan) / `workflow_dispatch` (apply) |
-| Docker host platform | GitHub Actions (`deploy-docker-platform.yaml`) | Docker LXC hosts via Tailscale | `workflow_dispatch` |
-| Compose stacks | GitHub Actions (`deploy.yaml`) | Self-hosted VMs via Tailscale | `workflow_dispatch` |
+| Docker host platform and Compose stacks | GitHub Actions (`deploy.yaml`) | Docker hosts via Tailscale | Push to `main` / `workflow_dispatch` |
 
 ### Terraform
 
@@ -37,11 +36,10 @@ Personal infrastructure as code — Terraform for cloud resources + Docker Compo
 
 ### Compose Stacks
 
-The host platform is deployed via `deploy-docker-platform.yaml`; application stacks are deployed via `deploy.yaml`:
-Changes under `compose-stacks/docker-host/**` should be deployed by manually dispatching the platform workflow for each affected host.
-1. The host workflow creates the shared external `proxy` network if needed and deploys Traefik.
-2. The application workflow syncs the selected stack, injects its secrets, and reconciles its Compose project with Docker.
-3. Both workflows rsync over Tailscale and inject 1Password secrets directly to the remote `.env` — never touches runner disk.
+The `deploy.yaml` workflow owns the complete Compose desired state:
+1. Every run first creates the shared external `proxy` network if needed and deploys Traefik on every deploy host.
+2. After all platform jobs succeed, it syncs assigned application stacks, injects their secrets, and reconciles their Compose projects with Docker.
+3. The workflow rsyncs over Tailscale and injects 1Password secrets directly to the remote `.env` — resolved secrets never persist on the runner.
 
 Required secrets: `ONE_PASSWORD_SA_TOKEN`, `TS_OAUTH_CLIENT_ID`, `TS_OAUTH_CLIENT_SECRET`, `CLOUDFLARE_ZONE_ID`, `CLOUDFLARE_ACCOUNT_ID`, GCP WIF vars.
 
