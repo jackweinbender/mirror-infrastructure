@@ -14,6 +14,7 @@ services:
       - traefik.http.routers.dashboard-slash.rule=Path(`/dashboard`)
       - traefik.http.routers.dashboard-slash.entrypoints=web
       - traefik.http.routers.dashboard-slash.service=api@internal
+      - traefik.http.routers.dashboard-slash.priority=100
       - traefik.http.routers.dashboard-slash.middlewares=dashboard-slash
       - traefik.http.middlewares.dashboard-slash.redirectregex.regex=^(.*/dashboard)$
       - traefik.http.middlewares.dashboard-slash.redirectregex.replacement=$${1}/
