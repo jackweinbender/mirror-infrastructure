@@ -26,7 +26,7 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - name: Load secret
-        uses: 1password/load-secrets-action@v2
+        uses: 1password/load-secrets-action@v5
         with:
           export-env: true
         env:
@@ -34,12 +34,12 @@ jobs:
           TS_OAUTH_CLIENT_ID: op://network/tailscale-oauth-github-actions/client-id
           TS_OAUTH_CLIENT_SECRET: op://network/tailscale-oauth-github-actions/client-secret
       - name: Tailscale
-        uses: tailscale/github-action@v2
+        uses: tailscale/github-action@v4
         with:
           oauth-client-id: ${{ env.TS_OAUTH_CLIENT_ID }}
           oauth-secret: ${{ env.TS_OAUTH_CLIENT_SECRET }}
           tags: tag:ci
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v7
         with:
           python-version: "3.14"
           cache: pip

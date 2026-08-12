@@ -48,7 +48,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
       - name: Load Tailscale credentials from 1Password
-        uses: 1password/load-secrets-action@v2
+        uses: 1password/load-secrets-action@v5
         with:
           export-env: true
         env:
@@ -56,14 +56,14 @@ jobs:
           TS_OAUTH_CLIENT_ID: op://network/tailscale-oauth-github-actions/client-id
           TS_OAUTH_CLIENT_SECRET: op://network/tailscale-oauth-github-actions/client-secret
       - name: Connect to Tailscale
-        uses: tailscale/github-action@v2
+        uses: tailscale/github-action@v4
         with:
           oauth-client-id: ${{ env.TS_OAUTH_CLIENT_ID }}
           oauth-secret: ${{ env.TS_OAUTH_CLIENT_SECRET }}
           tags: tag:ci
           version: 1.76.1
       - name: Install 1Password CLI
-        uses: 1password/install-cli-action@v3
+        uses: 1password/install-cli-action@v4
       - name: Configure SSH known hosts
         env:
           HOST_ADDRESS: ${{ matrix.host.address }}
@@ -96,7 +96,7 @@ jobs:
       - name: Install rsync
         run: sudo apt-get update && sudo apt-get install -y rsync
       - name: Load Tailscale credentials from 1Password
-        uses: 1password/load-secrets-action@v2
+        uses: 1password/load-secrets-action@v5
         with:
           export-env: true
         env:
@@ -104,14 +104,14 @@ jobs:
           TS_OAUTH_CLIENT_ID: op://network/tailscale-oauth-github-actions/client-id
           TS_OAUTH_CLIENT_SECRET: op://network/tailscale-oauth-github-actions/client-secret
       - name: Connect to Tailscale
-        uses: tailscale/github-action@v2
+        uses: tailscale/github-action@v4
         with:
           oauth-client-id: ${{ env.TS_OAUTH_CLIENT_ID }}
           oauth-secret: ${{ env.TS_OAUTH_CLIENT_SECRET }}
           tags: tag:ci
           version: 1.76.1
       - name: Install 1Password CLI
-        uses: 1password/install-cli-action@v3
+        uses: 1password/install-cli-action@v4
       - name: Configure SSH known hosts
         env:
           HOST_ADDRESS: ${{ matrix.host.address }}
