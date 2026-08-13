@@ -83,11 +83,13 @@ stacks.each do |stack|
       unless ssh_command(remote, "cd #{quote(stage)} && docker compose --project-name #{quote(stack)} --env-file .env config --quiet")
         warn "::error::[#{host_id}/#{stack}] staged Compose validation failed"; failed << "#{host_id}/#{stack}"; next
       end
-      marker_check = "if [ -e #{quote(live)} ]; then test -f #{quote(File.join(live, '.managed-by-github-actions'))} && grep -Fxq 'STACK_NAME=#{stack}' #{quote(File.join(live, '.managed-by-github-actions'))}; fi"
+      marker_file = File.join(live, '.managed-by-github-actions')
+      legacy_stale_traefik = "test #{quote(stack)} = traefik && test -f #{quote(File.join(live, 'traefik', 'traefik.yml'))} && test -d #{quote(File.join(live, 'traefik', 'dynamic'))} && test ! -e #{quote(File.join(live, 'docker-compose.yaml'))}"
+      marker_check = "if [ -e #{quote(live)} ]; then (test -f #{quote(marker_file)} && grep -Fxq 'STACK_NAME=#{stack}' #{quote(marker_file)}) || (#{legacy_stale_traefik}); fi"
       unless ssh_command(remote, marker_check)
         warn "::error::[#{host_id}/#{stack}] existing live directory is unmarked or has the wrong marker; refusing replacement"; failed << "#{host_id}/#{stack}"; next
       end
-      retire = "cd #{quote(live)} && docker compose --project-name #{quote(stack)} --env-file .env down --remove-orphans && if ! rm -rf -- #{quote(live)}; then docker run --rm --mount type=bind,source=#{quote(live)},target=/target busybox:1.36 sh -c 'find /target -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +' && rm -rf -- #{quote(live)}; fi"
+      retire = "cd #{quote(live)} && if [ -f docker-compose.yaml ]; then docker compose --project-name #{quote(stack)} --env-file .env down --remove-orphans; fi && if ! rm -rf -- #{quote(live)}; then docker run --rm --mount type=bind,source=#{quote(live)},target=/target busybox:1.36 sh -c 'find /target -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +' && rm -rf -- #{quote(live)}; fi"
       unless ssh_command(remote, "if [ -e #{quote(live)} ]; then #{retire}; fi && mv -- #{quote(stage)} #{quote(live)}")
         warn "::error::[#{host_id}/#{stack}] publication failed"; failed << "#{host_id}/#{stack}"; next
       end
