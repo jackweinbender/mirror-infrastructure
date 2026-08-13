@@ -11,6 +11,14 @@ resource "cloudflare_zero_trust_access_identity_provider" "google" {
   }
 }
 
+# ── Existing Access policy ────────────────────────────────────────────────────
+
+# User membership and policy rules are managed in the Cloudflare dashboard.
+data "cloudflare_zero_trust_access_policy" "me" {
+  account_id = var.cloudflare_account_id
+  policy_id  = "b12aa35b-95c5-484d-97b5-217c08a714e9"
+}
+
 # ── uk2026.weinbender.io ─────────────────────────────────────────────────────
 
 resource "cloudflare_zero_trust_access_application" "uk2026" {
@@ -21,30 +29,8 @@ resource "cloudflare_zero_trust_access_application" "uk2026" {
   type             = "self_hosted"
 
   policies = [{
-    id         = cloudflare_zero_trust_access_policy.allow.id
+    id         = data.cloudflare_zero_trust_access_policy.me.id
     precedence = 1
-  }]
-}
-
-resource "cloudflare_zero_trust_access_policy" "allow" {
-  account_id = var.cloudflare_account_id
-  name       = "Allow Google users"
-  decision   = "allow"
-
-  include = [{ everyone = {} }]
-
-  # The dashboard owns the user allowlist. Keep this configuration as a
-  # placeholder for new policy creation without reconciling existing members.
-  lifecycle {
-    ignore_changes = [include]
-  }
-
-  # Require users to authenticate with Google instead of allowing Cloudflare's
-  # one-time PIN flow.
-  require = [{
-    login_method = {
-      id = cloudflare_zero_trust_access_identity_provider.google.id
-    }
   }]
 }
 

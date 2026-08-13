@@ -6,15 +6,15 @@ Cloudflare resources for `weinbender.io` — Zero Trust Access, DNS, Tunnel.
 
 | File | Resources |
 |------|-----------|
-| `access.tf` | Google OAuth provider, Access Application `uk2026.weinbender.io` (Google authentication), Service Token `weinbender-io-api` |
+| `access.tf` | Google OAuth provider, existing Access policy data source, Access Application `uk2026.weinbender.io`, Service Token `weinbender-io-api` |
 | `dns.tf` | CNAME records: `uk2026`, `helloworld` → Tunnel CNAME |
 | `tunnel.tf` | Cloudflare Tunnel `weinbender-io` + config |
 
 ## Access Policy (uk2026.weinbender.io)
 
-Users must sign in with Google OAuth. The Access policy's user allowlist is managed
-in the Cloudflare dashboard, not Terraform; the Terraform resource ignores changes
-to its `include` rules so console-managed membership is preserved.
+The existing Access policy named `Me` is referenced by ID. Its users and rules are
+managed entirely in the Cloudflare dashboard; Terraform does not create, update, or
+delete the policy.
 
 Service token `weinbender-io-api` for programmatic access.
 
