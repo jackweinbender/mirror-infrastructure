@@ -6,29 +6,15 @@ Cloudflare resources for `weinbender.io` — Zero Trust Access, DNS, Tunnel.
 
 | File | Resources |
 |------|-----------|
-| `access.tf` | Google OAuth provider, Access Application `uk2026.weinbender.io` (Google-authenticated email allowlist), Service Token `weinbender-io-api` |
+| `access.tf` | Google OAuth provider, Access Application `uk2026.weinbender.io` (Google authentication), Service Token `weinbender-io-api` |
 | `dns.tf` | CNAME records: `uk2026`, `helloworld` → Tunnel CNAME |
 | `tunnel.tf` | Cloudflare Tunnel `weinbender-io` + config |
 
 ## Access Policy (uk2026.weinbender.io)
 
-Users must sign in with Google OAuth and match the existing email allowlist. This
-keeps access restricted to the listed accounts while removing Cloudflare email
-OTP as the authentication method.
-
-Allowlist (Google email):
-- `jack.weinbender@gmail.com`
-- `tiffany@idamayes.com`
-- `jackweinbender@msn.com`
-- `maryweinbender@msn.com`
-- `jennwrites21@gmail.com`
-- `kendramathews26@gmail.com`
-- `sergio@cucinalogica.com`
-- `jamiedel818@gmail.com`
-- `adamlbean@gmail.com`
-- `cj.frisina@gmail.com`
-- `brandondwaite@proton.me`
-- `tammath80@gmail.com`
+Users must sign in with Google OAuth. The Access policy's user allowlist is managed
+in the Cloudflare dashboard, not Terraform; the Terraform resource ignores changes
+to its `include` rules so console-managed membership is preserved.
 
 Service token `weinbender-io-api` for programmatic access.
 

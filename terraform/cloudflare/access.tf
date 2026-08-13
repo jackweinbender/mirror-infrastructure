@@ -28,26 +28,19 @@ resource "cloudflare_zero_trust_access_application" "uk2026" {
 
 resource "cloudflare_zero_trust_access_policy" "allow" {
   account_id = var.cloudflare_account_id
-  name       = "Allow whitelisted emails via Google"
+  name       = "Allow Google users"
   decision   = "allow"
 
-  include = [
-    { email = { email = "jack.weinbender@gmail.com" } },
-    { email = { email = "tiffany@idamayes.com" } },
-    { email = { email = "jackweinbender@msn.com" } },
-    { email = { email = "maryweinbender@msn.com" } },
-    { email = { email = "jennwrites21@gmail.com" } },
-    { email = { email = "kendramathews26@gmail.com" } },
-    { email = { email = "sergio@cucinalogica.com" } },
-    { email = { email = "jamiedel818@gmail.com" } },
-    { email = { email = "adamlbean@gmail.com" } },
-    { email = { email = "cj.frisina@gmail.com" } },
-    { email = { email = "brandondwaite@proton.me" } },
-    { email = { email = "tammath80@gmail.com" } },
-  ]
+  include = [{ everyone = {} }]
 
-  # Keep the existing email allowlist, but require users to authenticate with
-  # Google instead of allowing Cloudflare's one-time PIN flow.
+  # The dashboard owns the user allowlist. Keep this configuration as a
+  # placeholder for new policy creation without reconciling existing members.
+  lifecycle {
+    ignore_changes = [include]
+  }
+
+  # Require users to authenticate with Google instead of allowing Cloudflare's
+  # one-time PIN flow.
   require = [{
     login_method = {
       id = cloudflare_zero_trust_access_identity_provider.google.id
