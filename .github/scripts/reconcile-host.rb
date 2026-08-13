@@ -43,14 +43,15 @@ end
 stacks.each do |stack|
   local_dir = File.join('compose-stacks', stack)
   live = File.join(base, stack)
-  assignment = File.join(local_dir, 'deployments', "#{host_id}.env")
+  assignment_dir = File.join(local_dir, 'deployments', host_id)
+  assignment = File.join(assignment_dir, '.env.template')
 
   if File.file?(assignment)
     stage = File.join(base, '.staging', "#{stack}-#{run_tag}")
     cleanup = proc { ssh_command(remote, "rm -rf -- #{quote(stage)}") }
     begin
       merged = Tempfile.new(['merged-', '.env'])
-      merge = Open3.capture3('ruby', '.github/scripts/merge-dotenv.rb', File.join(local_dir, 'deployments', '_shared.env'), assignment)
+      merge = Open3.capture3('ruby', '.github/scripts/merge-dotenv.rb', File.join(local_dir, '.env.template'), assignment)
       unless merge[2].success?
         warn "::error::[#{host_id}/#{stack}] dotenv merge failed"
         failed << "#{host_id}/#{stack}"
@@ -63,8 +64,11 @@ stacks.each do |stack|
       unless ssh_command(remote, "umask 077 && mkdir -p -- #{quote(base + '/.staging')} && mkdir -- #{quote(stage)}")
         warn "::error::[#{host_id}/#{stack}] unable to create remote staging directory"; failed << "#{host_id}/#{stack}"; next
       end
-      unless system('rsync', '-r', '--delete', '--exclude=.env', '--exclude=.env.*', '--exclude=.git/', '--exclude=deployments/', "#{local_dir}/", "#{remote}:#{stage}/")
+      unless system('rsync', '-r', '--delete', '--exclude=.env', '--exclude=.env.*', '--exclude=.git/', "#{local_dir}/", "#{remote}:#{stage}/")
         warn "::error::[#{host_id}/#{stack}] rsync failed"; failed << "#{host_id}/#{stack}"; next
+      end
+      unless ssh_command(remote, "cd #{quote(stage)} && if [ -f #{quote("deployments/#{host_id}/docker-compose.yaml")} ]; then cp -- #{quote("deployments/#{host_id}/docker-compose.yaml")} docker-compose.override.yaml && chmod 600 docker-compose.override.yaml; fi")
+        warn "::error::[#{host_id}/#{stack}] unable to prepare host Compose override"; failed << "#{host_id}/#{stack}"; next
       end
       marker_path = File.join(stage, '.managed-by-github-actions')
       unless write_remote(remote, "umask 077 && cat > #{quote(marker_path)} && chmod 600 #{quote(marker_path)}", marker)

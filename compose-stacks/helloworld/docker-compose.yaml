@@ -1,0 +1,20 @@
+---
+services:
+  helloworld:
+    image: hashicorp/http-echo:0.2.3
+    restart: unless-stopped
+    command:
+      - "-listen=:5678"
+      - "-text=hello from ${HELLO_HOSTNAME}"
+    networks:
+      - proxy
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.helloworld.rule: Path(`/hello`) || PathPrefix(`/hello/`)
+      traefik.http.routers.helloworld.entrypoints: web
+      traefik.http.services.helloworld.loadbalancer.server.port: "5678"
+
+networks:
+  proxy:
+    external: true
+    name: proxy

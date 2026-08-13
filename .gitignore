@@ -35,4 +35,4 @@ terraform.rc
 
 *.secret
 
-compose-stacks/docker-host/.env
+compose-stacks/traefik/.env

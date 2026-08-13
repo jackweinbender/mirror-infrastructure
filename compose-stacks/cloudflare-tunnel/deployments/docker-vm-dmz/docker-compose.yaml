@@ -1,0 +1,4 @@
+---
+services:
+  cloudflared:
+    hostname: docker-vm-dmz

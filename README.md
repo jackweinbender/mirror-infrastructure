@@ -13,7 +13,8 @@ Personal infrastructure as code — Terraform for cloud resources + Docker Compo
 │   ├── mgmt/               # Management/root resources
 │   └── proxmox/            # Proxmox VE resources
 ├── compose-stacks/         # Docker Compose stacks (deployed via GitHub Actions → Tailscale → VMs)
-│   ├── docker-host/        # Per-Docker-host Traefik + shared proxy network
+│   ├── docker-networking/  # Shared proxy network deployed to every Docker host
+│   ├── traefik/            # Normal assigned Traefik stack
 │   └── cloudflare-tunnel/  # Cloudflare Tunnel ingress (uses host Traefik)
 └── .github/
     ├── workflows/          # CI/CD pipelines

@@ -1,6 +1,6 @@
 # compose-stacks/cloudflare-tunnel
 
-Cloudflare Tunnel stack for public ingress (Zero Trust Access). Traefik is deployed once per Docker host by `compose-stacks/docker-host`.
+Cloudflare Tunnel stack for public ingress (Zero Trust Access). Traefik is deployed once per Docker host as the normal `compose-stacks/traefik` stack.
 
 ## Services
 
@@ -18,12 +18,12 @@ Internet → Cloudflare Edge
 ```
 
 - **Cloudflare Tunnel**: Terminates at `cloudflared` on VM. Created by `terraform/cloudflare/` (Plan 001).
-- **Traefik**: Deployed by `compose-stacks/docker-host`; handles routing, TLS certs (via the `letsencrypt` resolver using DNS-01), and label-based service discovery.
+- **Traefik**: Deployed by `compose-stacks/traefik`; handles routing, TLS certs (via the `letsencrypt` resolver using DNS-01), and label-based service discovery.
 - **Zero Trust Access**: Policies enforced at Cloudflare edge before traffic reaches tunnel.
 
 ## Traefik Configuration
 
-Host-level configuration lives in `compose-stacks/docker-host/traefik/`. This stack joins the external `proxy` network and contributes application containers via Docker labels.
+Host-level configuration lives in `compose-stacks/traefik/traefik/`. This stack joins the external `proxy` network and contributes application containers via Docker labels.
 
 
 ## Cloudflare Tunnel
@@ -33,25 +33,25 @@ After `terraform apply` in `terraform/cloudflare/`:
 2. Copy tunnel token
 3. Store in 1Password: `op://network/cloudflare-tunnel-weinbender-io/credential`
 
-## Secrets (.env.template)
+## Secrets (`deployments/docker-vm-dmz/.env.template`)
 
 | Variable | 1Password Path | Purpose |
 |----------|----------------|---------|
 | `CLOUDFLARE_TUNNEL_TOKEN` | `op://network/cloudflare-tunnel-weinbender-io/credential` | Tunnel credential |
 | `CF_DNS_API_TOKEN` | `op://network/cloudflare-auth-weinbenderio/credential` | Cloudflare API token (Zone:DNS:Edit) |
 
-Injected at deploy via `op inject` — never touches runner disk.
+The deployment template is kept with the deployment-specific files and injected at deploy via `op inject` — resolved secrets never persist on the runner.
 
 ## Deploy
 
-The application assignment is represented by a file in `deployments/`, for example `deployments/docker-vm-dmz.env`. Add another `<deploy-host>.env` to run this stack on another inventory host. Remove the file to stop it there; the application workflow tears down Compose before deleting its remote files.
+The application assignment is represented by a deployment directory such as `deployments/docker-vm-dmz/`, containing `.env.template`. Add another `deployments/<deploy-host>/.env.template` file to run this stack on another inventory host. A deployment may also include `deployments/<deploy-host>/docker-compose.yaml` for host-specific Compose overrides. Remove the deployment directory to stop it there; the application workflow tears down Compose before deleting its remote files.
 
 Prerequisites:
-1. Deploy with `deploy.yaml`; it reconciles `compose-stacks/docker-host` first so the external `proxy` network exists.
+1. Deploy with `deploy.yaml`; it reconciles `compose-stacks/docker-networking` first so the external `proxy` network exists, then deploys Traefik and application stacks.
 2. Apply `terraform/cloudflare/` if using the tunnel.
 3. Store the tunnel token in 1Password.
 
-For local validation, merge `deployments/_shared.env` and a host template using a representative token value and run `docker compose config --quiet`. CI resolves `op://` references with `op inject`; the resolved `.env` is never committed or stored on the runner.
+For local validation, merge `.env.template` and a host assignment using a representative token value and run `docker compose config --quiet`. CI resolves `op://` references with `op inject`; the resolved `.env` is never committed or stored on the runner.
 
 ## Add a New Service
 

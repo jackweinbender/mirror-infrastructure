@@ -15,7 +15,7 @@ deploy_hosts = hosts.filter_map do |hostname, data|
   next unless Array(data['host_roles']).include?('deploy')
 
   id = hostname.split('.').first
-  abort "discover deploy hosts: invalid or reserved deploy host identifier: #{id}" unless name_pattern.match?(id) && id != 'docker-host'
+  abort "discover deploy hosts: invalid or reserved deploy host identifier: #{id}" unless name_pattern.match?(id) && id != 'docker-networking'
 
   { 'id' => id, 'address' => data['ansible_host'] || hostname }
 end

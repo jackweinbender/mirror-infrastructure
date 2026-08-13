@@ -36,8 +36,8 @@ services:
 
 networks:
   proxy:
-    name: proxy
     external: true
+    name: proxy
 
 volumes:
   traefik_acme:
