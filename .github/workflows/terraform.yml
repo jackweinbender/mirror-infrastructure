@@ -19,11 +19,6 @@ on:
         required: false
         default: false
         type: boolean
-      tailscale:
-        description: Connect to Tailscale for components that require it
-        required: false
-        default: false
-        type: boolean
 
 permissions:
   id-token: write
@@ -87,21 +82,9 @@ jobs:
           export-env: true
         env:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.ONE_PASSWORD_SA_TOKEN }}
-          TS_OAUTH_CLIENT_ID: op://network/tailscale-oauth-github-actions/client-id
-          TS_OAUTH_CLIENT_SECRET: op://network/tailscale-oauth-github-actions/client-secret
           CLOUDFLARE_API_TOKEN: op://network/cloudflare-terraform/credential
           TF_VAR_google_oauth_client_id: op://network/cloudflare-google-oauth/client-id
           TF_VAR_google_oauth_client_secret: op://network/cloudflare-google-oauth/client-secret
-          PROXMOX_VE_API_TOKEN: op://network/proxmox-terraform/api-token
-          PROXMOX_VE_ENDPOINT: op://network/proxmox-terraform/endpoint
-      - name: Connect to Tailscale
-        if: ${{ inputs.tailscale && matrix.component == 'proxmox' }}
-        uses: tailscale/github-action@v4
-        with:
-          oauth-client-id: ${{ env.TS_OAUTH_CLIENT_ID }}
-          oauth-secret: ${{ env.TS_OAUTH_CLIENT_SECRET }}
-          tags: tag:ci
-          version: 1.76.1
       - uses: hashicorp/setup-terraform@v4
       - name: Terraform init
         run: terraform -chdir=terraform/${{ matrix.component }} init

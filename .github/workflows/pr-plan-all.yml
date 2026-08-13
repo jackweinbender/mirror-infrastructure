@@ -60,5 +60,4 @@ jobs:
       components: ${{ needs.changed_components.outputs.components }}
       apply: false
       comment: true
-      tailscale: true
     secrets: inherit

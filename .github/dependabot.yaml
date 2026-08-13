@@ -25,10 +25,7 @@ updates:
     directory: /terraform/mgmt
     schedule:
       interval: weekly
-  - package-ecosystem: terraform
-    directory: /terraform/proxmox
-    schedule:
-      interval: weekly
+
   - package-ecosystem: github-actions
     directory: /
     schedule:

@@ -10,8 +10,7 @@ Personal infrastructure as code — Terraform for cloud resources + Docker Compo
 │   ├── cloudflare/         # Cloudflare: Access, DNS, Tunnel
 │   ├── gcp-remind-me/      # GCP: Cloud Run (dev/prod), IAM, services (remind-me app)
 │   ├── gcp-weinbender-io/  # GCP: Artifact Registry, IAM, WIF (weinbender.io)
-│   ├── mgmt/               # Management/root resources
-│   └── proxmox/            # Proxmox VE resources
+│   └── mgmt/               # Management/root resources
 ├── compose-stacks/         # Docker Compose stacks (deployed via GitHub Actions → Tailscale → VMs)
 │   ├── docker-networking/  # Shared proxy network deployed to every Docker host
 │   ├── traefik/            # Normal assigned Traefik stack
@@ -24,7 +23,7 @@ Personal infrastructure as code — Terraform for cloud resources + Docker Compo
 
 | Layer | Tool | Target | Trigger |
 |-------|------|--------|---------|
-| Terraform | GitHub Actions (`terraform.yml`) | AWS, Cloudflare, GCP, Proxmox | Push to `main` (plan + apply) / `workflow_dispatch` (plan by default, optional apply) |
+| Terraform | GitHub Actions (`terraform.yml`) | AWS, Cloudflare, GCP | Push to `main` (plan + apply) / `workflow_dispatch` (plan by default, optional apply) |
 | Docker host platform and Compose stacks | GitHub Actions (`deploy.yaml`) | Docker hosts via Tailscale | Push to `main` / daily at 05:00 UTC / `workflow_dispatch` |
 
 ### Terraform
@@ -120,4 +119,3 @@ cd roles/tailscale && ../../.venv/bin/molecule test
 - 1Password service account (for secret injection)
 - GCP Workload Identity Federation configured
 - AWS IAM role `GithubActionsRole` (arn:aws:iam::325498355308:role/GithubActionsRole)
-- Proxmox API token (stored in 1Password)

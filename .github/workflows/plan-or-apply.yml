@@ -13,7 +13,6 @@ on:
           - gcp-remind-me
           - gcp-weinbender-io
           - cloudflare
-          - proxmox
         default: aws
       apply:
         description: Apply Terraform
@@ -31,5 +30,4 @@ jobs:
     with:
       components: '["${{ inputs.component }}"]'
       apply: ${{ inputs.apply }}
-      tailscale: ${{ inputs.component == 'proxmox' }}
     secrets: inherit
