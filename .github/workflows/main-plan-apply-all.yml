@@ -12,41 +12,17 @@ on:
       apply:
         description: Apply Terraform
         type: boolean
-        default: false
+        default: true
 
 permissions:
   id-token: write
   contents: read
 
 jobs:
-  terraform-apply-all:
+  terraform:
     if: github.ref == 'refs/heads/main'
-    name: Terraform Plan & Apply All
-    runs-on: ubuntu-latest
-    env:
-      TF_VAR_cloudflare_zone_id: ${{ secrets.CLOUDFLARE_ZONE_ID }}
-      TF_VAR_cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-
-    strategy:
-      matrix:
-        component: [mgmt, aws, gcp-remind-me, gcp-weinbender-io, cloudflare, proxmox]
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-      - name: Auth with AWS
-        uses: aws-actions/configure-aws-credentials@v6
-        with:
-          aws-region: us-east-1
-          role-to-assume: arn:aws:iam::325498355308:role/GithubActionsRole
-          role-session-name: GithubActionsRole
-      - name: Auth with Google Cloud
-        uses: google-github-actions/auth@v3
-        with:
-          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
-      - name: Run Terraform Action on ${{ matrix.component }}
-        uses: ./.github/actions/tf-plan-apply
-        with:
-          op_token: ${{ secrets.ONE_PASSWORD_SA_TOKEN }}
-          component: ${{ matrix.component }}
-          apply: ${{ github.event.inputs.apply }}
+    uses: ./.github/workflows/terraform.yml
+    with:
+      components: all
+      apply: ${{ github.event_name == 'push' || inputs.apply }}
+    secrets: inherit

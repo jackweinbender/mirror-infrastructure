@@ -17,22 +17,22 @@ Personal infrastructure as code — Terraform for cloud resources + Docker Compo
 │   ├── traefik/            # Normal assigned Traefik stack
 │   └── cloudflare-tunnel/  # Cloudflare Tunnel ingress (uses host Traefik)
 └── .github/
-    ├── workflows/          # CI/CD pipelines
-    └── actions/            # Reusable composite actions (tf-plan-apply)
+    └── workflows/          # CI/CD pipelines and reusable workflows
 ```
 
 ## Deployment
 
 | Layer | Tool | Target | Trigger |
 |-------|------|--------|---------|
-| Terraform | GitHub Actions (`tf-plan-apply`) | AWS, Cloudflare, GCP, Proxmox | Push to `main` (plan) / `workflow_dispatch` (apply) |
+| Terraform | GitHub Actions (`terraform.yml`) | AWS, Cloudflare, GCP, Proxmox | Push to `main` (plan + apply) / `workflow_dispatch` (plan by default, optional apply) |
 | Docker host platform and Compose stacks | GitHub Actions (`deploy.yaml`) | Docker hosts via Tailscale | Push to `main` / daily at 05:00 UTC / `workflow_dispatch` |
 
 ### Terraform
 
-- **Plan on PR** — `.github/workflows/pr-plan-all.yml` runs `terraform plan` for all components
-- **Plan + Apply on merge** — `.github/workflows/main-plan-apply-all.yml` runs plan on push to `main`; apply requires `workflow_dispatch` with `apply: true`
-- **Per-component** — `.github/workflows/main-plan-apply.yml` targets a single component
+- **Advisory plan on PR** — `.github/workflows/pr-plan-all.yml` detects changed components and comments their `terraform plan` output; this is informational only
+- **Authoritative plan + apply on merge** — `.github/workflows/main-plan-apply-all.yml` runs a fresh plan and apply on push to `main`; manual dispatch applies by default and can be changed to plan-only
+- **Plan or apply one component** — `.github/workflows/plan-or-apply.yml` lets you select the component and whether to apply
+- Components are listed in `.github/terraform-components.json`; manual workflow choices mirror that manifest
 - Secrets via 1Password (`OP_SERVICE_ACCOUNT_TOKEN`), OIDC for AWS/GCP
 
 ### Compose Stacks

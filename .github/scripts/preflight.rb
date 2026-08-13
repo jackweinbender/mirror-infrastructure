@@ -10,6 +10,7 @@ STACKS_DIR = File.join(ROOT, 'compose-stacks')
 NAME_PATTERN = /\A[a-z0-9][a-z0-9_-]*\z/
 DISCOVER_SCRIPT = File.join(ROOT, '.github/scripts/discover-deploy-hosts.rb')
 MERGE_SCRIPT = File.join(ROOT, '.github/scripts/merge-dotenv.rb')
+VALIDATE_TERRAFORM_COMPONENTS = File.join(ROOT, '.github/scripts/validate-terraform-components.rb')
 
 def fail_preflight(message)
   warn "preflight: #{message}"
@@ -20,6 +21,12 @@ def command(program, *args, **options)
   stdout, stderr, status = Open3.capture3(program, *args, **options)
   raise(stderr.strip.empty? ? "#{program} exited with #{status.exitstatus}" : stderr.strip) unless status.success?
   stdout
+end
+
+def validate_terraform_components
+  command('ruby', VALIDATE_TERRAFORM_COMPONENTS, chdir: ROOT)
+rescue StandardError => e
+  fail_preflight("Terraform component validation failed: #{e.message}")
 end
 
 def parse_inventory
@@ -51,6 +58,7 @@ def validate_compose(stack, host, compose, overlay, env_text)
   end
 end
 
+validate_terraform_components
 hosts = parse_inventory
 host_ids = hosts.to_h { |host| [host['id'], true] }
 stacks = []

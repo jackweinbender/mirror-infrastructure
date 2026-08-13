@@ -19,7 +19,7 @@ Proxmox API token from 1Password:
 - `op://network/proxmox-terraform/api-token`
 - `op://network/proxmox-terraform/endpoint`
 
-Injected at runtime by `tf-plan-apply` action.
+Injected at runtime by the Terraform reusable workflow.
 
 ## Provider
 

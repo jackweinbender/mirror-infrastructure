@@ -36,7 +36,7 @@ terraform init
 terraform plan
 terraform apply
 
-# CI/CD: push to main → plan; workflow_dispatch with apply=true → apply
+# CI/CD: PR plans are advisory; push to main → fresh plan and apply; workflow_dispatch applies by default and can be changed to plan-only
 ```
 
 ## Conventions
@@ -44,5 +44,5 @@ terraform apply
 - One component per subdirectory
 - `terraform.tf` declares required_providers + backend
 - Variables in `variables.tf`, outputs in `outputs.tf`
-- Secrets via 1Password `op://` references injected at runtime by `tf-plan-apply` action
+- Secrets via 1Password `op://` references injected at runtime by the Terraform reusable workflow
 - No hardcoded secrets — all sensitive values come from 1Password or GitHub secrets

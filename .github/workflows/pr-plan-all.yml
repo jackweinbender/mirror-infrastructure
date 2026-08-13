@@ -5,38 +5,59 @@ on:
   pull_request:
     paths:
       - terraform/**
+      - .github/terraform-components.json
+      - .github/workflows/plan-or-apply.yml
+      - .github/workflows/pr-plan-all.yml
+      - .github/workflows/terraform.yml
+      - .github/scripts/terraform-components.rb
+      - .github/scripts/validate-terraform-components.rb
 
 permissions:
   id-token: write
   contents: read
+  pull-requests: write
 
 jobs:
-  terraform-plan-all:
-    name: PR Plan
+  validate_components:
+    name: Validate Terraform components
     runs-on: ubuntu-latest
-    env:
-      TF_VAR_cloudflare_zone_id: ${{ secrets.CLOUDFLARE_ZONE_ID }}
-      TF_VAR_cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-
-    strategy:
-      matrix:
-        component: [mgmt, aws, gcp-remind-me, gcp-weinbender-io, cloudflare, proxmox]
     steps:
-      - uses: actions/checkout@v7
-      - name: Auth with AWS
-        uses: aws-actions/configure-aws-credentials@v6
+      - name: Checkout PR branch
+        uses: actions/checkout@v7
         with:
-          aws-region: us-east-1
-          role-to-assume: arn:aws:iam::325498355308:role/GithubActionsRole
-          role-session-name: GithubActionsRole
-      - name: Auth with Google Cloud
-        uses: google-github-actions/auth@v3
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Validate Terraform components
+        run: ruby .github/scripts/validate-terraform-components.rb
+
+  changed_components:
+    name: Find changed Terraform components
+    needs: validate_components
+    runs-on: ubuntu-latest
+    outputs:
+      components: ${{ steps.components.outputs.components }}
+      has_changes: ${{ steps.components.outputs.has_changes }}
+    steps:
+      - name: Checkout PR history
+        uses: actions/checkout@v7
         with:
-          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
-      - name: Plan ${{ matrix.component }}
-        uses: ./.github/actions/tf-plan-apply
-        with:
-          op_token: ${{ secrets.ONE_PASSWORD_SA_TOKEN }}
-          component: ${{ matrix.component }}
-          apply: "false"
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - name: Detect changed components
+        id: components
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        shell: bash
+        run: |
+          git diff --name-only -z "$BASE_SHA" "$HEAD_SHA" -- terraform/ \
+            | ruby .github/scripts/terraform-components.rb >> "$GITHUB_OUTPUT"
+
+  terraform:
+    needs: changed_components
+    if: needs.changed_components.outputs.has_changes == 'true'
+    uses: ./.github/workflows/terraform.yml
+    with:
+      components: ${{ needs.changed_components.outputs.components }}
+      apply: false
+      comment: true
+    secrets: inherit
