@@ -5,7 +5,7 @@ resource "cloudflare_zero_trust_access_identity_provider" "google" {
   name       = "Google"
   type       = "google"
 
-  config {
+  config = {
     client_id     = var.google_oauth_client_id
     client_secret = var.google_oauth_client_secret
   }
@@ -48,9 +48,9 @@ resource "cloudflare_zero_trust_access_policy" "allow" {
 
   # Keep the existing email allowlist, but require users to authenticate with
   # Google instead of allowing Cloudflare's one-time PIN flow.
-  require {
+  require = [{
     login_method = [cloudflare_zero_trust_access_identity_provider.google.id]
-  }
+  }]
 }
 
 # ── Service token (programmatic access, day-two) ──────────────────────────────
