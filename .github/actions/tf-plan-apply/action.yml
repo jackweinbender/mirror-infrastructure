@@ -22,7 +22,7 @@ runs:
   using: composite
   steps:
     - name: Load secret
-      uses: 1password/load-secrets-action@v2
+      uses: 1password/load-secrets-action@v5
       with:
         export-env: true
       # We, rather obnoxiously, have to export all OP variables for all
@@ -40,13 +40,13 @@ runs:
         PROXMOX_VE_ENDPOINT: op://network/proxmox-terraform/endpoint
 
     - name: Tailscale
-      uses: tailscale/github-action@v2
+      uses: tailscale/github-action@v4
       with:
         oauth-client-id: $TS_OAUTH_CLIENT_ID
         oauth-secret: $TS_OAUTH_CLIENT_SECRET
         tags: tag:ci
         version: 1.76.1
-    - uses: hashicorp/setup-terraform@v2
+    - uses: hashicorp/setup-terraform@v4
     # We always run init.
     - name: Terraform init
       id: init
