@@ -49,7 +49,9 @@ resource "cloudflare_zero_trust_access_policy" "allow" {
   # Keep the existing email allowlist, but require users to authenticate with
   # Google instead of allowing Cloudflare's one-time PIN flow.
   require = [{
-    login_method = [cloudflare_zero_trust_access_identity_provider.google.id]
+    login_method = {
+      id = cloudflare_zero_trust_access_identity_provider.google.id
+    }
   }]
 }
 

@@ -5,5 +5,5 @@ output "tunnel_id" {
 
 output "google_access_redirect_url" {
   description = "Authorized redirect URI to add to the Google OAuth client"
-  value       = cloudflare_zero_trust_access_identity_provider.google.config[0].redirect_url
+  value       = cloudflare_zero_trust_access_identity_provider.google.config.redirect_url
 }
