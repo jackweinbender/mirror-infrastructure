@@ -87,7 +87,8 @@ stacks.each do |stack|
       unless ssh_command(remote, marker_check)
         warn "::error::[#{host_id}/#{stack}] existing live directory is unmarked or has the wrong marker; refusing replacement"; failed << "#{host_id}/#{stack}"; next
       end
-      unless ssh_command(remote, "if [ -e #{quote(live)} ]; then rm -rf -- #{quote(live)}; fi && mv -- #{quote(stage)} #{quote(live)}")
+      retire = "cd #{quote(live)} && docker compose --project-name #{quote(stack)} --env-file .env down --remove-orphans && if ! rm -rf -- #{quote(live)}; then docker run --rm --mount type=bind,source=#{quote(live)},target=/target busybox:1.36 sh -c 'find /target -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +' && rm -rf -- #{quote(live)}; fi"
+      unless ssh_command(remote, "if [ -e #{quote(live)} ]; then #{retire}; fi && mv -- #{quote(stage)} #{quote(live)}")
         warn "::error::[#{host_id}/#{stack}] publication failed"; failed << "#{host_id}/#{stack}"; next
       end
       up = "cd #{quote(live)} && if docker compose up --help 2>/dev/null | grep -q -- '--wait'; then docker compose --project-name #{quote(stack)} --env-file .env up -d --remove-orphans --pull always --wait --wait-timeout 120; else docker compose --project-name #{quote(stack)} --env-file .env up -d --remove-orphans --pull always; fi"
@@ -112,11 +113,9 @@ stacks.each do |stack|
     unless ssh_command(remote, "test -f #{quote(marker_file)} && grep -Fxq 'STACK_NAME=#{stack}' #{quote(marker_file)}")
       warn "::error::[#{host_id}/#{stack}] unmarked live directory exists; refusing teardown"; failed << "#{host_id}/#{stack}"; next
     end
-    unless ssh_command(remote, "cd #{quote(live)} && docker compose --project-name #{quote(stack)} --env-file .env down --remove-orphans")
+    retire = "cd #{quote(live)} && docker compose --project-name #{quote(stack)} --env-file .env down --remove-orphans && if ! rm -rf -- #{quote(live)}; then docker run --rm --mount type=bind,source=#{quote(live)},target=/target busybox:1.36 sh -c 'find /target -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +' && rm -rf -- #{quote(live)}; fi"
+    unless ssh_command(remote, retire)
       warn "::error::[#{host_id}/#{stack}] teardown failed; retaining remote directory"; failed << "#{host_id}/#{stack}"; next
-    end
-    unless ssh_command(remote, "rm -rf -- #{quote(live)}")
-      warn "::error::[#{host_id}/#{stack}] teardown succeeded but directory removal failed"; failed << "#{host_id}/#{stack}"; next
     end
     puts "[#{host_id}/#{stack}] removed"
   end
