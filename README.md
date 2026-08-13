@@ -1,121 +1,128 @@
 # jackweinbender/infrastructure
 
-Personal infrastructure as code — Terraform for cloud resources + Docker Compose stacks for self-hosted services.
+Personal infrastructure as code. The repository manages cloud resources with
+Terraform, configures Debian and Proxmox hosts with Ansible, and deploys
+self-hosted services with Docker Compose through GitHub Actions.
 
-## Structure
+## Repository layout
 
-```
-├── terraform/              # Terraform modules (multi-cloud)
-│   ├── aws/                # AWS: Route53, S3, CloudFront, ACM (labs.weinbender.io)
-│   ├── cloudflare/         # Cloudflare: Access, DNS, Tunnel
-│   ├── gcp-remind-me/      # GCP: Cloud Run (dev/prod), IAM, services (remind-me app)
-│   ├── gcp-weinbender-io/  # GCP: Artifact Registry, IAM, WIF (weinbender.io)
-│   └── mgmt/               # Management/root resources
-├── compose-stacks/         # Docker Compose stacks (deployed via GitHub Actions → Tailscale → VMs)
-│   ├── docker-networking/  # Shared proxy network deployed to every Docker host
-│   ├── traefik/            # Normal assigned Traefik stack
-│   └── cloudflare-tunnel/  # Cloudflare Tunnel ingress (uses host Traefik)
-└── .github/
-    └── workflows/          # CI/CD pipelines and reusable workflows
+```text
+ansible/                 Debian host configuration and Proxmox bootstrap
+compose-stacks/          Docker Compose projects and host assignments
+terraform/               Independent cloud and virtualization components
+.github/
+  scripts/               Ruby workflow entrypoints, reusable libraries, and tests
+  workflows/             CI, validation, and deployment workflows
 ```
 
-## Deployment
+Each area has more focused guidance:
 
-| Layer | Tool | Target | Trigger |
-|-------|------|--------|---------|
-| Terraform | GitHub Actions (`terraform.yml`) | AWS, Cloudflare, GCP | Push to `main` (plan + apply) / `workflow_dispatch` (plan by default, optional apply) |
-| Docker host platform and Compose stacks | GitHub Actions (`deploy.yaml`) | Docker hosts via Tailscale | Push to `main` / daily at 05:00 UTC / `workflow_dispatch` |
+- [`ansible/README.md`](ansible/README.md) — host model, playbooks, setup, and
+  Molecule tests
+- [`compose-stacks/OPERATIONS.md`](compose-stacks/OPERATIONS.md) — stack layout,
+  assignments, deployment lifecycle, and recovery
+- [`terraform/`](terraform/) — component-specific READMEs and state boundaries
+- [`.github/workflows/README.md`](.github/workflows/README.md) — workflow
+  orchestration, triggers, and deployment safety
 
-### Terraform
+## Delivery model
 
-- **Advisory plan on PR** — `.github/workflows/pr-plan-all.yml` detects changed components and comments their `terraform plan` output; this is informational only
-- **Authoritative plan + apply on merge** — `.github/workflows/main-plan-apply-all.yml` runs a fresh plan and apply on push to `main`; manual dispatch applies by default and can be changed to plan-only
-- **Plan or apply one component** — `.github/workflows/plan-or-apply.yml` lets you select the component and whether to apply
-- Components are listed in `.github/terraform-components.json`; manual workflow choices mirror that manifest
-- Secrets via 1Password (`OP_SERVICE_ACCOUNT_TOKEN`), OIDC for AWS/GCP
+| Area | Workflow | Trigger | Effect |
+| --- | --- | --- | --- |
+| Ansible | [`main-ansible.yaml`](.github/workflows/main-ansible.yaml) | Pushes to `main` affecting `ansible/**`, daily at 04:00 UTC, or manual dispatch | Lints and applies `playbooks/workloads.yaml` |
+| Terraform | [`pr-plan-all.yml`](.github/workflows/pr-plan-all.yml) | Pull requests affecting Terraform or its automation | Validates changed components and posts plan comments; never applies |
+| Terraform | [`main-plan-apply-all.yml`](.github/workflows/main-plan-apply-all.yml) | Pushes to `main` affecting `terraform/**`, or manual dispatch | Plans and applies all components; manual runs can be plan-only |
+| Terraform | [`plan-or-apply.yml`](.github/workflows/plan-or-apply.yml) | Manual dispatch on `main` | Plans or optionally applies one selected component |
+| Compose | [`deploy.yaml`](.github/workflows/deploy.yaml) | Pushes to `main` affecting Compose/inventory/deployment workflow, daily at 05:00 UTC, or manual dispatch | Reconciles the platform and assigned application stacks |
+| GitHub automation | [`validate-github-automation.yml`](.github/workflows/validate-github-automation.yml) | Pull requests affecting workflows or Ruby scripts | Runs actionlint, Ruby syntax checks, and library tests |
 
-### Compose Stacks
+The Terraform workflows call the reusable implementation in
+[`terraform.yml`](.github/workflows/terraform.yml). Terraform components are
+listed in [`.github/terraform-components.json`](.github/terraform-components.json)
+and must remain synchronized with the manual workflow choices.
 
-The standard stack shape, assignment rules, overlay behavior, validation
-commands, and recovery process are documented in
-[`compose-stacks/OPERATIONS.md`](compose-stacks/OPERATIONS.md).
+## Compose deployments
 
-The `deploy.yaml` workflow owns the complete Compose desired state:
-1. Every run first creates the shared external `proxy` network if needed and deploys Traefik on every deploy host.
-2. After all platform jobs succeed, it syncs assigned application stacks, injects their secrets, and reconciles their Compose projects with Docker.
-3. The workflow rsyncs over Tailscale and injects 1Password secrets directly to the remote `.env` — resolved secrets never persist on the runner.
+Compose deployment has two layers:
 
-Required secrets: `ONE_PASSWORD_SA_TOKEN`, `TS_OAUTH_CLIENT_ID`, `TS_OAUTH_CLIENT_SECRET`, `CLOUDFLARE_ZONE_ID`, `CLOUDFLARE_ACCOUNT_ID`, GCP WIF vars.
+1. **Platform:** `compose-stacks/docker-networking/` owns the external `proxy`
+   network and is reconciled on every inventory host with `host_roles: deploy`.
+2. **Applications:** every other stack—including Traefik—is assigned explicitly
+   through `deployments/<host>/.env.template` and is reconciled only on hosts
+   where it is assigned.
 
-## Backend State
+`deploy.yaml` validates the inventory, assignments, dotenv templates, overlays,
+and Compose files before making an SSH connection. It then:
 
-- **AWS**: S3 bucket `tf-backend-61rckk` (us-east-1)
-- **Others**: Remote backend configured per-component (see each `terraform.tf`)
+1. Reconciles `docker-networking` on every deploy host.
+2. Waits for all platform jobs to succeed.
+3. Reconciles assigned application stacks on each host.
 
-### Ansible
+Deployments connect over Tailscale, stage privately on the remote host, inject
+1Password-backed environment values directly into remote staging, validate with
+`docker compose config --quiet`, and publish only marked managed directories.
+Resolved secrets are not committed, printed, passed as command-line arguments,
+or stored on the GitHub runner.
 
-Infrastructure configuration and host management via Ansible:
-1. Installs baseline configurations (`roles/base/`)
-2. Deploys Docker or Tailscale as needed per host
-3. Converges hosts to desired state via `playbooks/workloads.yaml`
-4. Bootstrap playbooks with interactive menu selection for Proxmox hosts and SSH keys
+Read [`compose-stacks/OPERATIONS.md`](compose-stacks/OPERATIONS.md) before adding
+or moving a stack. In particular, do not add a `deployments/ALL/` assignment, do
+not let application stacks manage `proxy`, and do not remove an unmarked remote
+directory during recovery.
 
-**Tested with Molecule** — All roles have automated tests that run in Docker containers before touching production.
+## Terraform state and credentials
 
-**Setup**:
+Terraform components keep their own state boundaries and backend configuration.
+The AWS component uses the S3 backend bucket `tf-backend-61rckk` in
+`us-east-1`; other backend settings are defined by their component. CI uses
+GitHub OIDC for AWS and GCP where configured and 1Password-backed credentials
+for secrets. Never commit state, plans containing secrets, provider credentials,
+private keys, or resolved secret values.
+
+## Ansible
+
+Ansible supports Debian guests and Proxmox bootstrap workflows. The steady-state
+`playbooks/workloads.yaml` playbook always applies the baseline roles and then
+selects additional roles from each host's `host_roles`, such as `deploy` and
+`docker`. Tailscale SSH is the supported remote access path; the Proxmox console
+is the bootstrap recovery path.
+
+Set up the local environment with:
 
 ```bash
 cd ansible
 python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
+.venv/bin/pip install -r requirements.txt
+.venv/bin/ansible-playbook playbooks/workloads.yaml
 ```
 
-For each session, activate the venv before running playbooks:
+Review inventory, limits, and tags before running a playbook that can change a
+remote host. See [`ansible/README.md`](ansible/README.md) for bootstrap commands
+and validation.
+
+## Local validation
+
+Run the checks relevant to the area you changed. From the repository root:
 
 ```bash
-cd ansible
-source .venv/bin/activate
-ansible-playbook playbooks/local-bootstrap-lxc.yaml  # Interactive menus
+# Compose inventory, assignments, dotenv templates, and Compose files
+ruby .github/scripts/preflight.rb
+
+# Ruby automation libraries and entrypoints
+ruby .github/scripts/test/lib_test.rb
+for script in .github/scripts/*.rb .github/scripts/lib/*.rb .github/scripts/test/*.rb; do
+  ruby -c "$script" || exit 1
+done
+
+# All changed files
+git diff --check
 ```
 
-## Testing
+For Terraform, run `terraform fmt -check`, `terraform init -backend=false`, and
+`terraform validate` from the changed component. For Ansible, use the project
+virtual environment and run `ansible-lint` plus playbook syntax checks. For a
+Compose change, also run a representative `docker compose ... config --quiet`
+command as described in the operations runbook.
 
-### Ansible
-
-All playbooks are syntax-checked and linted. Roles have comprehensive Molecule tests in Docker:
-
-**Setup** (one-time):
-```bash
-cd ansible
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-```
-
-**Run tests**:
-```bash
-# Playbook validation
-ansible-lint
-ansible-playbook playbooks/local-bootstrap-lxc.yaml --syntax-check
-
-# Role unit tests (requires Docker)
-cd roles/base && ../../.venv/bin/molecule test
-cd roles/docker && ../../.venv/bin/molecule test
-cd roles/tailscale && ../../.venv/bin/molecule test
-```
-
-
-
-### Terraform
-
-- **Plan validation** — `.github/workflows/pr-plan-all.yml` validates all terraform changes on PRs
-- **Syntax & format** — `terraform validate` and `terraform fmt` in CI
-
-## Prerequisites
-
-- **Docker** (for running Ansible role tests locally)
-- Tailscale OAuth client (for GitHub Actions → VM connectivity)
-- 1Password service account (for secret injection)
-- GCP Workload Identity Federation configured
-- AWS IAM role `GithubActionsRole` (arn:aws:iam::325498355308:role/GithubActionsRole)
+Do not run `terraform apply` or production/bootstrap playbooks locally unless the
+change explicitly authorizes it and the target, inventory, and limits have been
+reviewed.
