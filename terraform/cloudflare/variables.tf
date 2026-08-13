@@ -8,4 +8,14 @@ variable "cloudflare_account_id" {
   type        = string
 }
 
+variable "google_oauth_client_id" {
+  description = "Google OAuth client ID used by Cloudflare Access"
+  type        = string
+  sensitive   = true
+}
 
+variable "google_oauth_client_secret" {
+  description = "Google OAuth client secret used by Cloudflare Access"
+  type        = string
+  sensitive   = true
+}

@@ -32,6 +32,8 @@ runs:
         TS_OAUTH_CLIENT_ID: op://network/tailscale-oauth-github-actions/client-id
         TS_OAUTH_CLIENT_SECRET: op://network/tailscale-oauth-github-actions/client-secret
         CLOUDFLARE_API_TOKEN: op://network/cloudflare-terraform/credential
+        TF_VAR_google_oauth_client_id: op://network/cloudflare-google-oauth/client-id
+        TF_VAR_google_oauth_client_secret: op://network/cloudflare-google-oauth/client-secret
         # Proxmox API token — create in 1Password (see this plan's "Manual
         # prerequisites") and update the op:// path if the item/field names differ.
         PROXMOX_VE_API_TOKEN: op://network/proxmox-terraform/api-token

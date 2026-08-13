@@ -13,7 +13,7 @@ Cloudflare Tunnel stack for public ingress (Zero Trust Access). Traefik is deplo
 
 ```
 Internet → Cloudflare Edge
-    ├─ Zero Trust Access (email OTP, service tokens)
+    ├─ Zero Trust Access (Google OAuth + email allowlist, service tokens)
     └─ Cloudflare Tunnel → cloudflared (host) → Traefik (host) → Services
 ```
 
@@ -74,5 +74,5 @@ For local validation, merge `.env.template` and a host assignment using a repres
 
 | Application | Domain | Policy |
 |-------------|--------|--------|
-| UK 2026 | `uk2026.weinbender.io` | Email OTP allowlist (12 emails) |
+| UK 2026 | `uk2026.weinbender.io` | Google OAuth required, restricted to the existing email allowlist |
 | API | Service token | `weinbender-io-api` token for programmatic access |

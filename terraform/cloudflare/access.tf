@@ -1,3 +1,16 @@
+# ── Google OAuth ───────────────────────────────────────────────────────────────
+
+resource "cloudflare_zero_trust_access_identity_provider" "google" {
+  account_id = var.cloudflare_account_id
+  name       = "Google"
+  type       = "google"
+
+  config {
+    client_id     = var.google_oauth_client_id
+    client_secret = var.google_oauth_client_secret
+  }
+}
+
 # ── uk2026.weinbender.io ─────────────────────────────────────────────────────
 
 resource "cloudflare_zero_trust_access_application" "uk2026" {
@@ -15,7 +28,7 @@ resource "cloudflare_zero_trust_access_application" "uk2026" {
 
 resource "cloudflare_zero_trust_access_policy" "allow" {
   account_id = var.cloudflare_account_id
-  name       = "Allow whitelisted emails (OTP)"
+  name       = "Allow whitelisted emails via Google"
   decision   = "allow"
 
   include = [
@@ -32,6 +45,12 @@ resource "cloudflare_zero_trust_access_policy" "allow" {
     { email = { email = "brandondwaite@proton.me" } },
     { email = { email = "tammath80@gmail.com" } },
   ]
+
+  # Keep the existing email allowlist, but require users to authenticate with
+  # Google instead of allowing Cloudflare's one-time PIN flow.
+  require {
+    login_method = [cloudflare_zero_trust_access_identity_provider.google.id]
+  }
 }
 
 # ── Service token (programmatic access, day-two) ──────────────────────────────
