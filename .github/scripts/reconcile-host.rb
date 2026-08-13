@@ -84,7 +84,7 @@ stacks.each do |stack|
         warn "::error::[#{host_id}/#{stack}] staged Compose validation failed"; failed << "#{host_id}/#{stack}"; next
       end
       marker_file = File.join(live, '.managed-by-github-actions')
-      legacy_stale_traefik = "test #{quote(stack)} = traefik && test -f #{quote(File.join(live, 'traefik', 'traefik.yml'))} && test -d #{quote(File.join(live, 'traefik', 'dynamic'))} && test ! -e #{quote(File.join(live, 'docker-compose.yaml'))}"
+      legacy_stale_traefik = "test #{quote(stack)} = traefik && test -f #{quote(File.join(live, 'traefik', 'traefik.yml'))} && test -d #{quote(File.join(live, 'traefik', 'dynamic'))}"
       marker_check = "if [ -e #{quote(live)} ]; then (test -f #{quote(marker_file)} && grep -Fxq 'STACK_NAME=#{stack}' #{quote(marker_file)}) || (#{legacy_stale_traefik}); fi"
       unless ssh_command(remote, marker_check)
         warn "::error::[#{host_id}/#{stack}] existing live directory is unmarked or has the wrong marker; refusing replacement"; failed << "#{host_id}/#{stack}"; next
