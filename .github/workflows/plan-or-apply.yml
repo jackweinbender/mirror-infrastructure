@@ -31,4 +31,5 @@ jobs:
     with:
       components: '["${{ inputs.component }}"]'
       apply: ${{ inputs.apply }}
+      tailscale: ${{ inputs.component == 'proxmox' }}
     secrets: inherit

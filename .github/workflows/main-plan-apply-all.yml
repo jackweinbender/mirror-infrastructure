@@ -25,4 +25,5 @@ jobs:
     with:
       components: all
       apply: ${{ github.event_name == 'push' || inputs.apply }}
+      tailscale: true
     secrets: inherit
