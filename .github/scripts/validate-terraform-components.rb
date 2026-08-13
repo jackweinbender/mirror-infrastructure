@@ -1,27 +1,27 @@
 #!/usr/bin/env ruby
+# frozen_string_literal: true
 
-require "json"
-require "yaml"
+require 'json'
+require 'yaml'
+require_relative 'lib/output'
+require_relative 'lib/terraform_components'
 
-manifest = JSON.parse(File.read(".github/terraform-components.json"))
-terraform_directories = Dir.children("terraform").select do |entry|
-  !entry.start_with?(".") && File.directory?(File.join("terraform", entry))
+manifest = JSON.parse(File.read('.github/terraform-components.json'))
+terraform_directories = Dir.children('terraform').select do |entry|
+  !entry.start_with?('.') && File.directory?(File.join('terraform', entry))
 end
 
-workflow = YAML.load_file(".github/workflows/plan-or-apply.yml")
-triggers = workflow["on"] || workflow[true]
-dropdown = triggers.dig("workflow_dispatch", "inputs", "component", "options")
+workflow = YAML.load_file('.github/workflows/plan-or-apply.yml')
+triggers = workflow['on'] || workflow[true]
+dropdown = triggers.dig('workflow_dispatch', 'inputs', 'component', 'options')
 
-checks = {
-  "Terraform directories missing from manifest" => terraform_directories - manifest,
-  "Manifest entries missing Terraform directories" => manifest - terraform_directories,
-  "Manual workflow choices missing from manifest" => dropdown - manifest,
-  "Manifest entries missing from manual workflow choices" => manifest - dropdown
-}
-
-errors = checks.filter_map do |label, entries|
-  "#{label}: #{entries.join(", ")}" unless entries.empty?
+errors = TerraformComponents.consistency_checks(
+  manifest: manifest,
+  terraform_directories: terraform_directories,
+  workflow_choices: dropdown
+).filter_map do |label, entries|
+  "#{label}: #{entries.join(', ')}" unless entries.empty?
 end
 
-abort errors.join("\n") unless errors.empty?
-puts "Terraform component manifest, directories, and workflow choices are consistent"
+ScriptOutput.fail!(errors.join("\n")) unless errors.empty?
+puts 'Terraform component manifest, directories, and workflow choices are consistent'

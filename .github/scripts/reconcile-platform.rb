@@ -1,41 +1,35 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-require 'shellwords'
+require_relative 'lib/commands'
+require_relative 'lib/compose_deployment'
+require_relative 'lib/output'
 
-def ssh_command(remote, command)
-  system('ssh', '-o', 'BatchMode=yes', remote, command)
-end
-
-def remote_quote(value)
-  Shellwords.escape(value)
-end
+ssh_command = ScriptCommands.method(:ssh)
+remote_quote = ScriptCommands.method(:quote)
 
 host_id, host_address = ARGV.fetch(0, nil), ARGV.fetch(1, nil)
-abort 'usage: reconcile-platform.rb HOST_ID HOST_ADDRESS' unless host_id && host_address
+ScriptOutput.usage!('usage: reconcile-platform.rb HOST_ID HOST_ADDRESS') unless host_id && host_address
 
 remote_user = ENV.fetch('DOCKER_USER', 'deploy')
 remote = "#{remote_user}@#{host_address}"
 local_dir = ENV.fetch('LOCAL_DIR', 'compose-stacks/docker-networking')
-base = '/etc/compose-stacks'
-live = "#{base}/docker-networking"
-run_tag = "#{ENV['GITHUB_RUN_ID']}-#{ENV['GITHUB_RUN_ATTEMPT']}"
-stage = "#{base}/.staging/docker-networking-#{run_tag}"
+base = ComposeDeployment::BASE_DIR
+live = File.join(base, 'docker-networking')
+stage = ComposeDeployment.staging_path('docker-networking')
 
 cleanup = proc { ssh_command(remote, "rm -rf -- #{remote_quote(stage)}") }
- at_exit { cleanup.call }
-error = proc { |message| warn "::error::[#{host_id}/docker-networking] #{message}"; exit 1 }
+at_exit { cleanup.call }
+error = proc { |message| ScriptOutput.fail!(message, prefix: "[#{host_id}/docker-networking]") }
 
 error.call('unable to create remote staging directory') unless ssh_command(remote, "umask 077 && mkdir -p -- #{remote_quote(base + '/.staging')} && mkdir -- #{remote_quote(stage)}")
 error.call('unable to prepare external proxy network') unless ssh_command(remote, 'docker network inspect proxy >/dev/null 2>&1 || docker network create --driver bridge --attachable proxy >/dev/null')
 
 rsync_args = ['-r', '--delete', "--exclude-from=#{File.join(local_dir, '.rsyncexclude')}", '--exclude=.env', '--exclude=.env.*', '--exclude=.git/', "#{local_dir}/", "#{remote}:#{stage}/"]
 error.call('rsync to staging failed') unless system('rsync', *rsync_args)
-marker = "REPOSITORY=#{ENV['GITHUB_REPOSITORY']}\nSTACK_NAME=docker-networking\nCOMMIT_SHA=#{ENV['GITHUB_SHA']}\nWORKFLOW_RUN_ID=#{ENV['GITHUB_RUN_ID']}\nWORKFLOW_RUN_NUMBER=#{ENV['GITHUB_RUN_NUMBER']}\nSYNCED_AT=#{Time.now.utc.strftime('%Y-%m-%dT%H:%M:%SZ')}\n"
+marker = ComposeDeployment.marker('docker-networking')
 marker_command = "umask 077 && cat > #{remote_quote(stage + '/.managed-by-github-actions')} && chmod 600 #{remote_quote(stage + '/.managed-by-github-actions')}"
-IO.popen(['ssh', remote, marker_command], 'w') { |io| io.write(marker) }
-marker_status = $?
-error.call('unable to write deployment marker') unless marker_status&.success?
+error.call('unable to write deployment marker') unless ScriptCommands.write_remote(remote, marker_command, marker)
 error.call('unable to prepare platform environment') unless ssh_command(remote, "umask 077 && : > #{remote_quote(stage + '/.env')} && chmod 600 #{remote_quote(stage + '/.env')}")
 error.call('staged Compose validation failed') unless ssh_command(remote, "cd -- #{remote_quote(stage)} && docker compose --project-name docker-networking --env-file .env config --quiet")
 marker_check = "if [ -e #{remote_quote(live)} ]; then test -f #{remote_quote(live + '/.managed-by-github-actions')} && grep -Fxq 'STACK_NAME=docker-networking' #{remote_quote(live + '/.managed-by-github-actions')}; fi"

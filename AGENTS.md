@@ -1,156 +1,59 @@
-# Agent instructions
+# Repository instructions
 
-## Repository purpose
+This repository manages personal infrastructure as code. Make the smallest
+focused change that satisfies the request, preserve existing conventions, and
+treat unrelated working-tree changes as protected.
 
-This repository manages personal infrastructure as code:
+## Before editing
 
-- `terraform/` provisions cloud and virtualization resources.
-- `ansible/` configures hosts and baseline services.
-- `compose-stacks/` contains Docker Compose workloads deployed to Docker hosts
-  by GitHub Actions over Tailscale.
-- `.github/workflows/` contains CI/CD workflows.
+- Read the relevant scoped `AGENTS.md`, README, and nearby implementation.
+- Check the worktree first:
 
-Make the smallest focused change that satisfies the request. Preserve existing
-conventions and avoid unrelated cleanup.
+  ```bash
+  git --no-optional-locks status --short --branch
+  ```
 
-## Before changing code
+- Inspect workflows, inventories, call sites, and deployment boundaries before
+  changing behavior.
+- Never commit secrets, generated runtime `.env` files, private keys, Terraform
+  state, or other generated credentials.
 
-1. Read the relevant README and nearby implementation.
-2. Check the working tree before editing:
+## Scoped guidance
 
-   ```bash
-   git --no-optional-locks status --short --branch
-   ```
+- [`ansible/AGENTS.md`](ansible/AGENTS.md): host configuration, inventory,
+  playbooks, roles, and Ansible validation.
+- [`compose-stacks/AGENTS.md`](compose-stacks/AGENTS.md): stack layout,
+  assignments, overlays, deployment safety, and Compose validation.
+- [`terraform/AGENTS.md`](terraform/AGENTS.md): component boundaries, state,
+  credentials, and Terraform validation.
 
-3. Treat existing user changes as protected. Do not overwrite, revert, or
-   delete unrelated modifications.
-4. Inspect the relevant workflow, script, inventory, and call sites before
-   changing deployment behavior.
-5. Never commit secrets, generated runtime `.env` files, private keys, or
-   Terraform state.
+- [`.github/scripts/AGENTS.md`](.github/scripts/AGENTS.md): Ruby libraries,
+  entrypoints, and unit tests.
+- [`.github/workflows/AGENTS.md`](.github/workflows/AGENTS.md): workflow
+  orchestration, triggers, and CI/deployment verification.
 
-## Compose deployments
 
-For any work involving `compose-stacks/`, load the project-local
-`compose-deployments` skill and read [`compose-stacks/OPERATIONS.md`](compose-stacks/OPERATIONS.md).
-Those documents are the source of truth for stack layout and deployment
-operations.
+For Compose work, also load the project-local `compose-deployments` skill and
+read [`compose-stacks/OPERATIONS.md`](compose-stacks/OPERATIONS.md), the
+operational source of truth for stack layout and deployment recovery.
 
-The essential rules are:
+## Cross-cutting rules
 
-- `compose-stacks/docker-networking/` is the platform stack. It owns the
-  external `proxy` network and is applied to every inventory host with
-  `host_roles: deploy`.
-- Every other stack, including Traefik, is an assigned application stack.
-- Do not add `deployments/ALL/`; application assignments are explicit.
-- A stack assignment is the presence of
-  `deployments/<host>/.env.template`.
-- A host overlay at `deployments/<host>/docker-compose.yaml` is optional and
-  does not assign the stack. It is staged as
-  `docker-compose.override.yaml`.
-- Use `.env.template` consistently. Root templates provide shared values;
-  host templates override them. Keep `op://...` references unresolved in Git.
-- Do not create or commit runtime `.env` files.
-- Treat bind sources as type-sensitive. File sources must exist as regular
-  files before Compose runs; a missing source can become a root-owned directory
-  created by Docker and break both the service and cleanup.
-- Do not weaken the managed marker guard or automatically remove an unmarked
-  live directory. Migration recovery must use a narrow, explicit predicate.
-- Do not make application stacks create or remove the shared `proxy` network.
+- Prefer existing dependencies, scripts, and patterns. Keep root entrypoints
+  and workflow YAML focused on orchestration; put reusable logic in the scoped
+  libraries and source directories.
+- Keep behavior changes minimal. Add comments only for non-obvious constraints.
+- Preserve secret handling, SSH host verification, Tailscale access, and guarded
+  remote cleanup. Do not manually delete remote deployment directories without
+  explicit recovery authorization and marker/ownership inspection.
+- Update tests, documentation, validation, and call sites when behavior changes.
+- Do not commit, create branches, force-push, or perform destructive Git actions
+  unless explicitly requested.
 
-The deployment lifecycle is platform first, applications second. The workflow
-stages and validates privately, injects secrets remotely, publishes to
-`/etc/compose-stacks/<stack>`, and uses the stable Compose project name equal
-to the stack name.
+## Completion
 
-## Compose validation
-
-For Compose or deployment changes, run the repository checks that apply:
-
-```bash
-ruby .github/scripts/preflight.rb
-ruby -c .github/scripts/preflight.rb
-ruby -c .github/scripts/reconcile-platform.rb
-ruby -c .github/scripts/reconcile-host.rb
-ruby -c .github/scripts/discover-deploy-hosts.rb
-git diff --check
-```
-
-Validate changed Compose files with representative non-secret values:
-
-```bash
-docker compose \
-  -f compose-stacks/<stack>/docker-compose.yaml \
-  -f compose-stacks/<stack>/deployments/<host>/docker-compose.yaml \
-  config --quiet
-```
-
-Omit the overlay file when no overlay exists. Warnings for unset secret
-variables can be expected locally because CI supplies them through 1Password.
-
-A push to `main` automatically runs Compose deployment only for changes under
-`compose-stacks/**`, `ansible/inventory.yaml`, or the deployment workflow. For
-script-only workflow changes, manually dispatch and monitor the workflow:
-
-```bash
-gh workflow run deploy.yaml --ref main
-gh run watch <run-id> --exit-status
-gh run view --job <job-id> --log-failed
-```
-
-Do not claim a deployment passed without checking the actual workflow result.
-
-## Terraform
-
-Keep Terraform components isolated in their existing directories. Follow the
-component README and existing backend/provider conventions. Do not change
-backend state, provider identity, or apply behavior casually.
-
-For Terraform changes, at minimum use the component's existing formatting and
-validation commands. Prefer plan-only validation unless the user explicitly
-requests an apply. Never expose Terraform variables or state containing
-secrets.
-
-## Ansible
-
-Use the existing roles, inventories, and playbook conventions. Validate syntax
-and lint changes with the repository's Ansible tooling where available. Do not
-make a playbook target production hosts unintentionally; inspect inventory
-selection and limits before running it.
-
-## Secrets and remote access
-
-- Secrets are loaded through 1Password and injected by CI.
-- Do not print secret values, include them in command arguments, or write them
-  to artifacts.
-- Preserve Tailscale connectivity and SSH host verification in workflows.
-- Avoid ad hoc SSH changes to production hosts. If remote inspection is
-  necessary, use the repository's guarded workflow or clearly explain the
-  limitation.
-- Do not manually delete remote deployment directories unless the user
-  explicitly authorizes recovery and the directory's ownership/marker state
-  has been inspected.
-
-## Editing and implementation style
-
-- Prefer existing dependencies, scripts, and patterns.
-- Keep behavior changes minimal and explain non-obvious safety constraints in
-  code or documentation.
-- Do not add comments that merely restate code.
-- Update tests, validation, documentation, and call sites when behavior
-  changes.
-- Do not commit or create branches unless explicitly requested.
-- Do not use force-push or destructive Git commands.
-
-## Completion checklist
-
-Before finishing:
-
-1. Review the complete diff, including untracked files.
-2. Run focused validation, then broader repository validation when practical.
-3. Check `git diff --check` and the final worktree status.
-4. Report exactly what was changed and which commands actually passed.
-5. Call out warnings, failed workflows, unverified remote state, or follow-up
-   work instead of implying success.
-6. Commit and push only when the user has requested it or the task context
-   clearly authorizes it.
+Before finishing, review the complete diff including untracked files, run
+focused and broader applicable validation, run `git diff --check`, inspect final
+status, and report exactly which commands passed. Call out failed workflows,
+unverified remote state, warnings, and follow-up work rather than implying
+success.

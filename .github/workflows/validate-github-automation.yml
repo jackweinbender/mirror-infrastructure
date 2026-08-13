@@ -24,6 +24,9 @@ jobs:
 
       - name: Check Ruby script syntax
         run: |
-          for script in .github/scripts/*.rb; do
+          for script in .github/scripts/*.rb .github/scripts/lib/*.rb; do
             ruby -c "$script"
           done
+
+      - name: Test Ruby libraries
+        run: ruby .github/scripts/test/lib_test.rb

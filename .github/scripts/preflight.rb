@@ -2,8 +2,9 @@
 # frozen_string_literal: true
 
 require 'json'
-require 'open3'
 require 'tempfile'
+require_relative 'lib/commands'
+require_relative 'lib/output'
 
 ROOT = File.expand_path('../..', __dir__)
 STACKS_DIR = File.join(ROOT, 'compose-stacks')
@@ -13,30 +14,23 @@ MERGE_SCRIPT = File.join(ROOT, '.github/scripts/merge-dotenv.rb')
 VALIDATE_TERRAFORM_COMPONENTS = File.join(ROOT, '.github/scripts/validate-terraform-components.rb')
 
 def fail_preflight(message)
-  warn "preflight: #{message}"
-  exit 1
-end
-
-def command(program, *args, **options)
-  stdout, stderr, status = Open3.capture3(program, *args, **options)
-  raise(stderr.strip.empty? ? "#{program} exited with #{status.exitstatus}" : stderr.strip) unless status.success?
-  stdout
+  ScriptOutput.fail!(message, prefix: 'preflight')
 end
 
 def validate_terraform_components
-  command('ruby', VALIDATE_TERRAFORM_COMPONENTS, chdir: ROOT)
+  ScriptCommands.capture('ruby', VALIDATE_TERRAFORM_COMPONENTS, chdir: ROOT)
 rescue StandardError => e
   fail_preflight("Terraform component validation failed: #{e.message}")
 end
 
 def parse_inventory
-  JSON.parse(command('ruby', DISCOVER_SCRIPT, File.join(ROOT, 'ansible/inventory.yaml')))
+  JSON.parse(ScriptCommands.capture('ruby', DISCOVER_SCRIPT, File.join(ROOT, 'ansible/inventory.yaml')))
 rescue StandardError => e
   fail_preflight("could not read deploy hosts: #{e.message}")
 end
 
 def merged_env(shared, assignment)
-  command('ruby', MERGE_SCRIPT, shared, assignment)
+  ScriptCommands.capture('ruby', MERGE_SCRIPT, shared, assignment)
 rescue StandardError => e
   fail_preflight("dotenv validation failed for #{assignment}: #{e.message}")
 end
@@ -50,7 +44,7 @@ def validate_compose(stack, host, compose, overlay, env_text)
   begin
     args = ['docker', 'compose', '--project-name', stack, '--env-file', env_file.path, '-f', compose]
     args += ['-f', overlay] if overlay
-    command(*args, 'config', '--quiet', err: [:child, :out])
+    ScriptCommands.capture(*args, 'config', '--quiet', err: [:child, :out])
   rescue StandardError => e
     fail_preflight("Compose validation failed for #{stack}/#{host}: #{e.message}")
   ensure
