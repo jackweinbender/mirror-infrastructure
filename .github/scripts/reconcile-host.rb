@@ -33,7 +33,7 @@ stacks.each do |stack|
 
   if File.file?(assignment)
     stage = ComposeDeployment.staging_path(stack)
-    cleanup = proc { ssh_command(remote, "rm -rf -- #{quote(stage)}") }
+    cleanup = proc { ssh_command.call(remote, "rm -rf -- #{quote.call(stage)}") }
     begin
       merged = Tempfile.new(['merged-', '.env'])
       merge = ScriptCommands.capture_result('ruby', '.github/scripts/merge-dotenv.rb', File.join(local_dir, '.env.template'), assignment)
@@ -46,40 +46,40 @@ stacks.each do |stack|
       merged.close
 
       marker = ComposeDeployment.marker(stack)
-      unless ssh_command(remote, "umask 077 && mkdir -p -- #{quote(base + '/.staging')} && mkdir -- #{quote(stage)}")
+      unless ssh_command.call(remote, "umask 077 && mkdir -p -- #{quote.call(base + '/.staging')} && mkdir -- #{quote.call(stage)}")
         ScriptOutput.error('unable to create remote staging directory', context: "#{host_id}/#{stack}"); failed << "#{host_id}/#{stack}"; next
       end
       unless system('rsync', '-r', '--delete', '--exclude=.env', '--exclude=.env.*', '--exclude=.git/', "#{local_dir}/", "#{remote}:#{stage}/")
         ScriptOutput.error('rsync failed', context: "#{host_id}/#{stack}"); failed << "#{host_id}/#{stack}"; next
       end
-      unless ssh_command(remote, "cd #{quote(stage)} && if [ -f #{quote("deployments/#{host_id}/docker-compose.yaml")} ]; then cp -- #{quote("deployments/#{host_id}/docker-compose.yaml")} docker-compose.override.yaml && chmod 600 docker-compose.override.yaml; fi")
+      unless ssh_command.call(remote, "cd #{quote.call(stage)} && if [ -f #{quote.call("deployments/#{host_id}/docker-compose.yaml")} ]; then cp -- #{quote.call("deployments/#{host_id}/docker-compose.yaml")} docker-compose.override.yaml && chmod 600 docker-compose.override.yaml; fi")
         ScriptOutput.error('unable to prepare host Compose override', context: "#{host_id}/#{stack}"); failed << "#{host_id}/#{stack}"; next
       end
       marker_path = File.join(stage, '.managed-by-github-actions')
-      unless write_remote(remote, "umask 077 && cat > #{quote(marker_path)} && chmod 600 #{quote(marker_path)}", marker)
+      unless write_remote.call(remote, "umask 077 && cat > #{quote.call(marker_path)} && chmod 600 #{quote.call(marker_path)}", marker)
         ScriptOutput.error('unable to write deployment marker', context: "#{host_id}/#{stack}"); failed << "#{host_id}/#{stack}"; next
       end
       env_path = File.join(stage, '.env')
       env_tmp = File.join(stage, '.env.tmp')
-      secret_command = "umask 077 && cat > #{quote(env_tmp)} && chmod 600 #{quote(env_tmp)} && mv -f -- #{quote(env_tmp)} #{quote(env_path)}"
-      unless inject_to_remote(merged.path, remote, secret_command)
+      secret_command = "umask 077 && cat > #{quote.call(env_tmp)} && chmod 600 #{quote.call(env_tmp)} && mv -f -- #{quote.call(env_tmp)} #{quote.call(env_path)}"
+      unless inject_to_remote.call(merged.path, remote, secret_command)
         ScriptOutput.error('secret injection failed; live stack was not changed', context: "#{host_id}/#{stack}"); failed << "#{host_id}/#{stack}"; next
       end
-      unless ssh_command(remote, "cd #{quote(stage)} && docker compose --project-name #{quote(stack)} --env-file .env config --quiet")
+      unless ssh_command.call(remote, "cd #{quote.call(stage)} && docker compose --project-name #{quote.call(stack)} --env-file .env config --quiet")
         ScriptOutput.error('staged Compose validation failed', context: "#{host_id}/#{stack}"); failed << "#{host_id}/#{stack}"; next
       end
       marker_file = File.join(live, '.managed-by-github-actions')
-      legacy_stale_traefik = "test #{quote(stack)} = traefik && test -d #{quote(File.join(live, 'traefik', 'traefik.yml'))} && test -d #{quote(File.join(live, 'traefik', 'dynamic'))}"
-      marker_check = "if [ -e #{quote(live)} ]; then (test -f #{quote(marker_file)} && grep -Fxq 'STACK_NAME=#{stack}' #{quote(marker_file)}) || (#{legacy_stale_traefik}); fi"
-      unless ssh_command(remote, marker_check)
+      legacy_stale_traefik = "test #{quote.call(stack)} = traefik && test -d #{quote.call(File.join(live, 'traefik', 'traefik.yml'))} && test -d #{quote.call(File.join(live, 'traefik', 'dynamic'))}"
+      marker_check = "if [ -e #{quote.call(live)} ]; then (test -f #{quote.call(marker_file)} && grep -Fxq 'STACK_NAME=#{stack}' #{quote.call(marker_file)}) || (#{legacy_stale_traefik}); fi"
+      unless ssh_command.call(remote, marker_check)
         ScriptOutput.error('existing live directory is unmarked or has the wrong marker; refusing replacement', context: "#{host_id}/#{stack}"); failed << "#{host_id}/#{stack}"; next
       end
-      retire = "cd #{quote(live)} && if [ -f docker-compose.yaml ]; then docker compose --project-name #{quote(stack)} --env-file .env down --remove-orphans; fi && if ! rm -rf -- #{quote(live)}; then docker run --rm --mount type=bind,source=#{quote(live)},target=/target busybox:1.36 sh -c 'find /target -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +' && rm -rf -- #{quote(live)}; fi"
-      unless ssh_command(remote, "if [ -e #{quote(live)} ]; then #{retire}; fi && mv -- #{quote(stage)} #{quote(live)}")
+      retire = "cd #{quote.call(live)} && if [ -f docker-compose.yaml ]; then docker compose --project-name #{quote.call(stack)} --env-file .env down --remove-orphans; fi && if ! rm -rf -- #{quote.call(live)}; then docker run --rm --mount type=bind,source=#{quote.call(live)},target=/target busybox:1.36 sh -c 'find /target -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +' && rm -rf -- #{quote.call(live)}; fi"
+      unless ssh_command.call(remote, "if [ -e #{quote.call(live)} ]; then #{retire}; fi && mv -- #{quote.call(stage)} #{quote.call(live)}")
         ScriptOutput.error('publication failed', context: "#{host_id}/#{stack}"); failed << "#{host_id}/#{stack}"; next
       end
-      up = "cd #{quote(live)} && if docker compose up --help 2>/dev/null | grep -q -- '--wait'; then docker compose --project-name #{quote(stack)} --env-file .env up -d --remove-orphans --pull always --wait --wait-timeout 120; else docker compose --project-name #{quote(stack)} --env-file .env up -d --remove-orphans --pull always; fi"
-      unless ssh_command(remote, up)
+      up = "cd #{quote.call(live)} && if docker compose up --help 2>/dev/null | grep -q -- '--wait'; then docker compose --project-name #{quote.call(stack)} --env-file .env up -d --remove-orphans --pull always --wait --wait-timeout 120; else docker compose --project-name #{quote.call(stack)} --env-file .env up -d --remove-orphans --pull always; fi"
+      unless ssh_command.call(remote, up)
         ScriptOutput.error('Compose up failed', context: "#{host_id}/#{stack}"); failed << "#{host_id}/#{stack}"; next
       end
       puts "[#{host_id}/#{stack}] deployed"
@@ -88,8 +88,8 @@ stacks.each do |stack|
       cleanup.call
     end
   else
-    unless ssh_command(remote, "test -d #{quote(live)}")
-      if ssh_command(remote, 'true')
+    unless ssh_command.call(remote, "test -d #{quote.call(live)}")
+      if ssh_command.call(remote, 'true')
         puts "[#{host_id}/#{stack}] not assigned and not deployed"
       else
         ScriptOutput.error('host connectivity failed; no cleanup attempted', context: "#{host_id}/#{stack}"); failed << "#{host_id}/#{stack}"
@@ -97,11 +97,11 @@ stacks.each do |stack|
       next
     end
     marker_file = File.join(live, '.managed-by-github-actions')
-    unless ssh_command(remote, "test -f #{quote(marker_file)} && grep -Fxq 'STACK_NAME=#{stack}' #{quote(marker_file)}")
+    unless ssh_command.call(remote, "test -f #{quote.call(marker_file)} && grep -Fxq 'STACK_NAME=#{stack}' #{quote.call(marker_file)}")
       ScriptOutput.error('unmarked live directory exists; refusing teardown', context: "#{host_id}/#{stack}"); failed << "#{host_id}/#{stack}"; next
     end
-    retire = "cd #{quote(live)} && docker compose --project-name #{quote(stack)} --env-file .env down --remove-orphans && if ! rm -rf -- #{quote(live)}; then docker run --rm --mount type=bind,source=#{quote(live)},target=/target busybox:1.36 sh -c 'find /target -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +' && rm -rf -- #{quote(live)}; fi"
-    unless ssh_command(remote, retire)
+    retire = "cd #{quote.call(live)} && docker compose --project-name #{quote.call(stack)} --env-file .env down --remove-orphans && if ! rm -rf -- #{quote.call(live)}; then docker run --rm --mount type=bind,source=#{quote.call(live)},target=/target busybox:1.36 sh -c 'find /target -mindepth 1 -maxdepth 1 -exec rm -rf -- {} +' && rm -rf -- #{quote.call(live)}; fi"
+    unless ssh_command.call(remote, retire)
       ScriptOutput.error('teardown failed; retaining remote directory', context: "#{host_id}/#{stack}"); failed << "#{host_id}/#{stack}"; next
     end
     puts "[#{host_id}/#{stack}] removed"
