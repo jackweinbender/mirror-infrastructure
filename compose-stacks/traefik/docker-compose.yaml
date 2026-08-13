@@ -26,8 +26,8 @@ services:
       - --certificatesresolvers.letsencrypt.acme.email=${ACME_EMAIL}
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
-      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
-      - ./traefik/dynamic/wildcard-cert.yml:/etc/traefik/dynamic/wildcard-cert.yml:ro
+      - ./traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./dynamic/wildcard-cert.yml:/etc/traefik/dynamic/wildcard-cert.yml:ro
       - traefik_acme:/etc/traefik/acme
     environment:
       CF_DNS_API_TOKEN: ${CF_DNS_API_TOKEN}

@@ -23,7 +23,7 @@ Internet → Cloudflare Edge
 
 ## Traefik Configuration
 
-Host-level configuration lives in `compose-stacks/traefik/traefik/`. This stack joins the external `proxy` network and contributes application containers via Docker labels.
+Host-level configuration lives in `compose-stacks/traefik/`. This stack joins the external `proxy` network and contributes application containers via Docker labels.
 
 
 ## Cloudflare Tunnel
