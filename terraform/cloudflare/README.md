@@ -12,9 +12,12 @@ Cloudflare resources for `weinbender.io` — Zero Trust Access, DNS, Tunnel.
 
 ## Access Policy (uk2026.weinbender.io)
 
-The existing Access policy named `Me` is referenced by ID. Its users and rules are
-managed entirely in the Cloudflare dashboard; Terraform does not create, update, or
-delete the policy.
+Access policies are managed in the Cloudflare dashboard. Terraform must not create,
+update, or delete Access policies or their user membership rules; it should reference
+existing policies with a `cloudflare_zero_trust_access_policy` data source.
+
+The existing policy named `Me` is referenced by ID. Its users and rules are managed
+entirely in the Cloudflare dashboard.
 
 Service token `weinbender-io-api` for programmatic access.
 
