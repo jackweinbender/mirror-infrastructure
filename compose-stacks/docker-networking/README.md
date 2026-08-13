@@ -1,5 +1,8 @@
 # Docker networking platform stack
 
+See [`../OPERATIONS.md`](../OPERATIONS.md) for the repository-wide Compose
+stack and deployment process.
+
 This stack owns the host-level Docker networking required by the other Compose stacks. It is deployed to every Docker host discovered from `ansible/inventory.yaml` with `host_roles: deploy`, before normal application reconciliation.
 
 ## What it provides

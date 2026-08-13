@@ -1,5 +1,8 @@
 # GitHub Actions workflows
 
+The Compose-specific operating pattern and recovery process are documented in
+[`../../compose-stacks/OPERATIONS.md`](../../compose-stacks/OPERATIONS.md).
+
 ## Compose deployment workflows
 
 `deploy.yaml` is named **Compose stack deployments**. A push to `main` touching any path under `compose-stacks/**`, `ansible/inventory.yaml`, or the workflow runs a complete reconciliation. A daily schedule runs at 05:00 UTC, and `workflow_dispatch` runs the same complete reconciliation with no required inputs.

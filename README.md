@@ -37,6 +37,10 @@ Personal infrastructure as code — Terraform for cloud resources + Docker Compo
 
 ### Compose Stacks
 
+The standard stack shape, assignment rules, overlay behavior, validation
+commands, and recovery process are documented in
+[`compose-stacks/OPERATIONS.md`](compose-stacks/OPERATIONS.md).
+
 The `deploy.yaml` workflow owns the complete Compose desired state:
 1. Every run first creates the shared external `proxy` network if needed and deploys Traefik on every deploy host.
 2. After all platform jobs succeed, it syncs assigned application stacks, injects their secrets, and reconciles their Compose projects with Docker.

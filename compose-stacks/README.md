@@ -1,6 +1,8 @@
 # Compose stacks
 
-This directory contains reusable, host-independent Docker Compose definitions. The application deployment workflow evaluates every application stack against every Docker host whose inventory entry has `host_roles: deploy`.
+This directory contains reusable, host-independent Docker Compose definitions.
+The operational source of truth for adding, validating, deploying, and
+recovering stacks is [`OPERATIONS.md`](OPERATIONS.md). The application deployment workflow evaluates every application stack against every Docker host whose inventory entry has `host_roles: deploy`.
 
 ## Stack layout and assignments
 

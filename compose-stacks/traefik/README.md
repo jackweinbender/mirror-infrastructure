@@ -1,5 +1,8 @@
 # Traefik
 
+See [`../OPERATIONS.md`](../OPERATIONS.md) for the repository-wide Compose
+stack and deployment process.
+
 Host-level Traefik runs as a normal assigned Compose stack. It provides HTTP and HTTPS entrypoints, Docker label discovery, the dashboard, ACME DNS-01 certificates, and file-provider routes for services outside Docker discovery.
 
 Traefik joins the external `proxy` network created by `docker-networking`. Application stacks must join that network and set `traefik.enable=true` to be discovered.
