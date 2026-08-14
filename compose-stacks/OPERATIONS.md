@@ -101,7 +101,16 @@ find compose-stacks/<stack> -type f -print
 
 Prefer read-only mounts for configuration. A service that must write persistent
 state should write to a deliberately designed named volume or data directory,
-not into the checked-out Compose project.
+not into the checked-out Compose project. On LXC deploy hosts explicitly
+configured with `docker_configure_data_root: true`, named volumes are stored
+below `/srv/guest-volumes/docker`; the LXC mount itself is provisioned by the
+local Proxmox bootstrap workflow, not by Compose. Compose does not create
+per-stack host directories for named volumes.
+
+`docker-vm-dmz` is a deliberate exception: it is a VM and keeps Docker's data
+under the VM-local `/var/lib/docker`. Its persistence therefore depends on
+whole-VM backups or a separate offsite backup job. Do not assume the LXC
+`/primary/guest-volumes/<hostname>` bind-mount convention applies to VMs.
 
 ## Reconciliation lifecycle
 

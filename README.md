@@ -83,7 +83,11 @@ private keys, or resolved secret values.
 Ansible supports Debian guests and Proxmox bootstrap workflows. The steady-state
 `playbooks/workloads.yaml` playbook always applies the baseline roles and then
 selects additional roles from each host's `host_roles`, such as `deploy` and
-`docker`. Tailscale SSH is the supported remote access path; the Proxmox console
+`docker`. LXC persistent data follows the host-backed
+`/primary/guest-volumes/<hostname>` to guest `/srv/guest-volumes` convention;
+`mp0` is reserved for that mount. VMs are the exception: `docker-vm-dmz` keeps
+Docker data in `/var/lib/docker` and requires whole-VM or separate offsite
+backups. Tailscale SSH is the supported remote access path; the Proxmox console
 is the bootstrap recovery path.
 
 Set up the local environment with:
