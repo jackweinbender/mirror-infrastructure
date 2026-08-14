@@ -103,29 +103,6 @@ Prefer read-only mounts for configuration. A service that must write persistent
 state should write to a deliberately designed named volume or data directory,
 not into the checked-out Compose project.
 
-### Persistent application data
-
-Docker-enabled LXCs are intended to provide one host-backed guest storage mount:
-
-```text
-Proxmox host:  /primary/guest-volumes/<guest-hostname>
-LXC:          /srv/guest-volumes
-Docker root:  /srv/guest-volumes/docker
-```
-
-Compose stacks should use ordinary named volumes for durable application state,
-for example `forgejo_data`. Once the guest's Docker `data-root` is configured,
-Docker stores those volumes below the host-backed data root and creates their
-internal directories automatically. New stacks should not require manually
-created per-stack directories on the Proxmox host.
-
-The storage mount and Docker data-root are host configuration concerns managed by
-Ansible, not by application Compose definitions. The convention is an intended
-target for new and migrated guests; existing guests require an explicit reviewed
-migration of Docker's current `/var/lib/docker` data before changing the data
-root. Named volumes are retained when a stack assignment is removed, but this
-persistence is not a substitute for host backups and restore testing.
-
 ## Reconciliation lifecycle
 
 For an assigned application stack, the workflow:
