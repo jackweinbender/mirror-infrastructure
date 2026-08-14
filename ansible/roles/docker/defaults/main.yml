@@ -8,3 +8,7 @@
 # Accounts that get passwordless Docker access through the docker group.
 # The deploy account is created by the deploy role before this role runs.
 docker_group_users: "{{ [base_ansible_user] + base_extra_sudo_users + ['deploy'] }}"
+
+# Docker named volumes for LXC workloads belong on the host-backed guest mount.
+docker_configure_data_root: false
+docker_data_root: /srv/guest-volumes/docker

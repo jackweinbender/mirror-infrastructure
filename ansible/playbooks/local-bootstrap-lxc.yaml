@@ -1,5 +1,6 @@
 # Bootstraps a new or existing LXC container: optionally creates the container,
-# prepares it with required features (TUN, Docker), creates the management user,
+# prepares it with required features (TUN, Docker), provisions Docker guest
+# storage on the Proxmox host, creates the management user,
 # joins the tailnet, and registers the host in inventory.
 #
 # Full interactive workflow (create new container):
