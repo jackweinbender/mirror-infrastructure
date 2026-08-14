@@ -127,6 +127,25 @@ When changing a stack assignment, remember that removing the assignment causes
 workflow reconciliation to run `docker compose down --remove-orphans` and
 remove the marked project directory, while retaining named volumes and images.
 
+## Ingress and DNS
+
+When adding a service, choose the ingress path before creating DNS:
+
+- A Cloudflare Tunnel service points its CNAME directly at the tunnel target.
+- A service behind a LAN Traefik gateway requires an unproxied A record for
+  `<gateway>.weinbender.io` pointing to the gateway's private LAN IPv4 address,
+  plus an unproxied CNAME from `<service>.weinbender.io` to the gateway hostname.
+- Create the gateway A record as a provisioning follow-up once the gateway LXC
+  address is known; this is not an Ansible task. Add the service CNAME when the
+  service is assigned to the gateway.
+- The DNS hostname must exactly match the Traefik `Host(...)` rule. Most records
+  are dashboard-managed; if Terraform owns them, keep them in
+  `terraform/cloudflare/dns.tf` with `proxied = false` and `ttl = 1`.
+
+Do not point a LAN-backed service at the tunnel target or assume `dns.tf` contains
+all records in the zone. See the relevant stack README and
+`terraform/cloudflare/README.md` for the authoritative examples.
+
 ## Documentation
 
 Keep the relevant stack README and

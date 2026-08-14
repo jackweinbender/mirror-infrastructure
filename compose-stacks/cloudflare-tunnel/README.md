@@ -55,20 +55,39 @@ For local validation, merge `.env.template` and a host assignment using a repres
 
 ## Add a New Service
 
-1. Add to `docker-compose.yaml`:
-```yaml
-  myservice:
-    image: myorg/myservice:latest
-    networks: [proxy]
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.myservice.rule=Host(`myservice.weinbender.io`)"
-      - "traefik.http.routers.myservice.entrypoints=websecure"
-      traefik.http.routers.myservice.tls.certresolver=letsencrypt
-```
+1. Add the service and its Traefik router to the appropriate stack. For a
+   Docker-discovered service, the labels look like:
 
-2. Ensure DNS record exists (CNAME → tunnel) — either via Terraform or Cloudflare dashboard
-3. Deploy
+   ```yaml
+     myservice:
+       image: myorg/myservice:latest
+       networks: [proxy]
+       labels:
+         - "traefik.enable=true"
+         - "traefik.http.routers.myservice.rule=Host(`myservice.weinbender.io`)"
+         - "traefik.http.routers.myservice.entrypoints=websecure"
+         - "traefik.http.routers.myservice.tls.certresolver=letsencrypt"
+   ```
+
+2. Choose the ingress path before adding DNS:
+   - **Host Traefik gateway:** the required convention is an `A` record for
+     `<gateway>.weinbender.io` pointing to the gateway's LAN IPv4 address,
+     plus a `CNAME` from `<service>.weinbender.io` to
+     `<gateway>.weinbender.io`; both must be unproxied. Most DNS records are
+     currently managed in the Cloudflare dashboard rather than Terraform. If
+     managing these records in Terraform, add them to
+     `terraform/cloudflare/dns.tf` with `proxied = false`.
+   - **Cloudflare Tunnel:** add a CNAME from `<service>.weinbender.io` to the
+     tunnel target, as with the existing `uk2026` and `helloworld` records.
+
+3. Ensure the DNS hostname and the Traefik `Host(...)` rule are identical.
+4. Deploy and verify the resulting Terraform plan and Traefik route.
+
+For a host-level Traefik gateway, creating only the service CNAME is
+insufficient: the gateway's A record must exist first so the CNAME chain ends
+at the LAN address of the correct gateway. This two-record convention applies
+regardless of whether the records are created in Terraform or manually in the
+Cloudflare dashboard.
 
 ## Zero Trust Access (from terraform/cloudflare/access.tf)
 

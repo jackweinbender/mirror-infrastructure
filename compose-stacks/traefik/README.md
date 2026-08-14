@@ -21,6 +21,36 @@ The `traefik-lxc` deployment also has a Compose overlay that mounts dynamic rout
 
 The normal `deploy.yaml` workflow reconciles `docker-networking` first, then deploys assigned application stacks including Traefik.
 
+## DNS convention for LAN-backed services
+
+**Convention: every service exposed through a host-level Traefik gateway needs
+both records below.** Cloudflare DNS is public, but the gateway record
+intentionally contains a private LAN address:
+
+1. An `A` record for the gateway hostname, such as
+   `<gateway>.weinbender.io` → the gateway's LAN IPv4 address.
+2. A `CNAME` record for the service hostname, such as
+   `<service>.weinbender.io` → `<gateway>.weinbender.io`.
+
+Create the gateway A record as soon as the gateway LXC is provisioned and its
+LAN IPv4 address is known. This is a provisioning follow-up, not an Ansible
+task; do not try to automate it through Ansible. The service CNAME is added
+later when the service is assigned to that gateway.
+
+The current repository convention is to use an unproxied record pair
+(`proxied = false`):
+
+- `<gateway>.weinbender.io` → an `A` record for the gateway's LAN IPv4 address.
+- `<service>.weinbender.io` → a `CNAME` targeting
+  `<gateway>.weinbender.io`.
+
+Most Cloudflare DNS records are currently managed outside Terraform, in the
+Cloudflare dashboard. Records that are managed in Terraform belong in
+`terraform/cloudflare/dns.tf`; do not assume that file contains the complete
+zone. The service's Traefik router must use the same
+`<service>.weinbender.io` hostname. Do not point a LAN-backed service directly
+to the tunnel target; tunnel CNAMEs are a separate ingress path.
+
 ## Dashboard
 
 The dashboard is exposed without authentication over HTTP at `http://<host-ip>/dashboard/`.
