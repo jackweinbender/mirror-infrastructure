@@ -1,0 +1,35 @@
+---
+services:
+  forgejo:
+    image: codeberg.org/forgejo/forgejo:16.0.2
+    container_name: forgejo
+    restart: unless-stopped
+    environment:
+      USER_UID: "1000"
+      USER_GID: "1000"
+      FORGEJO__server__DOMAIN: ${FORGEJO_HOSTNAME}
+      FORGEJO__server__SSH_DOMAIN: ${FORGEJO_HOSTNAME}
+      FORGEJO__server__ROOT_URL: https://${FORGEJO_HOSTNAME}/
+      FORGEJO__server__SSH_PORT: "2222"
+    ports:
+      - "2222:22"
+    volumes:
+      - forgejo_data:/data
+    networks:
+      - proxy
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.forgejo.rule: Host(`${FORGEJO_HOSTNAME}`)
+      traefik.http.routers.forgejo.entrypoints: websecure
+      traefik.http.routers.forgejo.tls: "true"
+      traefik.http.routers.forgejo.tls.certresolver: letsencrypt
+      traefik.http.services.forgejo.loadbalancer.server.port: "3000"
+
+networks:
+  proxy:
+    external: true
+    name: proxy
+
+volumes:
+  forgejo_data:
+    name: forgejo_data
