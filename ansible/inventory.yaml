@@ -12,6 +12,7 @@ workloads:
       host_roles:
         - deploy
         - docker
+      docker_configure_data_root: true
     docker-vm-dmz.tortoise-noodlefish.ts.net:
       host_roles:
         - deploy

@@ -4,7 +4,7 @@ Personal infrastructure as code. The repository manages cloud resources with
 Terraform, configures Debian and Proxmox hosts with Ansible, and deploys
 self-hosted services with Docker Compose through GitHub Actions.
 
-## Repository layout
+## Repository Layout
 
 ```text
 ansible/                 Debian host configuration and Proxmox bootstrap

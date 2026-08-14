@@ -49,8 +49,120 @@
     lxc_features_enable_docker: true
   ansible.builtin.import_tasks: ../lxc_features/add_docker.yml
 
+- name: Read the container hostname for guest storage provisioning
+  when: lxc_prepare_enable_docker | default(false)
+  ansible.builtin.command:
+    argv:
+      - pct
+      - config
+      - "{{ lxc_prepare_ctid }}"
+  register: lxc_prepare_config
+  changed_when: false
+
+- name: Derive the guest storage paths
+  when: lxc_prepare_enable_docker | default(false)
+  ansible.builtin.set_fact:
+    lxc_prepare_hostname: >-
+          {{ lxc_prepare_config.stdout_lines
+             | select('match', '^hostname:')
+             | map('regex_replace', '^hostname:\\s*', '')
+             | list
+             | first
+             | default('')
+             | trim }}
+    lxc_prepare_guest_volume_host_root: "{{ lxc_guest_volume_host_root | default('/primary/guest-volumes') }}"
+    lxc_prepare_guest_volume_guest_root: "{{ lxc_guest_volume_guest_root | default('/srv/guest-volumes') }}"
+
+- name: Require a valid container hostname for guest storage provisioning
+  when: lxc_prepare_enable_docker | default(false)
+  ansible.builtin.assert:
+    that:
+      - lxc_prepare_hostname | length > 0
+      - lxc_prepare_hostname is match('^[a-z0-9][a-z0-9-]*[a-z0-9]$')
+    fail_msg: >-
+      Could not derive a valid hostname from pct config for container
+      {{ lxc_prepare_ctid }}.
+
+- name: Inspect the host guest volume root ownership
+  when: lxc_prepare_enable_docker | default(false)
+  ansible.builtin.stat:
+    path: "{{ lxc_prepare_guest_volume_host_root }}"
+  register: lxc_prepare_guest_volume_root_stat
+
+- name: Require the host guest volume root to exist
+  when: lxc_prepare_enable_docker | default(false)
+  ansible.builtin.assert:
+    that:
+      - lxc_prepare_guest_volume_root_stat.stat.exists
+      - lxc_prepare_guest_volume_root_stat.stat.isdir
+    fail_msg: >-
+      The host guest volume root {{ lxc_prepare_guest_volume_host_root }} must
+      exist as a directory before bootstrapping Docker storage.
+
+- name: Create the host-backed guest volume directory
+  when: lxc_prepare_enable_docker | default(false)
+  ansible.builtin.file:
+    path: "{{ lxc_prepare_guest_volume_host_root }}/{{ lxc_prepare_hostname }}"
+    state: directory
+    owner: "{{ lxc_prepare_guest_volume_root_stat.stat.uid }}"
+    group: "{{ lxc_prepare_guest_volume_root_stat.stat.gid }}"
+    mode: "0755"
+
+- name: Check the reserved guest storage mount point
+  when: lxc_prepare_enable_docker | default(false)
+  ansible.builtin.set_fact:
+    lxc_prepare_guest_volume_mount: >-
+      {{ lxc_prepare_config.stdout_lines
+         | select('match', '^mp0:')
+         | list
+         | first
+         | default('') }}
+    lxc_prepare_guest_volume_expected_mount: >-
+      {{ lxc_prepare_guest_volume_host_root }}/{{ lxc_prepare_hostname }},mp={{ lxc_prepare_guest_volume_guest_root }}
+
+- name: Refuse to replace a conflicting reserved mount point
+  when: lxc_prepare_enable_docker | default(false)
+  ansible.builtin.assert:
+    that:
+      - lxc_prepare_guest_volume_mount | length == 0 or lxc_prepare_guest_volume_expected_mount in lxc_prepare_guest_volume_mount
+    fail_msg: >-
+      Container {{ lxc_prepare_ctid }} already has a conflicting mp0. Expected
+      {{ lxc_prepare_guest_volume_expected_mount }}, found
+      {{ lxc_prepare_guest_volume_mount }}.
+
+- name: Create the guest-side storage mount point
+  when:
+    - lxc_prepare_enable_docker | default(false)
+    - lxc_prepare_guest_volume_mount | length == 0
+  ansible.builtin.command:
+    argv:
+      - pct
+      - exec
+      - "{{ lxc_prepare_ctid }}"
+      - --
+      - mkdir
+      - -p
+      - "{{ lxc_prepare_guest_volume_guest_root }}"
+  changed_when: true
+
+- name: Attach the host-backed guest volume to the LXC
+  when:
+    - lxc_prepare_enable_docker | default(false)
+    - lxc_prepare_guest_volume_mount | length == 0
+  ansible.builtin.command:
+    argv:
+      - pct
+      - set
+      - "{{ lxc_prepare_ctid }}"
+      - --mp0
+      - "{{ lxc_prepare_guest_volume_expected_mount }}"
+  register: lxc_prepare_guest_volume_mount_result
+  changed_when: true
+
 - name: Apply LXC config changes
-  when: lxc_features_reboot_required | default(false)
+  when: >-
+    lxc_features_reboot_required | default(false)
+    or lxc_prepare_guest_volume_mount_result is changed
   vars:
     lxc_features_ctid: "{{ lxc_prepare_ctid }}"
   ansible.builtin.import_tasks: ../lxc_features/reboot.yml

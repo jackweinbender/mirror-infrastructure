@@ -12,8 +12,10 @@ Debian host configuration and Proxmox LXC bootstrap.
 - `roles/docker/` installs Docker Engine and Compose, and grants configured users Docker access.
 - `tasks/lxc_*` and `tasks/pve_host/` are procedural Proxmox workflows. They
   create and prepare infrastructure; they are not steady-state roles.
-- `playbooks/workloads.yaml` applies the baseline and inventory-selected roles.
-- `playbooks/local-*.yaml` are operator-run bootstrap and feature workflows.
+- `playbooks/workloads.yaml` applies the baseline and inventory-selected roles
+  to Debian guests.
+- `playbooks/local-*.yaml` are operator-run bootstrap and feature workflows;
+  `local` means they run from the LAN rather than the GitHub Actions tailnet.
 
 Roles are composable and inventory-driven. `workloads.yaml` always applies
 `base` and `tailscale`, then applies each role named by a host's `host_roles`.
@@ -100,7 +102,7 @@ Use the project interpreter for every command:
 `inventory.yaml` contains two operational groups:
 
 - `workloads`: Debian guests reached over Tailscale SSH.
-- `hypervisors`: Proxmox hosts used by local bootstrap workflows.
+- `hypervisors`: Proxmox hosts configured by the local PVE playbook.
 
 A workload selects specialized roles with `host_roles`:
 
@@ -113,7 +115,7 @@ host_roles: [deploy, docker]
 ```bash
 .venv/bin/ansible-playbook playbooks/workloads.yaml
 .venv/bin/ansible-playbook playbooks/local-bootstrap-lxc.yaml
-.venv/bin/ansible-playbook playbooks/local-bootstrap-pve.yaml
+.venv/bin/ansible-playbook playbooks/hypervisors.yaml
 .venv/bin/ansible-playbook playbooks/local-lxc-add-docker.yaml \
   -e lxc_pve_host=pve -e lxc_ctid=105
 .venv/bin/ansible-playbook playbooks/local-lxc-add-tailscale.yaml \

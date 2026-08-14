@@ -2,6 +2,15 @@
 - name: Include PVE host variables
   ansible.builtin.include_vars: vars.yml
 
+
+- name: Create the shared LXC guest volume root
+  ansible.builtin.file:
+    path: "{{ pve_host_guest_volume_root }}"
+    state: directory
+    owner: "{{ pve_host_guest_volume_owner }}"
+    group: "{{ pve_host_guest_volume_group }}"
+    mode: "0755"
+
 - name: Disable pve-enterprise repository
   ansible.builtin.template:
     src: templates/pve-enterprise.sources.j2
