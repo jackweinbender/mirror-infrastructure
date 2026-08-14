@@ -1,7 +1,7 @@
 # Forgejo
 
 Forgejo runs on `docker0-lxc` and is exposed through the host Traefik at
-`https://forgejo.weinbender.io`. The hostname is defined in `.env.template` and
+`https://git.weinbender.io`. The hostname is defined in `.env.template` and
 can be changed without modifying the Compose definition.
 
 The stack uses the Forgejo 16.0.2 image and stores repositories and application data
