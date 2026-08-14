@@ -24,3 +24,9 @@ pve_host_apt_dist_upgrade: true
 # Never reboot automatically, even if one is required after upgrading.
 # When false, a warning is surfaced instead.
 pve_host_reboot_if_required: false
+
+# Shared host-backed storage root for persistent LXC guest data. The directory
+# itself is managed by the PVE host play; guest bootstrap creates child folders.
+pve_host_guest_volume_root: /primary/guest-volumes
+pve_host_guest_volume_owner: nfs_user
+pve_host_guest_volume_group: nfs_shares

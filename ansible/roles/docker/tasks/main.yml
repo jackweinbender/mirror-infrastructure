@@ -8,5 +8,8 @@
 - name: Install Docker Engine from the official apt repository
   ansible.builtin.import_tasks: install.yml
 
+- name: Configure Docker data root when requested
+  ansible.builtin.import_tasks: data_root.yml
+
 - name: Grant docker-group membership
   ansible.builtin.import_tasks: group.yml
