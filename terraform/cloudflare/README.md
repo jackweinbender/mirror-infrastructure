@@ -7,7 +7,7 @@ Cloudflare resources for `weinbender.io` — Zero Trust Access, DNS, Tunnel.
 | File | Resources |
 |------|-----------|
 | `access.tf` | Google OAuth provider, existing Access policy data source, Access Application `uk2026.weinbender.io`, Service Token `weinbender-io-api` |
-| `dns.tf` | CNAME records: `uk2026`, `helloworld` → Tunnel CNAME |
+| `dns.tf` | CNAME records: `uk2026`, `helloworld` → Tunnel CNAME; `ntfy` → `docker0-lxc` Traefik gateway |
 | `tunnel.tf` | Cloudflare Tunnel `weinbender-io` + config |
 
 ## Access Policy (uk2026.weinbender.io)
@@ -37,6 +37,15 @@ Tunnel-backed records point directly to the tunnel target:
 uk2026.weinbender.io     CNAME <tunnel-id>.cfargotunnel.com
 helloworld.weinbender.io CNAME <tunnel-id>.cfargotunnel.com
 ```
+
+The ntfy service is LAN-backed by Traefik on `docker0-lxc`:
+
+```
+ntfy.weinbender.io CNAME docker0-lxc.weinbender.io
+```
+
+This record is intentionally unproxied. The `docker0-lxc.weinbender.io` gateway A
+record must already point to the host's private LAN address.
 
 Services exposed through a LAN Traefik gateway use a two-record chain instead:
 
