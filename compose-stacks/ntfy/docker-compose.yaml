@@ -12,6 +12,7 @@ services:
       NTFY_ATTACHMENT_CACHE_DIR: /var/cache/ntfy/attachments
       NTFY_AUTH_FILE: /var/lib/ntfy/user.db
       NTFY_AUTH_DEFAULT_ACCESS: deny-all
+      NTFY_ENABLE_LOGIN: "true"
     volumes:
       - ntfy_cache:/var/cache/ntfy
       - ntfy_lib:/var/lib/ntfy
