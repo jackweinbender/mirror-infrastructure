@@ -1,0 +1,14 @@
+---
+services:
+  forgejo-runner:
+    image: code.forgejo.org/forgejo/runner:13.0.0
+    container_name: forgejo-runner
+    restart: unless-stopped
+    command: daemon
+    volumes:
+      - forgejo_runner_data:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+
+volumes:
+  forgejo_runner_data:
+    name: forgejo_runner_data
