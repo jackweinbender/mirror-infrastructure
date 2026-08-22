@@ -1,0 +1,128 @@
+---
+name: Compose stack deployments
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - compose-stacks/**
+      - ansible/inventory.yaml
+      - .github/workflows/deploy.yaml
+  schedule:
+    - cron: '0 5 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  DOCKER_USER: ${{ vars.DOCKER_USER || 'deploy' }}
+
+jobs:
+  preflight:
+    name: Validate inventory and stacks
+    runs-on: ubuntu-latest
+    outputs:
+      hosts: ${{ steps.validate.outputs.hosts }}
+      stacks: ${{ steps.validate.outputs.stacks }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Validate inventory, deployments, overlays, dotenv, and Compose
+        id: validate
+        run: ruby .github/scripts/preflight.rb
+
+  platform:
+    name: Reconcile docker-networking on ${{ matrix.host.id }}
+    needs: preflight
+    if: needs.preflight.result == 'success'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        host: ${{ fromJSON(needs.preflight.outputs.hosts) }}
+    concurrency:
+      group: compose-${{ matrix.host.id }}
+      cancel-in-progress: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Load Tailscale credentials from 1Password
+        uses: 1password/load-secrets-action@v5
+        with:
+          export-env: true
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.ONE_PASSWORD_SA_TOKEN }}
+          TS_OAUTH_CLIENT_ID: op://network/tailscale-oauth-github-actions/client-id
+          TS_OAUTH_CLIENT_SECRET: op://network/tailscale-oauth-github-actions/client-secret
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ env.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ env.TS_OAUTH_CLIENT_SECRET }}
+          tags: tag:ci
+          version: 1.76.1
+      - name: Install 1Password CLI
+        uses: 1password/install-cli-action@v4
+      - name: Configure SSH known hosts
+        env:
+          HOST_ADDRESS: ${{ matrix.host.address }}
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H "$HOST_ADDRESS" >> ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+      - name: Reconcile docker-networking platform
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.ONE_PASSWORD_SA_TOKEN }}
+          HOST_ID: ${{ matrix.host.id }}
+          HOST_ADDRESS: ${{ matrix.host.address }}
+        run: ruby .github/scripts/reconcile-platform.rb "$HOST_ID" "$HOST_ADDRESS"
+
+  reconcile:
+    name: Reconcile ${{ matrix.host.id }}
+    needs: [preflight, platform]
+    if: needs.preflight.result == 'success' && needs.platform.result == 'success'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        host: ${{ fromJSON(needs.preflight.outputs.hosts) }}
+    concurrency:
+      group: compose-${{ matrix.host.id }}
+      cancel-in-progress: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Install rsync
+        run: sudo apt-get update && sudo apt-get install -y rsync
+      - name: Load Tailscale credentials from 1Password
+        uses: 1password/load-secrets-action@v5
+        with:
+          export-env: true
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.ONE_PASSWORD_SA_TOKEN }}
+          TS_OAUTH_CLIENT_ID: op://network/tailscale-oauth-github-actions/client-id
+          TS_OAUTH_CLIENT_SECRET: op://network/tailscale-oauth-github-actions/client-secret
+      - name: Connect to Tailscale
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ env.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ env.TS_OAUTH_CLIENT_SECRET }}
+          tags: tag:ci
+          version: 1.76.1
+      - name: Install 1Password CLI
+        uses: 1password/install-cli-action@v4
+      - name: Configure SSH known hosts
+        env:
+          HOST_ADDRESS: ${{ matrix.host.address }}
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H "$HOST_ADDRESS" >> ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+      - name: Reconcile all application stacks
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.ONE_PASSWORD_SA_TOKEN }}
+          HOST_ID: ${{ matrix.host.id }}
+          HOST_ADDRESS: ${{ matrix.host.address }}
+          STACKS_JSON: ${{ needs.preflight.outputs.stacks }}
+        run: ruby .github/scripts/reconcile-host.rb "$HOST_ID" "$HOST_ADDRESS" "$STACKS_JSON"
