@@ -199,7 +199,7 @@ When a deployment job fails:
 3. Do not manually delete an unmarked live directory. Check its marker and
    filesystem contents first.
 4. Fix the repository source and validate locally before rerunning.
-5. For changes under `.github/scripts`, `.github/workflows`, or other paths not
+5. For changes under `.github/scripts`, `.forgejo/workflows`, or other paths not
    covered by the Compose push filter, manually dispatch the workflow:
 
    ```bash

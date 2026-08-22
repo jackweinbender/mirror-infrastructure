@@ -151,5 +151,5 @@ all records in the zone. See the relevant stack README and
 Keep the relevant stack README and
 [`../../../compose-stacks/OPERATIONS.md`](../../../compose-stacks/OPERATIONS.md)
 consistent with behavior changes. If the workflow or safety model changes,
-update [`.github/workflows/README.md`](../../../.github/workflows/README.md) as
+update [`.forgejo/workflows/README.md`](../../../.forgejo/workflows/README.md) as
 well.

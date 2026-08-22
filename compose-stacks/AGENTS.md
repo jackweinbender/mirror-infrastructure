@@ -40,6 +40,6 @@ docker compose \
 ```
 
 Omit the overlay when none exists. Also run the Ruby syntax checks and
-`git diff --check` listed in `.github/workflows/AGENTS.md`. Script-only workflow
+`git diff --check` listed in `.forgejo/workflows/AGENTS.md`. Script-only workflow
 changes may require a manual `deploy.yaml` dispatch after merging; do not claim
 a deployment passed without checking the actual workflow result.

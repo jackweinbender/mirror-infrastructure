@@ -6,25 +6,20 @@ on:
     paths:
       - terraform/**
       - .github/terraform-components.json
-      - .github/workflows/plan-or-apply.yml
-      - .github/workflows/pr-plan-all.yml
-      - .github/workflows/terraform.yml
+      - .forgejo/workflows/plan-or-apply.yml
+      - .forgejo/workflows/pr-plan-all.yml
+      - .forgejo/workflows/terraform.yml
       - .github/scripts/terraform-components.rb
       - .github/scripts/validate-terraform-components.rb
 
-permissions:
-  id-token: write
-  contents: read
-  issues: write
-  pull-requests: write
 
 jobs:
   validate_components:
     name: Validate Terraform components
-    runs-on: ubuntu-latest
+    runs-on: docker
     steps:
       - name: Checkout PR branch
-        uses: actions/checkout@v7
+        uses: https://data.forgejo.org/actions/checkout@v6
         with:
           ref: ${{ github.event.pull_request.head.sha }}
       - name: Validate Terraform components
@@ -33,13 +28,13 @@ jobs:
   changed_components:
     name: Find changed Terraform components
     needs: validate_components
-    runs-on: ubuntu-latest
+    runs-on: docker
     outputs:
       components: ${{ steps.components.outputs.components }}
       has_changes: ${{ steps.components.outputs.has_changes }}
     steps:
       - name: Checkout PR history
-        uses: actions/checkout@v7
+        uses: https://data.forgejo.org/actions/checkout@v6
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
@@ -56,7 +51,7 @@ jobs:
   terraform:
     needs: changed_components
     if: needs.changed_components.outputs.has_changes == 'true'
-    uses: ./.github/workflows/terraform.yml
+    uses: ./.forgejo/workflows/terraform.yml
     with:
       components: ${{ needs.changed_components.outputs.components }}
       apply: false

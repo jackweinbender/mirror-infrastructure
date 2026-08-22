@@ -29,7 +29,7 @@ treat unrelated working-tree changes as protected.
 
 - [`.github/scripts/AGENTS.md`](.github/scripts/AGENTS.md): Ruby libraries,
   entrypoints, and unit tests.
-- [`.github/workflows/AGENTS.md`](.github/workflows/AGENTS.md): workflow
+- [`.forgejo/workflows/AGENTS.md`](.forgejo/workflows/AGENTS.md): workflow
   orchestration, triggers, and CI/deployment verification.
 
 

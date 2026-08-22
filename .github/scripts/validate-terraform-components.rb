@@ -11,7 +11,7 @@ terraform_directories = Dir.children('terraform').select do |entry|
   !entry.start_with?('.') && File.directory?(File.join('terraform', entry))
 end
 
-workflow = YAML.load_file('.github/workflows/plan-or-apply.yml')
+workflow = YAML.load_file('.forgejo/workflows/plan-or-apply.yml')
 triggers = workflow['on'] || workflow[true]
 dropdown = triggers.dig('workflow_dispatch', 'inputs', 'component', 'options')
 

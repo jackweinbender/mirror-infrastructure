@@ -1,4 +1,4 @@
-# GitHub Actions workflows
+# Forgejo Actions workflows
 
 The Compose-specific operating pattern and recovery process are documented in
 [`../../compose-stacks/OPERATIONS.md`](../../compose-stacks/OPERATIONS.md).
@@ -17,4 +17,4 @@ The workflow owns the `docker-networking` platform and application stacks. Every
 
 Required deployment secrets are `ONE_PASSWORD_SA_TOKEN` and the Tailscale OAuth credentials referenced through 1Password. Runners connect to hosts over the trusted Tailscale network using OpenSSH; `ssh-keyscan -H` populates runner `known_hosts`. Resolved environment values are streamed to remote staging, never printed, passed as arguments, or uploaded as artifacts.
 
-Other workflows cover Terraform planning/apply and Ansible maintenance. Ansible prepares the `deploy` account, Docker access, rsync, and `/etc/compose-stacks`.
+Other workflows cover Terraform planning/apply and Ansible maintenance. Forgejo runners use the `docker` label; third-party actions are fetched from their public GitHub repositories, while core actions use Forgejo’s action mirror. Ansible prepares the `deploy` account, Docker access, rsync, and `/etc/compose-stacks`.
