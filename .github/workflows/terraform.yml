@@ -1,0 +1,142 @@
+---
+name: Terraform
+
+on:
+  workflow_call:
+    inputs:
+      components:
+        description: JSON array of Terraform components, or all
+        required: false
+        default: all
+        type: string
+      apply:
+        description: Apply Terraform after planning
+        required: false
+        default: false
+        type: boolean
+      comment:
+        description: Comment plans on the pull request
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  id-token: write
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  resolve_components:
+    name: Resolve Terraform components
+    runs-on: ubuntu-latest
+    outputs:
+      components: ${{ steps.components.outputs.components }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+      - name: Resolve components
+        id: components
+        env:
+          REQUESTED_COMPONENTS: ${{ inputs.components }}
+        run: |
+          if [ "$REQUESTED_COMPONENTS" = "all" ]; then
+            components="$(ruby -rjson -e 'puts JSON.generate(JSON.parse(File.read(".github/terraform-components.json")))')"
+          else
+            components="$REQUESTED_COMPONENTS"
+          fi
+          echo "components=$components" >> "$GITHUB_OUTPUT"
+
+  terraform:
+    name: Terraform ${{ matrix.component }}
+    needs: resolve_components
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    concurrency:
+      group: terraform-${{ matrix.component }}
+      cancel-in-progress: false
+    strategy:
+      fail-fast: false
+      matrix:
+        component: ${{ fromJSON(needs.resolve_components.outputs.components) }}
+    env:
+      TF_VAR_cloudflare_zone_id: ${{ secrets.CLOUDFLARE_ZONE_ID }}
+      TF_VAR_cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Auth with AWS
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          aws-region: us-east-1
+          role-to-assume: arn:aws:iam::325498355308:role/GithubActionsRole
+          role-session-name: GithubActionsRole
+      - name: Auth with Google Cloud
+        uses: google-github-actions/auth@v3
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+      - name: Load secrets
+        uses: 1password/load-secrets-action@v5
+        with:
+          export-env: true
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.ONE_PASSWORD_SA_TOKEN }}
+          CLOUDFLARE_API_TOKEN: op://network/cloudflare-terraform/credential
+          TF_VAR_google_oauth_client_id: op://network/cloudflare-google-oauth/client-id
+          TF_VAR_google_oauth_client_secret: op://network/cloudflare-google-oauth/client-secret
+      - uses: hashicorp/setup-terraform@v4
+      - name: Terraform init
+        run: terraform -chdir=terraform/${{ matrix.component }} init
+      - name: Terraform fmt
+        run: terraform -chdir=terraform/${{ matrix.component }} fmt -check
+      - name: Terraform validate
+        run: terraform -chdir=terraform/${{ matrix.component }} validate
+      - name: Terraform plan
+        run: |
+          set -o pipefail
+          terraform -chdir=terraform/${{ matrix.component }} plan -no-color \
+            | tee "$RUNNER_TEMP/terraform-plan-${{ matrix.component }}.txt"
+      - name: Terraform apply
+        if: ${{ inputs.apply }}
+        run: terraform -chdir=terraform/${{ matrix.component }} apply -auto-approve
+      - name: Comment plan
+        if: ${{ inputs.comment }}
+        uses: actions/github-script@v9
+        env:
+          COMPONENT: ${{ matrix.component }}
+          PLAN_FILE: ${{ runner.temp }}/terraform-plan-${{ matrix.component }}.txt
+        with:
+          script: |
+            const fs = require('fs');
+            const marker = `<!-- terraform-plan-${process.env.COMPONENT} -->`;
+            const maxLength = 60000;
+            let plan = fs.readFileSync(process.env.PLAN_FILE, 'utf8');
+            if (plan.length > maxLength) {
+              plan = `${plan.slice(0, maxLength)}\n\n... plan output truncated ...`;
+            }
+            const body = `${marker}\n### Terraform plan: \`${process.env.COMPONENT}\`\n\n<details><summary>Show plan</summary>\n\n\`\`\`terraform\n${plan}\n\`\`\`\n\n</details>`;
+            const comments = await github.paginate(github.rest.issues.listComments, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              per_page: 100,
+            });
+            const existing = comments.find(comment => comment.body?.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }

@@ -1,0 +1,32 @@
+---
+name: Validate GitHub automation
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/**
+      - .github/scripts/**
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate workflows and scripts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Validate workflow syntax
+        run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
+
+
+      - name: Check Ruby script syntax
+        run: |
+          for script in .github/scripts/*.rb .github/scripts/lib/*.rb; do
+            ruby -c "$script"
+          done
+
+      - name: Test Ruby libraries
+        run: ruby .github/scripts/test/lib_test.rb
