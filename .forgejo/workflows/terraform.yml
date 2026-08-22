@@ -1,6 +1,8 @@
 ---
 name: Terraform
 
+enable-openid-connect: true
+
 on:
   workflow_call:
     inputs:
@@ -20,21 +22,16 @@ on:
         default: false
         type: boolean
 
-permissions:
-  id-token: write
-  contents: read
-  issues: write
-  pull-requests: write
 
 jobs:
   resolve_components:
     name: Resolve Terraform components
-    runs-on: ubuntu-latest
+    runs-on: docker
     outputs:
       components: ${{ steps.components.outputs.components }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: https://data.forgejo.org/actions/checkout@v6
       - name: Resolve components
         id: components
         env:
@@ -50,7 +47,7 @@ jobs:
   terraform:
     name: Terraform ${{ matrix.component }}
     needs: resolve_components
-    runs-on: ubuntu-latest
+    runs-on: docker
     timeout-minutes: 30
     concurrency:
       group: terraform-${{ matrix.component }}
@@ -64,22 +61,22 @@ jobs:
       TF_VAR_cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: https://data.forgejo.org/actions/checkout@v6
         with:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Auth with AWS
-        uses: aws-actions/configure-aws-credentials@v6
+        uses: https://github.com/aws-actions/configure-aws-credentials@v6
         with:
           aws-region: us-east-1
           role-to-assume: arn:aws:iam::325498355308:role/GithubActionsRole
           role-session-name: GithubActionsRole
       - name: Auth with Google Cloud
-        uses: google-github-actions/auth@v3
+        uses: https://github.com/google-github-actions/auth@v3
         with:
           workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
           service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
       - name: Load secrets
-        uses: 1password/load-secrets-action@v5
+        uses: https://github.com/1Password/load-secrets-action@v5
         with:
           export-env: true
         env:
@@ -87,7 +84,7 @@ jobs:
           CLOUDFLARE_API_TOKEN: op://network/cloudflare-terraform/credential
           TF_VAR_google_oauth_client_id: op://network/cloudflare-google-oauth/client-id
           TF_VAR_google_oauth_client_secret: op://network/cloudflare-google-oauth/client-secret
-      - uses: hashicorp/setup-terraform@v4
+      - uses: https://github.com/hashicorp/setup-terraform@v4
       - name: Terraform init
         run: terraform -chdir=terraform/${{ matrix.component }} init
       - name: Terraform fmt
@@ -104,7 +101,7 @@ jobs:
         run: terraform -chdir=terraform/${{ matrix.component }} apply -auto-approve
       - name: Comment plan
         if: ${{ inputs.comment }}
-        uses: actions/github-script@v9
+        uses: https://github.com/actions/github-script@v8
         env:
           COMPONENT: ${{ matrix.component }}
           PLAN_FILE: ${{ runner.temp }}/terraform-plan-${{ matrix.component }}.txt

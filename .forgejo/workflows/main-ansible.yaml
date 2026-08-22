@@ -22,11 +22,11 @@ defaults:
 
 jobs:
   playbook:
-    runs-on: ubuntu-latest
+    runs-on: docker
     steps:
-      - uses: actions/checkout@v7
+      - uses: https://data.forgejo.org/actions/checkout@v6
       - name: Load secret
-        uses: 1password/load-secrets-action@v5
+        uses: https://github.com/1Password/load-secrets-action@v5
         with:
           export-env: true
         env:
@@ -34,12 +34,12 @@ jobs:
           TS_OAUTH_CLIENT_ID: op://network/tailscale-oauth-github-actions/client-id
           TS_OAUTH_CLIENT_SECRET: op://network/tailscale-oauth-github-actions/client-secret
       - name: Tailscale
-        uses: tailscale/github-action@v4
+        uses: https://github.com/tailscale/github-action@v4
         with:
           oauth-client-id: ${{ env.TS_OAUTH_CLIENT_ID }}
           oauth-secret: ${{ env.TS_OAUTH_CLIENT_SECRET }}
           tags: tag:ci
-      - uses: actions/setup-python@v7
+      - uses: https://data.forgejo.org/actions/setup-python@v6
         with:
           python-version: "3.14"
           cache: pip

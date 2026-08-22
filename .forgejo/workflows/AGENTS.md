@@ -44,7 +44,7 @@ When a workflow invokes a Ruby script under `.github/scripts/`:
 For workflow or script changes, run:
 
 ```bash
-go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
+ruby -ryaml -e "Dir['.forgejo/workflows/*.{yml,yaml}'].each { |path| YAML.load_file(path) }"
 ruby .github/scripts/test/lib_test.rb
 ruby .github/scripts/preflight.rb
 for script in .github/scripts/*.rb .github/scripts/lib/*.rb .github/scripts/test/*.rb; do
