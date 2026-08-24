@@ -1,7 +1,7 @@
 ---
 services:
   server:
-    image: codefloe.com/crowci/crow-server:6.5.0
+    image: codeberg.org/crowci/crow-server:v6.5.0
     container_name: crow-ci-server
     restart: unless-stopped
     environment:
@@ -28,7 +28,7 @@ services:
       traefik.http.services.crow-ci.loadbalancer.server.port: "8000"
 
   agent:
-    image: codefloe.com/crowci/crow-agent:6.5.0
+    image: codeberg.org/crowci/crow-agent:v6.5.0
     container_name: crow-ci-agent
     depends_on:
       - server
