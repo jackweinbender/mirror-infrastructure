@@ -1,0 +1,53 @@
+---
+services:
+  server:
+    image: codefloe.com/crowci/crow-server:6.5.0
+    container_name: crow-ci-server
+    restart: unless-stopped
+    environment:
+      CROW_OPEN: ${CROW_OPEN}
+      CROW_HOST: https://${CROW_HOSTNAME}
+      CROW_AGENT_SECRET: ${CROW_AGENT_SECRET}
+      CROW_FORGEJO: "true"
+      CROW_FORGEJO_URL: ${CROW_FORGEJO_URL}
+      CROW_FORGEJO_CLIENT: ${CROW_FORGEJO_CLIENT}
+      CROW_FORGEJO_SECRET: ${CROW_FORGEJO_SECRET}
+    expose:
+      - "8000"
+    volumes:
+      - crow_data:/var/lib/crow
+    networks:
+      - crow
+      - proxy
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.crow-ci.rule: Host(`${CROW_HOSTNAME}`)
+      traefik.http.routers.crow-ci.entrypoints: websecure
+      traefik.http.routers.crow-ci.tls: "true"
+      traefik.http.routers.crow-ci.tls.certresolver: letsencrypt
+      traefik.http.services.crow-ci.loadbalancer.server.port: "8000"
+
+  agent:
+    image: codefloe.com/crowci/crow-agent:6.5.0
+    container_name: crow-ci-agent
+    depends_on:
+      - server
+    restart: unless-stopped
+    environment:
+      CROW_SERVER: server:9000
+      CROW_AGENT_SECRET: ${CROW_AGENT_SECRET}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - crow
+
+networks:
+  crow:
+    name: crow-ci
+  proxy:
+    external: true
+    name: proxy
+
+volumes:
+  crow_data:
+    name: crow_ci_data
