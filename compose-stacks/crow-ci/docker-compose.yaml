@@ -36,8 +36,11 @@ services:
     environment:
       CROW_SERVER: server:9000
       CROW_AGENT_SECRET: ${CROW_AGENT_SECRET}
+      CROW_HOSTNAME: docker0-lxc
+      CROW_AGENT_CONFIG_FILE: /etc/crow/agent.conf
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+      - crow_agent_config:/etc/crow
     networks:
       - crow
 
@@ -51,3 +54,5 @@ networks:
 volumes:
   crow_data:
     name: crow_ci_data
+  crow_agent_config:
+    name: crow_ci_agent_config
