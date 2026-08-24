@@ -12,6 +12,7 @@ services:
       CROW_FORGEJO_URL: ${CROW_FORGEJO_URL}
       CROW_FORGEJO_CLIENT: ${CROW_FORGEJO_CLIENT}
       CROW_FORGEJO_SECRET: ${CROW_FORGEJO_SECRET}
+      CROW_ADMIN: ${CROW_ADMIN}
     expose:
       - "8000"
     volumes:
