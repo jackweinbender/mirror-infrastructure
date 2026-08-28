@@ -19,7 +19,11 @@ steps:
     commands:
       - export GITHUB_REPOSITORY="$CI_REPO" GITHUB_SHA="$CI_COMMIT_SHA" GITHUB_RUN_ID="$CI_PIPELINE_NUMBER" GITHUB_RUN_ATTEMPT=1 GITHUB_RUN_NUMBER="$CI_PIPELINE_NUMBER" DOCKER_USER=deploy
       - mkdir -p ~/.ssh
+      - tailscaled --tun=userspace-networking --socks5-server=localhost:1055 --state=/tmp/tailscale.state >/tmp/tailscaled.log 2>&1 &
+      - until tailscale status >/dev/null 2>&1; do sleep 1; done
       - tailscale up --auth-key="$TS_OAUTH_CLIENT_SECRET" --advertise-tags=tag:ci
+      - printf 'Host *\n  ProxyCommand tailscale nc %%h %%p\n' > ~/.ssh/config
+      - chmod 600 ~/.ssh/config
       - ruby .github/scripts/discover-deploy-hosts.rb ansible/inventory.yaml > /tmp/deploy-hosts.json
       - ruby -c .github/scripts/reconcile-platform.rb
       - ruby -c .github/scripts/reconcile-host.rb

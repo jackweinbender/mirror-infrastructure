@@ -1,0 +1,22 @@
+---
+name: Ansible validation
+when:
+  - event: pull_request
+    path:
+      include: ['ansible/**', '.crow/**', '.forgejo/workflows/**', '.github/workflows/**']
+  - event: push
+    branch: ${CI_REPO_DEFAULT_BRANCH}
+    path:
+      include: ['ansible/**', '.crow/**']
+  - event: manual
+steps:
+  - name: ansible-validation
+    image: git.weinbender.io/labs/ci-base:latest
+    commands:
+      - python3 -m venv /tmp/ansible-venv
+      - /tmp/ansible-venv/bin/pip install -r ansible/requirements.txt
+      - /tmp/ansible-venv/bin/ansible-galaxy collection install -r ansible/ansible-requirements.yaml
+      - /tmp/ansible-venv/bin/ansible-lint ansible
+      - for playbook in ansible/playbooks/*.yaml; do /tmp/ansible-venv/bin/ansible-playbook "$playbook" --syntax-check; done
+
+# Validation only: no Tailscale access or host changes.
