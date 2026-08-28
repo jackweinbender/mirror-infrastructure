@@ -16,6 +16,10 @@ host-level access. Its identity configuration is persisted in the named volume
 `crow_ci_agent_config`, and the agent uses the stable hostname `docker0-lxc` so
 restarts reconnect to the same Crow agent record.
 
+The Docker Buildx plugin is allowlisted as privileged because it starts an
+embedded Docker daemon to build and push images. Keep this list narrow: adding
+an image here grants that plugin host-level Docker access.
+
 ## One-time setup
 
 1. Create a Forgejo OAuth application for Crow CI with this redirect URI:
