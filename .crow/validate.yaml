@@ -8,7 +8,7 @@ steps:
   - name: validate
     image: git.weinbender.io/labs/ci-base:latest
     commands:
-      - ruby -ryaml -e "Dir['.forgejo/workflows/*.{yml,yaml}'].each { |path| YAML.load_file(path); puts \"YAML OK #{path}\" }"
+      - ruby -ryaml -e 'Dir[".forgejo/workflows/*.{yml,yaml}"].each { |path| YAML.load_file(path); puts "YAML OK #{path}" }'
       - for script in .github/scripts/*.rb .github/scripts/lib/*.rb; do ruby -c "$script"; done
       - ruby .github/scripts/test/lib_test.rb
       - ruby .github/scripts/preflight.rb
