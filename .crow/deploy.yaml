@@ -7,11 +7,16 @@ when:
 steps:
   - name: preflight
     image: git.weinbender.io/labs/ci-base:main-${CI_COMMIT_SHA}
+    environment:
+      LANG: C.UTF-8
+      LC_ALL: C.UTF-8
     commands:
       - ruby .github/scripts/preflight.rb
   - name: deploy-platform-and-stacks
     image: git.weinbender.io/labs/ci-base:main-${CI_COMMIT_SHA}
     environment:
+      LANG: C.UTF-8
+      LC_ALL: C.UTF-8
       OP_SERVICE_ACCOUNT_TOKEN:
         from_secret: ONE_PASSWORD_SA_TOKEN
       TS_OAUTH_CLIENT_SECRET:

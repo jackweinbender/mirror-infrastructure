@@ -17,7 +17,7 @@ steps:
       - /tmp/ansible-venv/bin/pip install -r ansible/requirements.txt
       - ln -sf /tmp/ansible-venv/bin/ansible-lint /usr/local/bin/ansible-lint
       - ln -sf /tmp/ansible-venv/bin/ansible-playbook /usr/local/bin/ansible-playbook
-      - ansible-galaxy collection install -r ansible/ansible-requirements.yaml
+      - /tmp/ansible-venv/bin/ansible-galaxy collection install -r ansible/ansible-requirements.yaml
       - tailscaled --tun=userspace-networking --socks5-server=localhost:1055 --state=/tmp/tailscale.state >/tmp/tailscaled.log 2>&1 &
       - until tailscale status >/dev/null 2>&1; do sleep 1; done
       - tailscale up --auth-key="$TS_OAUTH_CLIENT_SECRET" --advertise-tags=tag:ci
