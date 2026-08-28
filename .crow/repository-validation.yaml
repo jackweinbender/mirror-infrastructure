@@ -6,7 +6,7 @@ when:
   - event: manual
 steps:
   - name: validate
-    image: git.weinbender.io/labs/ci-base:latest
+    image: git.weinbender.io/labs/ci-base:main-${CI_COMMIT_SHA}
     commands:
       - ruby -ryaml -e 'Dir[".forgejo/workflows/*.{yml,yaml}"].each { |path| YAML.load_file(path); puts "YAML OK #{path}" }'
       - for script in .github/scripts/*.rb .github/scripts/lib/*.rb; do ruby -c "$script"; done
