@@ -1,0 +1,27 @@
+---
+name: Build and push CI base image
+when:
+  - event: push
+    branch: ${CI_REPO_DEFAULT_BRANCH}
+    path:
+      include:
+        - 'ci-images/ci-base/**'
+        - 'ci-images/README.md'
+        - '.crow/ci-base.yaml'
+  - event: manual
+
+steps:
+  - name: build-and-push
+    image: codefloe.com/crow-plugins/docker-buildx:latest
+    settings:
+      context: .
+      dockerfile: ci-images/ci-base/Dockerfile
+      repo: git.weinbender.io/labs/ci-base
+      tags:
+        - 'main-${CI_COMMIT_SHA}'
+        - latest
+      registry: https://git.weinbender.io
+      username:
+        from_secret: registry_username
+      password:
+        from_secret: registry_password
