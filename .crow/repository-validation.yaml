@@ -1,0 +1,24 @@
+---
+name: Repository validation
+when:
+  - event: push
+  - event: pull_request
+  - event: manual
+steps:
+  - name: validate
+    image: git.weinbender.io/labs/ci-base:latest
+    commands:
+      - ruby -ryaml -e 'Dir[".forgejo/workflows/*.{yml,yaml}"].each { |path| YAML.load_file(path); puts "YAML OK #{path}" }'
+      - for script in .github/scripts/*.rb .github/scripts/lib/*.rb; do ruby -c "$script"; done
+      - ruby .github/scripts/test/lib_test.rb
+      - ruby .github/scripts/preflight.rb
+      - git diff --check
+      - go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
+
+# Safe for pull requests because it has no secrets. Existing workflows remain unchanged.
+
+---
+# Crow workflow documents must be one YAML document per file. This marker is
+# intentionally invalid if parsed as a second document and should be removed
+# before merging.
+# END

@@ -1,0 +1,14 @@
+---
+name: Compose validation
+when:
+  - event: pull_request
+    path:
+      include: ['compose-stacks/**', 'ansible/inventory.yaml', '.crow/**']
+  - event: manual
+steps:
+  - name: preflight
+    image: git.weinbender.io/labs/ci-base:latest
+    commands:
+      - ruby .github/scripts/preflight.rb
+
+# Runs the authoritative preflight without deployment credentials.
