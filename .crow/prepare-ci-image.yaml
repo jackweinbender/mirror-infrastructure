@@ -1,0 +1,23 @@
+---
+name: Prepare CI base image
+when:
+  - event: manual
+steps:
+  - name: build-and-push
+    image: codefloe.com/crow-plugins/docker-buildx:latest
+    settings:
+      context: .
+      dockerfile: ci-images/ci-base/Dockerfile
+      repo: git.weinbender.io/labs/ci-base
+      tags:
+        - 'main-${CI_COMMIT_SHA}'
+        - latest
+      registry: https://git.weinbender.io
+      username:
+        from_secret: registry_username
+      password:
+        from_secret: registry_password
+
+# Run this workflow first for each new main commit. Consumer workflows use the
+# immutable main-${CI_COMMIT_SHA} tag and therefore must not run concurrently
+# with this image build. The original ci-base workflow remains unchanged.
