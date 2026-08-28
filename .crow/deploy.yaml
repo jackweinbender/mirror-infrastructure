@@ -1,0 +1,37 @@
+---
+name: Compose stack deployments
+when:
+  - event: manual
+  - event: cron
+    cron: deploy
+steps:
+  - name: preflight
+    image: git.weinbender.io/labs/ci-base:latest
+    commands:
+      - ruby .github/scripts/preflight.rb
+  - name: deploy-platform-and-stacks
+    image: git.weinbender.io/labs/ci-base:latest
+    environment:
+      OP_SERVICE_ACCOUNT_TOKEN:
+        from_secret: ONE_PASSWORD_SA_TOKEN
+      TS_OAUTH_CLIENT_SECRET:
+        from_secret: TS_OAUTH_CLIENT_SECRET
+    commands:
+      - export GITHUB_REPOSITORY="$CI_REPO" GITHUB_SHA="$CI_COMMIT_SHA" GITHUB_RUN_ID="$CI_PIPELINE_NUMBER" GITHUB_RUN_ATTEMPT=1 GITHUB_RUN_NUMBER="$CI_PIPELINE_NUMBER" DOCKER_USER=deploy
+      - mkdir -p ~/.ssh
+      - tailscale up --auth-key="$TS_OAUTH_CLIENT_SECRET" --advertise-tags=tag:ci
+      - ruby .github/scripts/discover-deploy-hosts.rb ansible/inventory.yaml > /tmp/deploy-hosts.json
+      - ruby -c .github/scripts/reconcile-platform.rb
+      - ruby -c .github/scripts/reconcile-host.rb
+      - |
+        ruby -rjson -e 'JSON.parse(File.read("/tmp/deploy-hosts.json")).each { |host| puts "#{host.fetch("id")} #{host.fetch("address")}" }' | while read -r host_id host_address; do
+          ssh-keyscan -H "$host_address" >> ~/.ssh/known_hosts
+          ruby .github/scripts/reconcile-platform.rb "$host_id" "$host_address"
+          ruby .github/scripts/reconcile-host.rb "$host_id" "$host_address" "$(ruby -rjson -e 'puts JSON.generate(Dir.children("compose-stacks").select { |n| File.file?(File.join("compose-stacks", n, "docker-compose.yaml")) && n != "docker-networking" }.sort)')"
+        done
+
+# Configure the existing 05:00 UTC schedule as a Crow cron named `deploy`.
+# Deployment is manual/cron-only during migration; it is not enabled for pushes
+# or pull requests. Existing GitHub and Forgejo workflows remain unchanged.
+# Required Crow repository secret: ONE_PASSWORD_SA_TOKEN and
+# TS_OAUTH_CLIENT_SECRET. The deployment user is currently `deploy`.

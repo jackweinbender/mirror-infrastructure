@@ -1,0 +1,101 @@
+---
+name: Repository validation
+when:
+  - event: push
+  - event: pull_request
+  - event: manual
+steps:
+  - name: validate
+    image: git.weinbender.io/labs/ci-base:latest
+    commands:
+      - ruby -ryaml -e "Dir['.forgejo/workflows/*.{yml,yaml}'].each { |path| YAML.load_file(path); puts \"YAML OK #{path}\" }"
+      - for script in .github/scripts/*.rb .github/scripts/lib/*.rb; do ruby -c "$script"; done
+      - ruby .github/scripts/test/lib_test.rb
+      - ruby .github/scripts/preflight.rb
+      - git diff --check
+      - go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
+
+# Consolidates the existing GitHub and Forgejo validation workflows. It is safe
+# for pull requests because it has no secrets.
+# Existing GitHub and Forgejo workflows remain unchanged.
+---
+name: Terraform validation
+when:
+  - event: pull_request
+    path:
+      include:
+        - 'terraform/**'
+        - '.github/terraform-components.json'
+        - '.crow/**'
+        - '.forgejo/workflows/**'
+        - '.github/workflows/**'
+        - '.github/scripts/terraform-components.rb'
+        - '.github/scripts/validate-terraform-components.rb'
+  - event: push
+    branch: ${CI_REPO_DEFAULT_BRANCH}
+    path:
+      include:
+        - 'terraform/**'
+        - '.crow/**'
+  - event: manual
+steps:
+  - name: validate-components
+    image: git.weinbender.io/labs/ci-base:latest
+    commands:
+      - ruby .github/scripts/validate-terraform-components.rb
+      - |
+        for component in aws cloudflare gcp-remind-me gcp-weinbender-io mgmt; do
+          terraform -chdir="terraform/$component" init -backend=false
+          terraform -chdir="terraform/$component" fmt -check
+          terraform -chdir="terraform/$component" validate
+        done
+
+# Plan/apply remains separate until Crow OIDC and Forge-specific PR comments
+# are implemented. No cloud credentials or remote state are used here.
+# Existing Terraform workflows remain unchanged.
+---
+name: Ansible validation
+when:
+  - event: pull_request
+    path:
+      include:
+        - 'ansible/**'
+        - '.crow/**'
+        - '.forgejo/workflows/**'
+        - '.github/workflows/**'
+  - event: push
+    branch: ${CI_REPO_DEFAULT_BRANCH}
+    path:
+      include:
+        - 'ansible/**'
+        - '.crow/**'
+  - event: manual
+steps:
+  - name: ansible-validation
+    image: git.weinbender.io/labs/ci-base:latest
+    commands:
+      - python3 -m pip install --break-system-packages -r ansible/requirements.txt
+      - ansible-galaxy collection install -r ansible/ansible-requirements.yaml
+      - ansible-lint ansible
+      - for playbook in ansible/playbooks/*.yaml; do ansible-playbook "$playbook" --syntax-check; done
+
+# This is validation only. It does not connect to Tailscale or change hosts.
+# The existing scheduled/apply workflow remains unchanged.
+---
+name: Compose validation
+when:
+  - event: pull_request
+    path:
+      include:
+        - 'compose-stacks/**'
+        - 'ansible/inventory.yaml'
+        - '.crow/**'
+  - event: manual
+steps:
+  - name: preflight
+    image: git.weinbender.io/labs/ci-base:latest
+    commands:
+      - ruby .github/scripts/preflight.rb
+
+# This runs the repository's authoritative preflight without deployment
+# credentials. Existing deployment workflows remain unchanged.

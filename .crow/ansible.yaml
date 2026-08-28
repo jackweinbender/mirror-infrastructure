@@ -1,0 +1,24 @@
+---
+name: Ansible Playbook
+when:
+  - event: manual
+  - event: cron
+    cron: ansible
+steps:
+  - name: ansible
+    image: git.weinbender.io/labs/ci-base:latest
+    environment:
+      OP_SERVICE_ACCOUNT_TOKEN:
+        from_secret: ONE_PASSWORD_SA_TOKEN
+      TS_OAUTH_CLIENT_SECRET:
+        from_secret: TS_OAUTH_CLIENT_SECRET
+    commands:
+      - python3 -m pip install --break-system-packages -r ansible/requirements.txt
+      - ansible-galaxy collection install -r ansible/ansible-requirements.yaml
+      - tailscale up --auth-key="$TS_OAUTH_CLIENT_SECRET" --advertise-tags=tag:ci
+      - ansible-lint ansible
+      - ansible-playbook -i ansible/inventory.yaml ansible/playbooks/workloads.yaml
+
+# Configure the existing 04:00 UTC schedule as a Crow cron named `ansible`.
+# This workflow intentionally has no automatic push trigger because it changes
+# infrastructure hosts. Existing GitHub and Forgejo workflows remain unchanged.
