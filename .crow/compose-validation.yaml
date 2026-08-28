@@ -8,6 +8,9 @@ when:
 steps:
   - name: preflight
     image: git.weinbender.io/labs/ci-base:main-${CI_COMMIT_SHA}
+    environment:
+      LANG: C.UTF-8
+      LC_ALL: C.UTF-8
     commands:
       - ruby .github/scripts/preflight.rb
 
