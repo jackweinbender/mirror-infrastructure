@@ -6,11 +6,11 @@ when:
     cron: deploy
 steps:
   - name: preflight
-    image: git.weinbender.io/labs/ci-base:latest
+    image: git.weinbender.io/labs/ci-base:main-${CI_COMMIT_SHA}
     commands:
       - ruby .github/scripts/preflight.rb
   - name: deploy-platform-and-stacks
-    image: git.weinbender.io/labs/ci-base:latest
+    image: git.weinbender.io/labs/ci-base:main-${CI_COMMIT_SHA}
     environment:
       OP_SERVICE_ACCOUNT_TOKEN:
         from_secret: ONE_PASSWORD_SA_TOKEN

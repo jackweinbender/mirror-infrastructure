@@ -11,7 +11,7 @@ when:
   - event: manual
 steps:
   - name: ansible-validation
-    image: git.weinbender.io/labs/ci-base:latest
+    image: git.weinbender.io/labs/ci-base:main-${CI_COMMIT_SHA}
     commands:
       - python3 -m venv /tmp/ansible-venv
       - /tmp/ansible-venv/bin/pip install -r ansible/requirements.txt
