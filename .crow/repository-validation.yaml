@@ -15,10 +15,5 @@ steps:
       - git diff --check
       - go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.7
 
-# Safe for pull requests because it has no secrets. Existing workflows remain unchanged.
-
----
-# Crow workflow documents must be one YAML document per file. This marker is
-# intentionally invalid if parsed as a second document and should be removed
-# before merging.
-# END
+# Safe for pull requests because it has no secrets. Existing GitHub and Forgejo
+# workflows remain unchanged.
