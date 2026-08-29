@@ -19,7 +19,6 @@ steps:
       repo: git.weinbender.io/labs/ci-base
       tags:
         - main
-        - latest
         - ${CI_COMMIT_SHA}
       registry: https://git.weinbender.io
       username:
