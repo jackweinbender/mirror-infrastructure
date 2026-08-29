@@ -14,9 +14,10 @@ steps:
     image: git.weinbender.io/labs/ci-base:main-${CI_COMMIT_SHA}
     commands:
       - python3.13 -m venv /tmp/ansible-venv
-      - cd ansible && /tmp/ansible-venv/bin/pip install -r requirements.txt
-      - cd ansible && /tmp/ansible-venv/bin/ansible-galaxy collection install -r ansible-requirements.yaml
-      - cd ansible && /tmp/ansible-venv/bin/ansible-lint
-      - cd ansible && for playbook in playbooks/*.yaml; do /tmp/ansible-venv/bin/ansible-playbook "$playbook" --syntax-check; done
+      - cd ansible
+      - /tmp/ansible-venv/bin/pip install -r requirements.txt
+      - /tmp/ansible-venv/bin/ansible-galaxy collection install -r ansible-requirements.yaml
+      - /tmp/ansible-venv/bin/ansible-lint
+      - for playbook in playbooks/*.yaml; do /tmp/ansible-venv/bin/ansible-playbook "$playbook" --syntax-check; done
 
 # Validation only: no Tailscale access or host changes.
