@@ -11,7 +11,7 @@ when:
   - event: manual
 steps:
   - name: ansible-validation
-    image: git.weinbender.io/labs/ansible:${CI_COMMIT_SHA}
+    image: git.weinbender.io/labs/ansible:main
     commands:
       - cd ansible
       - ansible-lint
