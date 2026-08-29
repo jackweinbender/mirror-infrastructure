@@ -19,7 +19,6 @@ steps:
     settings:
       context: .
       dockerfile: ci-images/ci-base/Dockerfile
-      target: base
       repo: git.weinbender.io/labs/ci-base
       tags:
         - main
@@ -34,8 +33,7 @@ steps:
     image: codefloe.com/crow-plugins/docker-buildx:latest
     settings:
       context: .
-      dockerfile: ci-images/ci-base/Dockerfile
-      target: ansible
+      dockerfile: ci-images/ansible/Dockerfile
       repo: git.weinbender.io/labs/ansible
       tags:
         - main
