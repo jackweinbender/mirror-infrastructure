@@ -1,5 +1,4 @@
-ARG BASE_TAG
-FROM git.weinbender.io/labs/ci-base:${BASE_TAG}
+FROM git.weinbender.io/labs/ci-base:main
 
 COPY ansible/requirements.txt /tmp/ansible-requirements.txt
 RUN pip install --break-system-packages --no-cache-dir -r /tmp/ansible-requirements.txt \

@@ -34,8 +34,6 @@ steps:
     settings:
       context: .
       dockerfile: ci-images/ansible/Dockerfile
-      build_args:
-        - BASE_TAG=main-${CI_COMMIT_SHA}
       repo: git.weinbender.io/labs/ansible
       tags:
         - main
