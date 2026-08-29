@@ -6,7 +6,7 @@ when:
     cron: ansible
 steps:
   - name: ansible
-    image: git.weinbender.io/labs/ci-base:main-${CI_COMMIT_SHA}
+    image: git.weinbender.io/labs/ansible:main-${CI_COMMIT_SHA}
     environment:
       OP_SERVICE_ACCOUNT_TOKEN:
         from_secret: ONE_PASSWORD_SA_TOKEN
