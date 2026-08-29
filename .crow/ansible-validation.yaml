@@ -18,6 +18,6 @@ steps:
       - /tmp/ansible-venv/bin/pip install -r requirements.txt
       - /tmp/ansible-venv/bin/ansible-galaxy collection install -r ansible-requirements.yaml
       - /tmp/ansible-venv/bin/ansible-lint
-      - for playbook in playbooks/*.yaml; do /tmp/ansible-venv/bin/ansible-playbook "$playbook" --syntax-check; done
+      - for playbook in playbooks/*.yaml; do ANSIBLE_CONFIG="$PWD/ansible.cfg" ANSIBLE_ROLES_PATH="$PWD/roles" /tmp/ansible-venv/bin/ansible-playbook "$playbook" --syntax-check; done
 
 # Validation only: no Tailscale access or host changes.
