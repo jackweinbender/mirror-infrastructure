@@ -1,4 +1,4 @@
-FROM debian:trixie-slim
+FROM debian:trixie-slim AS base
 
 ARG TARGETARCH=amd64
 
@@ -64,5 +64,17 @@ RUN set -eux; \
         --output /tmp/awscliv2.zip; \
     unzip -q /tmp/awscliv2.zip -d /tmp; \
     /tmp/aws/install --bin-dir /usr/local/bin --install-dir /usr/local/aws-cli --update
+
+FROM base AS ansible
+
+COPY ansible/requirements.txt /tmp/ansible-requirements.txt
+RUN pip install --break-system-packages --no-cache-dir -r /tmp/ansible-requirements.txt \
+    && rm /tmp/ansible-requirements.txt
+
+COPY ansible/ansible-requirements.yaml /tmp/ansible-galaxy-requirements.yaml
+RUN ansible-galaxy collection install -r /tmp/ansible-galaxy-requirements.yaml \
+    && rm /tmp/ansible-galaxy-requirements.yaml
+
+WORKDIR /workspace
 
 CMD ["bash"]
