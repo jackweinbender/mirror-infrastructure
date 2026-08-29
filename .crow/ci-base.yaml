@@ -18,8 +18,9 @@ steps:
       dockerfile: ci-images/ci-base/Dockerfile
       repo: git.weinbender.io/labs/ci-base
       tags:
-        - 'main-${CI_COMMIT_SHA}'
+        - main
         - latest
+        - ${CI_COMMIT_SHA}
       registry: https://git.weinbender.io
       username:
         from_secret: registry_username
