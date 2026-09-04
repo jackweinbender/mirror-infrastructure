@@ -33,3 +33,21 @@ resource "cloudflare_dns_record" "crow" {
   proxied = false
   ttl     = 1
 }
+
+resource "cloudflare_dns_record" "crow" {
+  zone_id = var.cloudflare_zone_id
+  name    = "uptime-kuma"
+  content = "docker0-lxc.weinbender.io"
+  type    = "CNAME"
+  proxied = false
+  ttl     = 1
+}
+
+resource "cloudflare_dns_record" "crow" {
+  zone_id = var.cloudflare_zone_id
+  name    = "grafana"
+  content = "docker0-lxc.weinbender.io"
+  type    = "CNAME"
+  proxied = false
+  ttl     = 1
+}
