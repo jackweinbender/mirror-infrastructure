@@ -27,7 +27,7 @@ From the repository root:
 ruby .github/scripts/preflight.rb
 docker compose \
   -f compose-stacks/uptime-kuma/docker-compose.yaml \
-  --env-file <(printf 'UPTIME_KUMA_HOSTNAME=uptime-kuma.example.test\\n') \
+  --env-file <(printf 'UPTIME_KUMA_HOSTNAME=uptime-kuma.example.test\n') \
   config --quiet
 git diff --check
 ```

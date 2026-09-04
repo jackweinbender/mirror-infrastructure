@@ -16,7 +16,7 @@ services:
       traefik.http.routers.uptime-kuma.tls.certresolver: letsencrypt
       traefik.http.services.uptime-kuma.loadbalancer.server.port: "3001"
     healthcheck:
-      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3001/ || exit 1"]
+      test: ["CMD-SHELL", "extra/healthcheck"]
       interval: 30s
       timeout: 10s
       retries: 3
