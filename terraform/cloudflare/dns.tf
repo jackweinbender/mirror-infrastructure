@@ -34,7 +34,7 @@ resource "cloudflare_dns_record" "crow" {
   ttl     = 1
 }
 
-resource "cloudflare_dns_record" "crow" {
+resource "cloudflare_dns_record" "uptime_kuma" {
   zone_id = var.cloudflare_zone_id
   name    = "uptime-kuma"
   content = "docker0-lxc.weinbender.io"
@@ -43,7 +43,7 @@ resource "cloudflare_dns_record" "crow" {
   ttl     = 1
 }
 
-resource "cloudflare_dns_record" "crow" {
+resource "cloudflare_dns_record" "grafana" {
   zone_id = var.cloudflare_zone_id
   name    = "grafana"
   content = "docker0-lxc.weinbender.io"
