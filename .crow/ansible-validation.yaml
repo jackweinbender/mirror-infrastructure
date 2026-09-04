@@ -18,3 +18,4 @@ steps:
       - for playbook in playbooks/*.yaml; do ANSIBLE_CONFIG="$PWD/ansible.cfg" ANSIBLE_ROLES_PATH="$PWD/roles" ansible-playbook "$playbook" --syntax-check; done
 
 # Validation only: no Tailscale access or host changes.
+
