@@ -6,26 +6,22 @@ when:
     cron: ansible
 steps:
   - name: ansible
-    image: git.weinbender.io/labs/ci-base:main-${CI_COMMIT_SHA}
+    image: git.weinbender.io/labs/ansible:main
     environment:
       OP_SERVICE_ACCOUNT_TOKEN:
         from_secret: ONE_PASSWORD_SA_TOKEN
       TS_OAUTH_CLIENT_SECRET:
         from_secret: TS_OAUTH_CLIENT_SECRET
     commands:
-      - python3 -m venv /tmp/ansible-venv
-      - /tmp/ansible-venv/bin/pip install -r ansible/requirements.txt
-      - ln -sf /tmp/ansible-venv/bin/ansible-lint /usr/local/bin/ansible-lint
-      - ln -sf /tmp/ansible-venv/bin/ansible-playbook /usr/local/bin/ansible-playbook
-      - /tmp/ansible-venv/bin/ansible-galaxy collection install -r ansible/ansible-requirements.yaml
+
       - tailscaled --tun=userspace-networking --socks5-server=localhost:1055 --state=/tmp/tailscale.state >/tmp/tailscaled.log 2>&1 &
       - for i in $(seq 1 30); do tailscale status >/dev/null 2>&1 && break; sleep 1; done; tailscale status >/dev/null 2>&1 || { cat /tmp/tailscaled.log; exit 1; }
       - tailscale up --auth-key="$TS_OAUTH_CLIENT_SECRET" --advertise-tags=tag:ci --timeout=30s
       - mkdir -p ~/.ssh
       - printf 'Host *\n  ProxyCommand tailscale nc %%h %%p\n' > ~/.ssh/config
       - chmod 600 ~/.ssh/config
-      - ansible-lint ansible
-      - ansible-playbook -i ansible/inventory.yaml ansible/playbooks/workloads.yaml
+      - ANSIBLE_CONFIG="$PWD/ansible/ansible.cfg" ANSIBLE_ROLES_PATH="$PWD/ansible/roles" ansible-lint ansible
+      - ANSIBLE_CONFIG="$PWD/ansible/ansible.cfg" ANSIBLE_ROLES_PATH="$PWD/ansible/roles" ansible-playbook -i ansible/inventory.yaml ansible/playbooks/workloads.yaml
 
 # Configure the existing 04:00 UTC schedule as a Crow cron named `ansible`.
 # This workflow intentionally has no automatic push trigger because it changes
