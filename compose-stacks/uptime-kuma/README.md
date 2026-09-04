@@ -15,9 +15,10 @@ unproxied Cloudflare CNAME for `uptime-kuma.weinbender.io` pointing to the
 `docker0-lxc` Traefik gateway hostname, following the convention in
 [`../traefik/README.md`](../traefik/README.md).
 
-After deployment, complete Uptime Kuma's initial setup through the HTTPS web UI
-and create monitors and notifications there. No application credentials are
-stored in this repository.
+After deployment, complete Uptime Kuma's initial admin setup through the
+HTTPS web UI before configuring monitors and notifications. Do not leave the
+administration endpoint without an administrator account. No application
+credentials are stored in this repository.
 
 ## Validation
 
@@ -25,10 +26,13 @@ From the repository root:
 
 ```bash
 ruby .github/scripts/preflight.rb
+tmp_env=$(mktemp)
+printf '%s\n' 'UPTIME_KUMA_HOSTNAME=uptime-kuma.example.test' > "$tmp_env"
 docker compose \
+  --env-file "$tmp_env" \
   -f compose-stacks/uptime-kuma/docker-compose.yaml \
-  --env-file <(printf 'UPTIME_KUMA_HOSTNAME=uptime-kuma.example.test\n') \
   config --quiet
+rm -f "$tmp_env"
 git diff --check
 ```
 

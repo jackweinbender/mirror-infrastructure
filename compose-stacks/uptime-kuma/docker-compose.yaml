@@ -15,12 +15,7 @@ services:
       traefik.http.routers.uptime-kuma.tls: "true"
       traefik.http.routers.uptime-kuma.tls.certresolver: letsencrypt
       traefik.http.services.uptime-kuma.loadbalancer.server.port: "3001"
-    healthcheck:
-      test: ["CMD-SHELL", "extra/healthcheck"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
+      traefik.docker.network: proxy
 
 networks:
   proxy:
