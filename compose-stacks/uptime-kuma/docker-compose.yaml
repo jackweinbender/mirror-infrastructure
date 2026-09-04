@@ -1,0 +1,32 @@
+---
+services:
+  uptime-kuma:
+    image: louislam/uptime-kuma:2.5.3
+    container_name: uptime-kuma
+    restart: unless-stopped
+    volumes:
+      - uptime_kuma_data:/app/data
+    networks:
+      - proxy
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.uptime-kuma.rule: Host(`${UPTIME_KUMA_HOSTNAME}`)
+      traefik.http.routers.uptime-kuma.entrypoints: websecure
+      traefik.http.routers.uptime-kuma.tls: "true"
+      traefik.http.routers.uptime-kuma.tls.certresolver: letsencrypt
+      traefik.http.services.uptime-kuma.loadbalancer.server.port: "3001"
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:3001/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+networks:
+  proxy:
+    external: true
+    name: proxy
+
+volumes:
+  uptime_kuma_data:
+    name: uptime_kuma_data
