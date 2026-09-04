@@ -6,7 +6,10 @@ when:
     path:
       include:
         - 'ci-images/ci-base/**'
+        - 'ci-images/ansible/**'
         - 'ci-images/README.md'
+        - 'ansible/requirements.txt'
+        - 'ansible/ansible-requirements.yaml'
         - '.crow/ci-base.yaml'
   - event: manual
 
@@ -17,6 +20,21 @@ steps:
       context: .
       dockerfile: ci-images/ci-base/Dockerfile
       repo: git.weinbender.io/labs/ci-base
+      tags:
+        - main
+        - ${CI_COMMIT_SHA}
+      registry: https://git.weinbender.io
+      username:
+        from_secret: registry_username
+      password:
+        from_secret: registry_password
+
+  - name: build-and-push-ansible
+    image: codefloe.com/crow-plugins/docker-buildx:latest
+    settings:
+      context: .
+      dockerfile: ci-images/ansible/Dockerfile
+      repo: git.weinbender.io/labs/ansible
       tags:
         - main
         - ${CI_COMMIT_SHA}
