@@ -1,0 +1,46 @@
+---
+name: Terraform plan/apply (OIDC)
+when:
+  - event: manual
+# Manual-only on purpose: this workflow changes infrastructure hosts. Routine
+# push/PR validation is covered by .crow/terraform-validation.yaml. Cloud
+# authentication relies on an IdP-provided OIDC ID token; see
+# terraform/oidc-crow.md for the trust relationships that must exist first.
+steps:
+  - name: plan-or-apply
+    image: git.weinbender.io/labs/ci-base:main
+    environment:
+      OP_SERVICE_ACCOUNT_TOKEN:
+        from_secret: ONE_PASSWORD_SA_TOKEN
+      OIDC_ID_TOKEN:
+        from_secret: OIDC_ID_TOKEN
+      GCP_WORKLOAD_IDENTITY_PROVIDER:
+        from_secret: GCP_WORKLOAD_IDENTITY_PROVIDER
+      TERRAFORM_APPLY:
+        from_secret: TERRAFORM_APPLY
+    commands:
+      - export TF_PLUGIN_CACHE_DIR=/tmp/terraform-plugin-cache
+      - mkdir -p "$TF_PLUGIN_CACHE_DIR"
+      # Resolve the OIDC token into short-lived AWS (and GCP) credentials.
+      - ruby .github/scripts/oidc-cloud-auth.rb
+      # Resolve 1Password references alongside the OIDC credentials.
+      - printf '%s\n' 'CLOUDFLARE_API_TOKEN=op://network/cloudflare-terraform/credential' 'TF_VAR_google_oauth_client_id=op://network/cloudflare-google-oauth/client-id' 'TF_VAR_google_oauth_client_secret=op://network/cloudflare-google-oauth/client-secret' >> terraform-oidc.env
+      # Generate the Terraform component list (kept here so the op run block needs no nested quoting).
+      - ruby -rjson -e 'JSON.parse(File.read(".github/terraform-components.json")).each { |entry| puts entry }' > /tmp/tf-components.txt
+      - |
+        op run --no-masking --env-file=terraform-oidc.env -- bash -c '
+        set -eu
+        while read -r component; do
+          terraform -chdir="terraform/$component" init -input=false -no-color
+          terraform -chdir="terraform/$component" fmt -check
+          terraform -chdir="terraform/$component" validate -no-color
+          terraform -chdir="terraform/$component" plan -input=false -no-color
+          if [ "$TERRAFORM_APPLY" = "true" ]; then
+            terraform -chdir="terraform/$component" apply -auto-approve -no-color
+          fi
+        done < /tmp/tf-components.txt
+        '
+# Required Crow secrets: ONE_PASSWORD_SA_TOKEN (existing), OIDC_ID_TOKEN (the
+# short-lived ID token your IdP issues for the run), GCP_WORKLOAD_IDENTITY_PROVIDER
+# (GCP pool-provider resource name; leave unset to skip GCP), and TERRAFORM_APPLY
+# (set to "true" to allow apply, otherwise plan-only). See terraform/oidc-crow.md.

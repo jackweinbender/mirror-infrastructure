@@ -9,6 +9,7 @@ require_relative '../lib/commands'
 require_relative '../lib/compose_deployment'
 require_relative '../lib/dotenv'
 require_relative '../lib/inventory'
+require_relative '../lib/oidc_cloud_auth'
 require_relative '../lib/output'
 require_relative '../lib/terraform_components'
 
@@ -140,6 +141,80 @@ class TerraformComponentsTest < LibTest
     assert_equal [], checks['Manifest entries missing Terraform directories']
     assert_equal %w[cloudflare], checks['Manual workflow choices missing from manifest']
     assert_equal [], checks['Manifest entries missing from manual workflow choices']
+  end
+end
+
+class OidcCloudAuthTest < LibTest
+  def test_aws_environment_builds_expected_variables
+    environment = OidcCloudAuth.aws_environment(
+      access_key_id: 'AKID', secret_access_key: 'SAK', session_token: 'ST', region: 'us-east-1'
+    )
+    assert_equal 'AKID', environment['AWS_ACCESS_KEY_ID']
+    assert_equal 'SAK', environment['AWS_SECRET_ACCESS_KEY']
+    assert_equal 'ST', environment['AWS_SESSION_TOKEN']
+    assert_equal 'us-east-1', environment['AWS_DEFAULT_REGION']
+    assert_equal 'us-east-1', environment['AWS_REGION']
+  end
+
+  def test_aws_sts_form_contains_required_fields
+    form = uri_decode(OidcCloudAuth.aws_sts_form(
+      id_token: 'jwt', role_arn: 'role', session_name: 's', duration_seconds: 3600
+    ))
+    assert_equal 'GetFederationToken', form['Action']
+    assert_equal 'role', form['RoleArn']
+    assert_equal 's', form['RoleSessionName']
+    assert_equal '3600', form['DurationSeconds']
+    assert_equal 'jwt', form['WebIdentityToken']
+  end
+
+  def test_aws_sts_url_uses_region_endpoint
+    assert_equal 'https://sts.us-east-1.amazonaws.com/', OidcCloudAuth.aws_sts_url('us-east-1')
+  end
+
+  def test_gcp_exchange_form_sets_token_exchange_grant
+    form = uri_decode(OidcCloudAuth.gcp_exchange_form(id_token: 'jwt', audience: 'pool/provider'))
+    assert_equal 'urn:ietf:params:oauth:grant-type:token-exchange', form['grant_type']
+    assert_equal 'urn:ietf:params:oauth:token-type:jwt', form['subject_token_type']
+    assert_equal 'jwt', form['subject_token']
+    assert_equal 'pool/provider', form['audience']
+  end
+
+  def test_gcp_environment_sets_oauth_access_token_and_expiry
+    environment = OidcCloudAuth.gcp_environment(access_token: 'token', expires_in: 120)
+    assert_equal 'token', environment['GOOGLE_OAUTH_ACCESS_TOKEN']
+    assert_equal 'token', environment['CLOUDSDK_AUTH_ACCESS_TOKEN']
+    assert_equal (Time.now.to_i + 120).to_s, environment['GOOGLE_OAUTH_EXPIRY']
+  end
+
+  def test_parse_sts_credentials_extracts_leaf_values
+    xml = <<~XML
+      <GetFederationTokenResponse xmlns="https://sts.amazonaws.com/doc/2011-06-15/">
+        <GetFederationTokenResult><Credentials>
+          <SessionToken>sess</SessionToken>
+          <SecretAccessKey>secret</SecretAccessKey>
+          <Expiration>2026-01-01T00:00:00Z</Expiration>
+          <AccessKeyId>key</AccessKeyId>
+        </Credentials></GetFederationTokenResult>
+      </GetFederationTokenResponse>
+    XML
+    assert_equal({ 'AccessKeyId' => 'key', 'SecretAccessKey' => 'secret', 'SessionToken' => 'sess' },
+                 OidcCloudAuth.parse_sts_credentials(xml))
+  end
+
+  def test_id_token_and_missing_detection
+    with_environment('OIDC_ID_TOKEN' => 'jwt') do
+      assert_equal 'jwt', OidcCloudAuth.id_token
+      refute OidcCloudAuth.missing_id_token?
+    end
+    with_environment('OIDC_ID_TOKEN' => '  ') do
+      assert OidcCloudAuth.missing_id_token?
+    end
+  end
+
+  private
+
+  def uri_decode(body)
+    URI.decode_www_form(body).to_h
   end
 end
 
