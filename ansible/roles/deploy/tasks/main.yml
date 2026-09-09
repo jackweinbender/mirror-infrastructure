@@ -11,10 +11,36 @@
     name: rsync
     state: present
 
-- name: Create the compose stacks directory
+- name: Create the existing Compose deployment directory
   ansible.builtin.file:
     path: /etc/compose-stacks
     state: directory
     owner: "{{ deploy_user }}"
     group: "{{ deploy_user }}"
+    mode: "0755"
+
+
+- name: Install stackctl
+  ansible.builtin.copy:
+    src: stackctl
+    dest: /usr/local/sbin/stackctl
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install stackctl systemd template
+  ansible.builtin.copy:
+    src: docker-compose@.service
+    dest: /etc/systemd/system/docker-compose@.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload systemd
+
+- name: Create stackctl managed-state directory
+  ansible.builtin.file:
+    path: /var/lib/stackctl/managed
+    state: directory
+    owner: root
+    group: root
     mode: "0755"

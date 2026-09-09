@@ -1,0 +1,357 @@
+#!/usr/bin/env bash
+# stackctl: reconcile Docker Compose projects published by the deployment system.
+set -Eeuo pipefail
+
+# -----------------------------------------------------------------------------
+# Configuration
+#
+# These environment variables are intentional extension points for local testing
+# and future deployment integration. Production defaults match the existing
+# /etc/compose-stacks layout.
+# -----------------------------------------------------------------------------
+
+STACK_ROOT=${STACKCTL_STACK_ROOT:-/etc/compose-stacks}
+STATE_ROOT=${STACKCTL_STATE_ROOT:-/var/lib/stackctl/managed}
+LOCK_PATH=${STACKCTL_LOCK_PATH:-/run/lock/stackctl.lock}
+SYSTEMCTL=${STACKCTL_SYSTEMCTL:-systemctl}
+DOCKER=${STACKCTL_DOCKER:-docker}
+UNIT_PREFIX=${STACKCTL_UNIT_PREFIX:-docker-compose@}
+COMPOSE_FILE=${STACKCTL_COMPOSE_FILE:-docker-compose.yaml}
+
+# -----------------------------------------------------------------------------
+# Output and command helpers
+# -----------------------------------------------------------------------------
+
+log() {
+  printf '%s\n' "$*"
+}
+
+err() {
+  printf 'stackctl: %s\n' "$*" >&2
+}
+
+run_command() {
+  "$@" || {
+    err "command failed: $*"
+    return 1
+  }
+}
+
+usage() {
+  cat <<'USAGE'
+usage:
+  stackctl list
+  stackctl status [STACK]
+  stackctl validate [STACK]
+  stackctl start STACK
+  stackctl stop STACK
+  stackctl restart STACK
+  stackctl reconcile
+USAGE
+}
+
+# -----------------------------------------------------------------------------
+# Names, units, and locking
+# -----------------------------------------------------------------------------
+
+valid_stack() {
+  [[ $1 =~ ^[a-zA-Z0-9][a-zA-Z0-9_.-]*$ ]]
+}
+
+unit_name() {
+  printf '%s%s.service' "$UNIT_PREFIX" "$1"
+}
+
+lock_or_fail() {
+  mkdir -p "$(dirname "$LOCK_PATH")"
+  exec 9>"$LOCK_PATH"
+  if ! flock -n 9; then
+    err "another reconciliation is already running (lock: $LOCK_PATH)"
+    return 75
+  fi
+}
+
+# -----------------------------------------------------------------------------
+# Stack discovery and managed state
+#
+# A desired stack is a direct child of STACK_ROOT containing COMPOSE_FILE. A
+# managed stack is recorded in STATE_ROOT after stackctl has successfully
+# started it. Keeping these sets separate lets reconciliation retire stacks that
+# disappear from the desired directory without touching unrelated directories.
+# -----------------------------------------------------------------------------
+
+stack_dirs() {
+  [[ -d $STACK_ROOT ]] || return 0
+
+  local dir name
+  for dir in "$STACK_ROOT"/*; do
+    [[ -d $dir && -f $dir/$COMPOSE_FILE ]] || continue
+    name=${dir##*/}
+    valid_stack "$name" || {
+      err "invalid stack name: $name"
+      return 1
+    }
+    printf '%s\n' "$name"
+  done | sort
+}
+
+managed_stacks() {
+  [[ -d $STATE_ROOT ]] || return 0
+
+  local file name
+  for file in "$STATE_ROOT"/*; do
+    [[ -f $file ]] || continue
+    name=${file##*/}
+    valid_stack "$name" || {
+      err "invalid managed state entry: $name"
+      return 1
+    }
+    printf '%s\n' "$name"
+  done | sort
+}
+
+mark_managed() {
+  mkdir -p "$STATE_ROOT" && : > "$STATE_ROOT/$1"
+}
+
+unmark_managed() {
+  rm -f -- "$STATE_ROOT/$1"
+}
+
+is_managed() {
+  [[ -f $STATE_ROOT/$1 ]]
+}
+
+is_enabled() {
+  "$SYSTEMCTL" is-enabled --quiet "$(unit_name "$1")" >/dev/null 2>&1
+}
+
+is_active() {
+  "$SYSTEMCTL" is-active --quiet "$(unit_name "$1")" >/dev/null 2>&1
+}
+
+# -----------------------------------------------------------------------------
+# Compose operations
+# -----------------------------------------------------------------------------
+
+validate_stack() {
+  local name=$1 dir=$STACK_ROOT/$1
+
+  log "Validating $name..."
+  (cd "$dir" && "$DOCKER" compose -p "$name" -f "$COMPOSE_FILE" config --quiet) || {
+    err "validation failed for stack $name"
+    return 1
+  }
+  log "Validating $name... ok"
+}
+
+compose_up() {
+  local name=$1
+
+  (
+    cd "$STACK_ROOT/$name" &&
+      "$DOCKER" compose -p "$name" -f "$COMPOSE_FILE" up -d --remove-orphans
+  )
+}
+
+compose_down_if_available() {
+  local name=$1 dir=$STACK_ROOT/$1
+
+  [[ -f $dir/$COMPOSE_FILE ]] || {
+    log "Retiring $name... no Compose definition available; skipped down"
+    return 0
+  }
+  (cd "$dir" && "$DOCKER" compose -p "$name" -f "$COMPOSE_FILE" down --remove-orphans)
+}
+
+# -----------------------------------------------------------------------------
+# Reconciliation
+#
+# Public command: `stackctl reconcile`
+#
+# Reconciliation validates every desired stack before making changes. It then
+# starts new stacks, updates already-running managed stacks, and retires stacks
+# recorded in STATE_ROOT that are no longer present in STACK_ROOT. A failure is
+# reported after other independent stacks have been attempted.
+# -----------------------------------------------------------------------------
+
+reconcile() {
+  lock_or_fail || return $?
+  mkdir -p "$STATE_ROOT"
+
+  local desired managed name failed=0 desired_output managed_output
+  if ! desired_output=$(stack_dirs); then return 1; fi
+  if ! managed_output=$(managed_stacks); then return 1; fi
+
+  mapfile -t desired <<< "$desired_output"
+  mapfile -t managed <<< "$managed_output"
+  [[ -n $desired_output ]] || desired=()
+  [[ -n $managed_output ]] || managed=()
+
+  # Validate the complete desired set before any systemd or Docker mutation.
+  for name in "${desired[@]}"; do
+    [[ -n $name ]] || continue
+    validate_stack "$name" || return 1
+  done
+
+  for name in "${desired[@]}"; do
+    [[ -n $name ]] || continue
+
+    if is_managed "$name" && is_active "$name" && is_enabled "$name"; then
+      log "Updating $name..."
+      if compose_up "$name"; then
+        log "Updating $name... ok"
+      else
+        err "update failed for $name"
+        failed=1
+      fi
+    else
+      log "Starting $name..."
+      if run_command "$SYSTEMCTL" enable --now "$(unit_name "$name")"; then
+        mark_managed "$name"
+        log "Starting $name... ok"
+      else
+        err "start failed for $name"
+        failed=1
+      fi
+    fi
+  done
+  (( failed == 0 )) || return 1
+
+  for name in "${managed[@]}"; do
+    [[ -e $STACK_ROOT/$name/$COMPOSE_FILE ]] && continue
+
+    log "Retiring $name..."
+    if run_command "$SYSTEMCTL" stop "$(unit_name "$name")" &&
+      run_command "$SYSTEMCTL" disable "$(unit_name "$name")" &&
+      compose_down_if_available "$name"; then
+      unmark_managed "$name"
+      log "Retiring $name... ok"
+    else
+      err "retirement failed for $name"
+      failed=1
+    fi
+  done
+  (( failed == 0 )) || return 1
+
+  log 'Reconciliation complete.'
+}
+
+# -----------------------------------------------------------------------------
+# Inspection commands
+#
+# Public commands: `stackctl list`, `stackctl status [STACK]`, and
+# `stackctl validate [STACK]`. These commands do not change Compose projects;
+# validate takes the reconciliation lock so it cannot race with reconcile.
+# -----------------------------------------------------------------------------
+
+list_stacks() {
+  local -a desired=() managed=() name
+  mapfile -t desired < <(stack_dirs)
+  mapfile -t managed < <(managed_stacks)
+
+  printf '%-20s %-8s %-8s %s\n' STACK DESIRED ENABLED STATE
+  printf '%s\n' "${desired[@]}" "${managed[@]}" | sort -u | while IFS= read -r name; do
+    [[ -n $name ]] || continue
+
+    local desired_state=no enabled_state=no runtime_state=stopped
+    printf '%s\n' "${desired[@]}" | grep -Fxq "$name" && desired_state=yes
+    is_enabled "$name" && enabled_state=yes || true
+    is_active "$name" && runtime_state=running || true
+    printf '%-20s %-8s %-8s %s\n' \
+      "$name" "$desired_state" "$enabled_state" "$runtime_state"
+  done
+}
+
+status_stack() {
+  local name=${1:-}
+
+  [[ -n $name ]] || {
+    list_stacks
+    return
+  }
+  valid_stack "$name" || {
+    err "invalid stack name: $name"
+    return 2
+  }
+  "$SYSTEMCTL" status --no-pager "$(unit_name "$name")"
+}
+
+validate_command() {
+  lock_or_fail || return $?
+
+  if [[ -n ${1:-} ]]; then
+    validate_stack "$1"
+    return
+  fi
+
+  local name
+  while IFS= read -r name; do
+    [[ -n $name ]] && validate_stack "$name" || return 1
+  done < <(stack_dirs)
+}
+
+# -----------------------------------------------------------------------------
+# Direct lifecycle commands
+#
+# Public commands: `stackctl start STACK`, `stackctl stop STACK`, and
+# `stackctl restart STACK`. These are imperative operator actions; only `start`
+# records the stack as managed because it establishes the desired-state marker
+# used by future reconciliation.
+# -----------------------------------------------------------------------------
+
+lifecycle_command() {
+  local action=$1 name=$2
+
+  valid_stack "$name" || {
+    err "invalid stack name: $name"
+    return 2
+  }
+
+  case $action in
+    start)
+      run_command "$SYSTEMCTL" enable --now "$(unit_name "$name")" &&
+        mark_managed "$name"
+      ;;
+    stop)
+      run_command "$SYSTEMCTL" stop "$(unit_name "$name")"
+      ;;
+    restart)
+      run_command "$SYSTEMCTL" restart "$(unit_name "$name")"
+      ;;
+  esac
+}
+
+# -----------------------------------------------------------------------------
+# Public command-line API
+# -----------------------------------------------------------------------------
+
+main() {
+  case ${1:-} in
+    reconcile)
+      reconcile
+      ;;
+    list)
+      list_stacks
+      ;;
+    status)
+      status_stack "${2:-}"
+      ;;
+    validate)
+      validate_command "${2:-}"
+      ;;
+    start|stop|restart)
+      [[ -n ${2:-} ]] || {
+        err "usage: stackctl $1 STACK"
+        return 2
+      }
+      lifecycle_command "$1" "$2"
+      ;;
+    *)
+      usage >&2
+      return 2
+      ;;
+  esac
+}
+
+main "$@"
