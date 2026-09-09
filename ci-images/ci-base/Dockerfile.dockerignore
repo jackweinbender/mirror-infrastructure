@@ -1,0 +1,4 @@
+*
+!ci-images/
+!ci-images/ci-base/
+!ci-images/ci-base/Dockerfile

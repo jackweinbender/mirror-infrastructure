@@ -20,6 +20,8 @@ steps:
       context: .
       dockerfile: ci-images/ci-base/Dockerfile
       repo: git.weinbender.io/labs/ci-base
+      cache_images:
+        - git.weinbender.io/labs/ci-base:cache
       tags:
         - main
         - ${CI_COMMIT_SHA}
@@ -35,6 +37,8 @@ steps:
       context: .
       dockerfile: ci-images/ansible/Dockerfile
       repo: git.weinbender.io/labs/ansible
+      cache_images:
+        - git.weinbender.io/labs/ansible:cache
       tags:
         - main
         - ${CI_COMMIT_SHA}
