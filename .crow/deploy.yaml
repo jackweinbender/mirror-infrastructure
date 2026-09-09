@@ -26,7 +26,7 @@ steps:
       - mkdir -p ~/.ssh
       - tailscaled --tun=userspace-networking --socks5-server=localhost:1055 --state=/tmp/tailscale.state >/tmp/tailscaled.log 2>&1 &
       - for i in $(seq 1 30); do [ -S /var/run/tailscale/tailscaled.sock ] && break; sleep 1; done; [ -S /var/run/tailscale/tailscaled.sock ] || { cat /tmp/tailscaled.log; exit 1; }
-      - tailscale up --auth-key="$TS_OAUTH_CLIENT_SECRET" --advertise-tags=tag:ci --timeout=30s
+      - tailscale up --auth-key="$TS_OAUTH_CLIENT_SECRET?preauthorized=true&ephemeral=true" --advertise-tags=tag:ci --timeout=30s
       - tailscale status >/dev/null 2>&1 || { cat /tmp/tailscaled.log; exit 1; }
       - printf 'Host *\n  ProxyCommand tailscale nc %%h %%p\n' > ~/.ssh/config
       - chmod 600 ~/.ssh/config
