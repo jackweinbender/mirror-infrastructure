@@ -16,7 +16,7 @@ module Dotenv
   end
 
   def parse(file)
-    File.readlines(file, chomp: true).each_with_object({}).with_index do |(raw, values), index|
+    File.readlines(file, chomp: true, encoding: 'UTF-8').each_with_object({}).with_index do |(raw, values), index|
       line = raw.strip
       next if line.empty? || line.start_with?('#')
 

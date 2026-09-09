@@ -36,7 +36,7 @@ end
 
 class DotenvTest < LibTest
   def test_parse_ignores_comments_supports_export_and_unquotes_values
-    with_file("# comment\nexport API_KEY = \"secret value\"\nEMPTY=\nPLAIN=value=with-equals\n") do |file|
+    with_file("# comment — UTF-8\nexport API_KEY = \"secret value\"\nEMPTY=\nPLAIN=value=with-equals\n") do |file|
       assert_equal(
         { 'API_KEY' => 'secret value', 'EMPTY' => '', 'PLAIN' => 'value=with-equals' },
         Dotenv.parse(file)
