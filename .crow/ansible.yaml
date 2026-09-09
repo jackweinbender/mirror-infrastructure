@@ -20,7 +20,7 @@ steps:
       - mkdir -p ~/.ssh
       - printf 'Host *\n  ProxyCommand tailscale nc %%h %%p\n' > ~/.ssh/config
       - chmod 600 ~/.ssh/config
-      - ANSIBLE_CONFIG="$PWD/ansible/ansible.cfg" ANSIBLE_ROLES_PATH="$PWD/ansible/roles" ansible-lint ansible
+      - cd ansible && ansible-lint
       - ANSIBLE_CONFIG="$PWD/ansible/ansible.cfg" ANSIBLE_ROLES_PATH="$PWD/ansible/roles" ansible-playbook -i ansible/inventory.yaml ansible/playbooks/workloads.yaml
 
 # Configure the existing 04:00 UTC schedule as a Crow cron named `ansible`.
