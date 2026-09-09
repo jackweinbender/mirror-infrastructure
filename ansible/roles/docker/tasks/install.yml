@@ -13,6 +13,7 @@
     name:
       - ca-certificates
       - gpg
+      - python3-debian
     state: present
 
 - name: Ensure the apt keyrings directory exists
@@ -32,13 +33,16 @@
     mode: "0644"
 
 - name: Add Docker's apt repository
-  ansible.builtin.apt_repository:
-    repo: >
-      deb [arch={{ {'x86_64': 'amd64', 'aarch64': 'arm64'}[ansible_facts['architecture']] | default(ansible_facts['architecture']) }}
-      signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian
-      {{ ansible_facts['distribution_release'] }} stable
-    filename: docker
-    state: present
+  ansible.builtin.deb822_repository:
+    name: docker
+    types: deb
+    uris: https://download.docker.com/linux/debian
+    suites: "{{ ansible_facts['distribution_release'] }}"
+    components:
+      - stable
+    architectures:
+      - "{{ {'x86_64': 'amd64', 'aarch64': 'arm64'}[ansible_facts['architecture']] | default(ansible_facts['architecture']) }}"
+    signed_by: /etc/apt/keyrings/docker.asc
 
 - name: Install Docker Engine and the compose plugin
   ansible.builtin.apt:

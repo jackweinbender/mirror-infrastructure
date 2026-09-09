@@ -13,9 +13,8 @@ steps:
   - name: ansible-validation
     image: git.weinbender.io/labs/ansible:main
     commands:
-      - cd ansible
-      - ansible-lint
-      - for playbook in playbooks/*.yaml; do ANSIBLE_CONFIG="$PWD/ansible.cfg" ANSIBLE_ROLES_PATH="$PWD/roles" ansible-playbook "$playbook" --syntax-check; done
+      - (cd ansible && ANSIBLE_CONFIG="$PWD/ansible.cfg" ansible-lint --config-file .ansible-lint)
+      - (cd ansible && for playbook in playbooks/*.yaml; do ANSIBLE_CONFIG="$PWD/ansible.cfg" ANSIBLE_ROLES_PATH="$PWD/roles" ansible-playbook "$playbook" --syntax-check; done)
 
 # Validation only: no Tailscale access or host changes.
 

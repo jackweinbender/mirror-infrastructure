@@ -25,6 +25,7 @@
         name:
           - ca-certificates
           - gpg
+          - python3-debian
         state: present
 
     - name: Ensure the apt keyrings directory exists
@@ -44,12 +45,14 @@
         mode: "0644"
 
     - name: Add Tailscale's apt repository
-      ansible.builtin.apt_repository:
-        repo: >
-          deb [signed-by=/etc/apt/keyrings/tailscale.asc]
-          https://pkgs.tailscale.com/stable/debian {{ ansible_facts['distribution_release'] }} main
-        filename: tailscale
-        state: present
+      ansible.builtin.deb822_repository:
+        name: tailscale
+        types: deb
+        uris: https://pkgs.tailscale.com/stable/debian
+        suites: "{{ ansible_facts['distribution_release'] }}"
+        components:
+          - main
+        signed_by: /etc/apt/keyrings/tailscale.asc
 
     - name: Install Tailscale
       ansible.builtin.apt:
