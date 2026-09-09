@@ -19,13 +19,6 @@
     group: "{{ deploy_user }}"
     mode: "0755"
 
-- name: Create the stackctl desired-state directory
-  ansible.builtin.file:
-    path: /opt/stacks
-    state: directory
-    owner: "{{ deploy_user }}"
-    group: "{{ deploy_user }}"
-    mode: "0755"
 
 - name: Install stackctl
   ansible.builtin.copy:
