@@ -1,0 +1,18 @@
+[Unit]
+Description=Docker Compose stack %i
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/stacks/%i
+ExecStart=/usr/bin/docker compose -p %i up -d --remove-orphans
+ExecStop=/usr/bin/docker compose -p %i stop
+TimeoutStartSec=0
+
+[Install]
+WantedBy=multi-user.target
+
+# Managed by stackctl. Removing a stack is intentionally handled by
+# `stackctl reconcile`, which uses `docker compose down` without `-v`.
