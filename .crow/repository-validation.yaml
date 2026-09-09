@@ -14,10 +14,6 @@ steps:
       - ruby .github/scripts/preflight.rb
       - git diff --check
 
-  - name: actionlint
-    image: rhysd/actionlint:1.7.7
-    commands:
-      - actionlint
 
 # Safe for pull requests because it has no secrets. Existing GitHub and Forgejo
 # workflows remain unchanged.

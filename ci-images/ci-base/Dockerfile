@@ -11,7 +11,6 @@ RUN apt-get update && apt-get install --no-install-recommends --yes \
     curl \
     git \
     gnupg \
-    golang-go \
     jq \
     openssh-client \
     python3-pip \
