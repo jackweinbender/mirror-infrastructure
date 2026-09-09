@@ -62,6 +62,7 @@ jobs:
     env:
       TF_VAR_cloudflare_zone_id: ${{ secrets.CLOUDFLARE_ZONE_ID }}
       TF_VAR_cloudflare_account_id: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      TF_PLUGIN_CACHE_DIR: ${{ runner.temp }}/terraform-plugin-cache
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -88,6 +89,13 @@ jobs:
           TF_VAR_google_oauth_client_id: op://network/cloudflare-google-oauth/client-id
           TF_VAR_google_oauth_client_secret: op://network/cloudflare-google-oauth/client-secret
       - uses: hashicorp/setup-terraform@v4
+      - name: Prepare Terraform plugin cache
+        run: mkdir -p "$TF_PLUGIN_CACHE_DIR"
+      - name: Restore Terraform provider cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/terraform-plugin-cache
+          key: terraform-providers-${{ runner.os }}-${{ matrix.component }}-${{ hashFiles(format('terraform/{0}/.terraform.lock.hcl', matrix.component)) }}
       - name: Terraform init
         run: terraform -chdir=terraform/${{ matrix.component }} init
       - name: Terraform fmt
