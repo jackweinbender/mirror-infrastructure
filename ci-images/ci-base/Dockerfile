@@ -54,17 +54,6 @@ RUN apt-get update && apt-get install --no-install-recommends --yes \
     tailscale \
     terraform
 
-RUN printf '%s\n' \
-    'ansible-core==2.21.3' \
-    'ansible-lint==26.8.0' \
-    'requests>=2.34.2' \
-    'molecule==26.8.0' \
-    'molecule-docker==2.1.0' \
-    | pip install --break-system-packages --no-cache-dir -r /dev/stdin
-
-COPY ansible/ansible-requirements.yaml /tmp/ansible-requirements.yaml
-RUN ansible-galaxy collection install -r /tmp/ansible-requirements.yaml && rm /tmp/ansible-requirements.yaml
-
 
 RUN set -eux; \
     case "${TARGETARCH}" in \
