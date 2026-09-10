@@ -21,8 +21,11 @@ steps:
         from_secret: gcp_terraform_sa
       OP_SERVICE_ACCOUNT_TOKEN:
         from_secret: one_password_sa_token
-      TERRAFORM_APPLY:
-        from_secret: TERRAFORM_APPLY
+      TERRAFORM_APPLY: "false"
+      # NOTE: plain value, not a secret. Crow compiles every from_secret
+      # reference at startup and fails the whole pipeline if the secret is
+      # missing, so this must stay a literal. Set to "true" to allow apply;
+      # otherwise the run is plan-only.
     commands:
       - export TF_PLUGIN_CACHE_DIR=/tmp/terraform-plugin-cache
       - mkdir -p "$TF_PLUGIN_CACHE_DIR"
@@ -50,5 +53,6 @@ steps:
 # Required Crow repository secrets: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY,
 # AWS_DEFAULT_REGION (a dedicated Terraform service account; not a human's),
 # GOOGLE_SA_JSON (the GCP service-account key for the Terraform identity),
-# ONE_PASSWORD_SA_TOKEN (existing), and TERRAFORM_APPLY ("true" to allow apply,
-# otherwise plan-only). AWS/GCP access runs without OIDC/IdP.
+# and ONE_PASSWORD_SA_TOKEN (existing). AWS/GCP access runs without OIDC/IdP.
+# TERRAFORM_APPLY is a literal flag (not a secret): "true" to allow apply,
+# otherwise plan-only.
