@@ -13,15 +13,15 @@ steps:
     image: git.weinbender.io/labs/ci-base:main
     environment:
       AWS_ACCESS_KEY_ID:
-        from_secret: AWS_ACCESS_KEY_ID
+        from_secret: aws_terraform_access_key_id
       AWS_SECRET_ACCESS_KEY:
-        from_secret: AWS_SECRET_ACCESS_KEY
+        from_secret: aws_terraform_secret_access_key
       AWS_DEFAULT_REGION:
         from_secret: AWS_DEFAULT_REGION
       GOOGLE_SA_JSON:
-        from_secret: GOOGLE_SA_JSON
+        from_secret: gcp_terraform_sa
       OP_SERVICE_ACCOUNT_TOKEN:
-        from_secret: ONE_PASSWORD_SA_TOKEN
+        from_secret: one_password_sa_token
       TERRAFORM_APPLY:
         from_secret: TERRAFORM_APPLY
     commands:
