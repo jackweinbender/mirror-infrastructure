@@ -8,6 +8,16 @@ when:
 # Cloud auth uses static service-account credentials managed as Crow secrets
 # (no OIDC/IdP). Credentials are injected only into this step's environment and
 # are never written to Git or printed to logs.
+#
+# Each component in the matrix runs as its own workflow instance (parallel),
+# mirroring the GHA matrix approach in .github/workflows/terraform.yml.
+matrix:
+  COMPONENT:
+    - mgmt
+    - aws
+    - gcp-remind-me
+    - gcp-weinbender-io
+    - cloudflare
 steps:
   - name: plan-or-apply
     image: git.weinbender.io/labs/ci-base:main
@@ -34,20 +44,17 @@ steps:
       - export GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcp-sa.json
       # Cloudflare + google-oauth secrets come from 1Password.
       - printf '%s\n' 'CLOUDFLARE_API_TOKEN=op://network/cloudflare-terraform/credential' 'TF_VAR_google_oauth_client_id=op://network/cloudflare-google-oauth/client-id' 'TF_VAR_google_oauth_client_secret=op://network/cloudflare-google-oauth/client-secret' >> .env
-      # Generate the Terraform component list (kept here so the op run block needs no nested quoting).
-      - ruby -rjson -e 'JSON.parse(File.read(".github/terraform-components.json")).each { |entry| puts entry }' > /tmp/tf-components.txt
+      # Run the single component assigned to this matrix instance.
       - |
         op run --no-masking --env-file=.env -- bash -c '
         set -eu
-        while read -r component; do
-          terraform -chdir="terraform/$component" init -input=false -no-color
-          terraform -chdir="terraform/$component" fmt -check
-          terraform -chdir="terraform/$component" validate -no-color
-          terraform -chdir="terraform/$component" plan -input=false -no-color
-          if [ "$TERRAFORM_APPLY" = "true" ]; then
-            terraform -chdir="terraform/$component" apply -auto-approve -no-color
-          fi
-        done < /tmp/tf-components.txt
+        terraform -chdir="terraform/${COMPONENT}" init -input=false -no-color
+        terraform -chdir="terraform/${COMPONENT}" fmt -check
+        terraform -chdir="terraform/${COMPONENT}" validate -no-color
+        terraform -chdir="terraform/${COMPONENT}" plan -input=false -no-color
+        if [ "$TERRAFORM_APPLY" = "true" ]; then
+          terraform -chdir="terraform/${COMPONENT}" apply -auto-approve -no-color
+        fi
         '
       - rm -f .env /tmp/gcp-sa.json
 # Required Crow repository secrets: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY,
@@ -56,3 +63,5 @@ steps:
 # and ONE_PASSWORD_SA_TOKEN (existing). AWS/GCP access runs without OIDC/IdP.
 # TERRAFORM_APPLY is a literal flag (not a secret): "true" to allow apply,
 # otherwise plan-only.
+# Components are enumerated in the matrix (mgmt, aws, gcp-remind-me,
+# gcp-weinbender-io, cloudflare); keep in sync with .github/terraform-components.json.
