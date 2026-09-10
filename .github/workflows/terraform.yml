@@ -92,7 +92,7 @@ jobs:
       - name: Prepare Terraform plugin cache
         run: mkdir -p "$TF_PLUGIN_CACHE_DIR"
       - name: Restore Terraform provider cache
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ runner.temp }}/terraform-plugin-cache
           key: terraform-providers-${{ runner.os }}-${{ matrix.component }}-${{ hashFiles(format('terraform/{0}/.terraform.lock.hcl', matrix.component)) }}
