@@ -16,8 +16,7 @@ steps:
         from_secret: aws_terraform_access_key_id
       AWS_SECRET_ACCESS_KEY:
         from_secret: aws_terraform_secret_access_key
-      AWS_DEFAULT_REGION:
-        from_secret: AWS_DEFAULT_REGION
+      AWS_DEFAULT_REGION: us-east-1
       GOOGLE_SA_JSON:
         from_secret: gcp_terraform_sa
       OP_SERVICE_ACCOUNT_TOKEN:
