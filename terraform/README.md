@@ -27,10 +27,10 @@ Multi-cloud Terraform configurations. Each subdirectory is an independent compon
 | Cloudflare | API token from 1Password (`op://network/cloudflare-terraform/credential`) |
 | Proxmox | API token from 1Password (`op://network/proxmox-terraform/api-token`) |
 
-Crow CI shares the same OIDC model (`.crow/terraform-oidc.yaml`), but Crow does
-not mint ID tokens itself, so a trust relationship/IdP must be supplied first.
-See [`terraform/oidc-crow.md`](oidc-crow.md) for the AWS/GCP trust configuration
-and the IdP options.
+Crow CI runs `plan`/`apply` through `.crow/terraform-plan-apply.yaml` using
+static service-account credentials stored as Crow secrets (no OIDC/IdP). See
+[`terraform/crow-sa.md`](crow-sa.md) for the keys to create and secrets to set.
+The GitHub/Forgejo Actions path still uses OIDC + Workload Identity Federation.
 
 ## Usage
 

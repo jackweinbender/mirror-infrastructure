@@ -19,6 +19,5 @@ steps:
       - ruby .github/scripts/validate-terraform-components.rb
       - for component in aws cloudflare gcp-remind-me gcp-weinbender-io mgmt; do terraform -chdir="terraform/$component" init -backend=false && terraform -chdir="terraform/$component" fmt -check && terraform -chdir="terraform/$component" validate; done
 
-# Plan/apply for Crow is scaffolded in .crow/terraform-oidc.yaml (manual). It
-# still requires an IdP/trust relationship to authenticate to AWS/GCP; see
-# terraform/oidc-crow.md before enabling it.
+# Plan/apply for Crow lives in .crow/terraform-plan-apply.yaml (manual) and uses
+# static service-account credentials from Crow secrets; see terraform/crow-sa.md.

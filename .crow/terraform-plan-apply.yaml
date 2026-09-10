@@ -1,0 +1,55 @@
+---
+name: Terraform plan/apply (service account)
+when:
+  - event: manual
+# Manual-only on purpose: this workflow changes infrastructure hosts. Routine
+# push/PR validation is covered by .crow/terraform-validation.yaml.
+#
+# Cloud auth uses static service-account credentials managed as Crow secrets
+# (no OIDC/IdP). Credentials are injected only into this step's environment and
+# are never written to Git or printed to logs.
+steps:
+  - name: plan-or-apply
+    image: git.weinbender.io/labs/ci-base:main
+    environment:
+      AWS_ACCESS_KEY_ID:
+        from_secret: AWS_ACCESS_KEY_ID
+      AWS_SECRET_ACCESS_KEY:
+        from_secret: AWS_SECRET_ACCESS_KEY
+      AWS_DEFAULT_REGION:
+        from_secret: AWS_DEFAULT_REGION
+      GOOGLE_SA_JSON:
+        from_secret: GOOGLE_SA_JSON
+      OP_SERVICE_ACCOUNT_TOKEN:
+        from_secret: ONE_PASSWORD_SA_TOKEN
+      TERRAFORM_APPLY:
+        from_secret: TERRAFORM_APPLY
+    commands:
+      - export TF_PLUGIN_CACHE_DIR=/tmp/terraform-plugin-cache
+      - mkdir -p "$TF_PLUGIN_CACHE_DIR"
+      # Write the Google service-account key where Terraform's ADC can read it.
+      - printf '%s' "$GOOGLE_SA_JSON" > /tmp/gcp-sa.json
+      - export GOOGLE_APPLICATION_CREDENTIALS=/tmp/gcp-sa.json
+      # Cloudflare + google-oauth secrets come from 1Password.
+      - printf '%s\n' 'CLOUDFLARE_API_TOKEN=op://network/cloudflare-terraform/credential' 'TF_VAR_google_oauth_client_id=op://network/cloudflare-google-oauth/client-id' 'TF_VAR_google_oauth_client_secret=op://network/cloudflare-google-oauth/client-secret' >> .env
+      # Generate the Terraform component list (kept here so the op run block needs no nested quoting).
+      - ruby -rjson -e 'JSON.parse(File.read(".github/terraform-components.json")).each { |entry| puts entry }' > /tmp/tf-components.txt
+      - |
+        op run --no-masking --env-file=.env -- bash -c '
+        set -eu
+        while read -r component; do
+          terraform -chdir="terraform/$component" init -input=false -no-color
+          terraform -chdir="terraform/$component" fmt -check
+          terraform -chdir="terraform/$component" validate -no-color
+          terraform -chdir="terraform/$component" plan -input=false -no-color
+          if [ "$TERRAFORM_APPLY" = "true" ]; then
+            terraform -chdir="terraform/$component" apply -auto-approve -no-color
+          fi
+        done < /tmp/tf-components.txt
+        '
+      - rm -f .env /tmp/gcp-sa.json
+# Required Crow repository secrets: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY,
+# AWS_DEFAULT_REGION (a dedicated Terraform service account; not a human's),
+# GOOGLE_SA_JSON (the GCP service-account key for the Terraform identity),
+# ONE_PASSWORD_SA_TOKEN (existing), and TERRAFORM_APPLY ("true" to allow apply,
+# otherwise plan-only). AWS/GCP access runs without OIDC/IdP.
