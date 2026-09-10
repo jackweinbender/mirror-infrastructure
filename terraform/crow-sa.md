@@ -24,7 +24,7 @@ path. This page lists the exact keys to create and the Crow secrets to set.
    `remind-me-481700`), create a service account with the roles Terraform needs
    (Artifact Registry, Cloud Run, IAM, workload-identity management).
 2. Download its **JSON service-account key** and paste the full JSON contents
-   into the Crow secret `GOOGLE_SA_JSON`.
+   into the Crow secret `gcp_terraform_sa`.
 
 ### Cloudflare (unchanged)
 Already via 1Password (`op://network/cloudflare-terraform/credential`), plus the
@@ -32,17 +32,35 @@ google-oauth client id/secret for the Cloudflare component. Nothing to create.
 
 ## Crow repository secrets to set (labs/infrastructure)
 
+The workflow pulls only these credential-bearing values from Crow secrets.
+`AWS_DEFAULT_REGION` is **not** a secret: the AWS provider and S3 state backend
+already hardcode `region = "us-east-1"`, so the workflow sets it as a literal.
+
 | Secret | Value |
 |--------|-------|
-| `AWS_ACCESS_KEY_ID` | access key id from the AWS service account |
-| `AWS_SECRET_ACCESS_KEY` | secret key from the AWS service account |
-| `AWS_DEFAULT_REGION` | `us-east-1` |
-| `GOOGLE_SA_JSON` | full GCP service-account JSON (single value) |
-| `ONE_PASSWORD_SA_TOKEN` | existing token (unchanged) |
-| `TERRAFORM_APPLY` | `"true"` to allow apply; leave unset/other for plan-only |
+| `aws_terraform_access_key_id` | access key id from the AWS service account |
+| `aws_terraform_secret_access_key` | secret key from the AWS service account |
+| `gcp_terraform_sa` | full GCP service-account JSON (single value) |
+| `one_password_sa_token` | existing token (unchanged) |
+| `TERRAFORM_APPLY` | **optional** — set to `"true"` only to allow apply; unset/other = plan-only |
 
-Launch: Crow -> `labs/infrastructure` -> manual pipeline `Terraform plan/apply
-(service account)`. Apply is only performed when `TERRAFORM_APPLY=true`.
+There is **no `AWS_DEFAULT_REGION` secret** — `us-east-1` is hardcoded in the
+workflow. You do not need to set it.
+
+### What `TERRAFORM_APPLY` does
+
+`terraform apply` changes infrastructure. The workflow is manual and runs
+against every component in `terraform-components.json`, so the switch keeps
+`plan` runs harmless:
+
+- **Unset or any value other than `"true"`** → the run only plans (produces the
+  execution plan, changes nothing). Safe/advisory.
+- **`"true"`** → the run also executes `apply -auto-approve`, actually changing
+  AWS/GCP resources.
+
+It is stored as a secret (not a plain variable) so a routine workflow edit can't
+silently authorize an apply — you must set it in the Crow secret store to allow
+destructive runs.
 
 ## Security notes
 
