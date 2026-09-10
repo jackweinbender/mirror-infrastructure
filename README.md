@@ -1,4 +1,4 @@
-# jackweinbender/infrastructure
+# labs/infrastructure
 
 Personal infrastructure as code. The repository manages cloud resources with
 Terraform, configures Debian and Proxmox hosts with Ansible, and deploys
