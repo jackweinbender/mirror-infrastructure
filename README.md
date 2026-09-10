@@ -15,8 +15,6 @@ compose-stacks/          Docker Compose projects and host assignments
 terraform/               Independent cloud and virtualization components
 .crow/                   Crow CI, validation, and deployment pipelines
 scripts/                Ruby CI entrypoints, reusable libraries, and tests
-.github/
-  dependabot.yaml        GitHub mirror dependency-update configuration
 ```
 
 Each area has more focused guidance:
