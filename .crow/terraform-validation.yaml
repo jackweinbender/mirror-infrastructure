@@ -3,11 +3,11 @@ name: Terraform validation
 when:
   - event: pull_request
     path:
-      include: ['terraform/**', '.github/terraform-components.json', '.crow/**', '.forgejo/workflows/**', '.github/workflows/**', '.github/scripts/**']
+      include: ['terraform/**', 'terraform/components.json', '.crow/**', 'scripts/**']
   - event: push
     branch: ${CI_REPO_DEFAULT_BRANCH}
     path:
-      include: ['terraform/**', '.crow/**']
+      include: ['terraform/**', 'terraform/components.json', '.crow/**', 'scripts/**']
   - event: manual
 steps:
   - name: validate-components
@@ -16,7 +16,7 @@ steps:
       TF_PLUGIN_CACHE_DIR: /tmp/terraform-plugin-cache
     commands:
       - mkdir -p "$TF_PLUGIN_CACHE_DIR"
-      - ruby .github/scripts/validate-terraform-components.rb
+      - ruby scripts/validate-terraform-components.rb
       - for component in aws cloudflare gcp-remind-me gcp-weinbender-io mgmt; do terraform -chdir="terraform/$component" init -backend=false && terraform -chdir="terraform/$component" fmt -check && terraform -chdir="terraform/$component" validate; done
 
 # Plan/apply for Crow lives in .crow/terraform-plan-apply.yaml (manual) and uses

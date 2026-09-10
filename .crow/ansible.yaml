@@ -25,4 +25,4 @@ steps:
 
 # Configure the existing 04:00 UTC schedule as a Crow cron named `ansible`.
 # This workflow intentionally has no automatic push trigger because it changes
-# infrastructure hosts. Existing GitHub and Forgejo workflows remain unchanged.
+# infrastructure hosts.

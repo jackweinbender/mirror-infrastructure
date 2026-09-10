@@ -25,7 +25,7 @@ credentials are stored in this repository.
 From the repository root:
 
 ```bash
-ruby .github/scripts/preflight.rb
+ruby scripts/preflight.rb
 tmp_env=$(mktemp)
 printf '%s\n' 'UPTIME_KUMA_HOSTNAME=uptime-kuma.example.test' > "$tmp_env"
 docker compose \

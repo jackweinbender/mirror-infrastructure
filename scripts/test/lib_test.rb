@@ -132,14 +132,12 @@ class TerraformComponentsTest < LibTest
   def test_consistency_checks_report_each_mismatch
     checks = TerraformComponents.consistency_checks(
       manifest: %w[aws],
-      terraform_directories: %w[aws gcp],
-      workflow_choices: %w[aws cloudflare]
+      terraform_directories: %w[aws gcp]
     )
 
     assert_equal %w[gcp], checks['Terraform directories missing from manifest']
     assert_equal [], checks['Manifest entries missing Terraform directories']
-    assert_equal %w[cloudflare], checks['Manual workflow choices missing from manifest']
-    assert_equal [], checks['Manifest entries missing from manual workflow choices']
+
   end
 end
 

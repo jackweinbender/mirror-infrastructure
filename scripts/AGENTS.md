@@ -2,8 +2,9 @@
 
 ## Purpose
 
-These Ruby scripts support GitHub Actions for Compose deployments and Terraform
-component selection. Keep the root-level scripts as small, readable entrypoints:
+These Ruby scripts support Crow CI and deployment pipelines for Compose
+operations and Terraform component validation. Keep the root-level scripts as
+small, readable entrypoints:
 they should explain the business logic and sequencing, not hide domain behavior
 behind unrelated utility methods.
 
@@ -33,7 +34,7 @@ behind unrelated utility methods.
 - Run the library tests directly with:
 
   ```bash
-  ruby .github/scripts/test/lib_test.rb
+  ruby scripts/test/lib_test.rb
   ```
 
 ## Safety and secrets
@@ -51,9 +52,9 @@ behind unrelated utility methods.
 For changes under this directory, run at least:
 
 ```bash
-ruby .github/scripts/test/lib_test.rb
-ruby .github/scripts/preflight.rb
-for script in .github/scripts/*.rb .github/scripts/lib/*.rb .github/scripts/test/*.rb; do
+ruby scripts/test/lib_test.rb
+ruby scripts/preflight.rb
+for script in scripts/*.rb scripts/lib/*.rb scripts/test/*.rb; do
   ruby -c "$script" || exit 1
 done
 git diff --check

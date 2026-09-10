@@ -11,7 +11,7 @@ steps:
       LANG: C.UTF-8
       LC_ALL: C.UTF-8
     commands:
-      - ruby .github/scripts/preflight.rb
+      - ruby scripts/preflight.rb
   - name: deploy-platform-and-stacks
     image: git.weinbender.io/labs/ci-base:main
     environment:
@@ -30,18 +30,18 @@ steps:
       - tailscale status >/dev/null 2>&1 || { cat /tmp/tailscaled.log; exit 1; }
       - printf 'Host *\n  ProxyCommand tailscale nc %%h %%p\n' > ~/.ssh/config
       - chmod 600 ~/.ssh/config
-      - ruby .github/scripts/discover-deploy-hosts.rb ansible/inventory.yaml > /tmp/deploy-hosts.json
-      - ruby -c .github/scripts/reconcile-platform.rb
-      - ruby -c .github/scripts/reconcile-host.rb
+      - ruby scripts/discover-deploy-hosts.rb ansible/inventory.yaml > /tmp/deploy-hosts.json
+      - ruby -c scripts/reconcile-platform.rb
+      - ruby -c scripts/reconcile-host.rb
       - |
         ruby -rjson -e 'JSON.parse(File.read("/tmp/deploy-hosts.json")).each { |host| puts "#{host.fetch("id")} #{host.fetch("address")}" }' | while read -r host_id host_address; do
           ssh-keyscan -H "$host_address" >> ~/.ssh/known_hosts
-          ruby .github/scripts/reconcile-platform.rb "$host_id" "$host_address"
-          ruby .github/scripts/reconcile-host.rb "$host_id" "$host_address" "$(ruby -rjson -e 'puts JSON.generate(Dir.children("compose-stacks").select { |n| File.file?(File.join("compose-stacks", n, "docker-compose.yaml")) && n != "docker-networking" }.sort)')"
+          ruby scripts/reconcile-platform.rb "$host_id" "$host_address"
+          ruby scripts/reconcile-host.rb "$host_id" "$host_address" "$(ruby -rjson -e 'puts JSON.generate(Dir.children("compose-stacks").select { |n| File.file?(File.join("compose-stacks", n, "docker-compose.yaml")) && n != "docker-networking" }.sort)')"
         done
 
 # Configure the existing 05:00 UTC schedule as a Crow cron named `deploy`.
 # Deployment is manual/cron-only during migration; it is not enabled for pushes
-# or pull requests. Existing GitHub and Forgejo workflows remain unchanged.
+# or pull requests.
 # Required Crow repository secret: ONE_PASSWORD_SA_TOKEN and
 # TS_OAUTH_CLIENT_SECRET. The deployment user is currently `deploy`.

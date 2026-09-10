@@ -12,6 +12,6 @@ steps:
       LANG: C.UTF-8
       LC_ALL: C.UTF-8
     commands:
-      - ruby .github/scripts/preflight.rb
+      - ruby scripts/preflight.rb
 
 # Runs the authoritative preflight without deployment credentials.

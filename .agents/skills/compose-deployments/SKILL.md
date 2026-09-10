@@ -72,11 +72,11 @@ the remote staging directory as `docker-compose.override.yaml`.
 5. Run:
 
    ```bash
-   ruby .github/scripts/preflight.rb
-   ruby -c .github/scripts/preflight.rb
-   ruby -c .github/scripts/reconcile-platform.rb
-   ruby -c .github/scripts/reconcile-host.rb
-   ruby -c .github/scripts/discover-deploy-hosts.rb
+   ruby scripts/preflight.rb
+   ruby -c scripts/preflight.rb
+   ruby -c scripts/reconcile-platform.rb
+   ruby -c scripts/reconcile-host.rb
+   ruby -c scripts/discover-deploy-hosts.rb
    git diff --check
    ```
 
@@ -150,6 +150,5 @@ all records in the zone. See the relevant stack README and
 
 Keep the relevant stack README and
 [`../../../compose-stacks/OPERATIONS.md`](../../../compose-stacks/OPERATIONS.md)
-consistent with behavior changes. If the workflow or safety model changes,
-update [`.forgejo/workflows/README.md`](../../../.forgejo/workflows/README.md) as
-well.
+consistent with behavior changes. If the deployment safety model changes, update the relevant repository
+operations documentation as well.

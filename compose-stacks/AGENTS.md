@@ -32,7 +32,7 @@ that guard or add broad cleanup for unmarked directories.
 Use representative non-secret values for local Compose checks:
 
 ```bash
-ruby .github/scripts/preflight.rb
+ruby scripts/preflight.rb
 docker compose \
   -f compose-stacks/<stack>/docker-compose.yaml \
   -f compose-stacks/<stack>/deployments/<host>/docker-compose.yaml \
@@ -40,6 +40,6 @@ docker compose \
 ```
 
 Omit the overlay when none exists. Also run the Ruby syntax checks and
-`git diff --check` listed in `.forgejo/workflows/AGENTS.md`. Script-only workflow
-changes may require a manual `deploy.yaml` dispatch after merging; do not claim
-a deployment passed without checking the actual workflow result.
+`git diff --check` used by the repository validation pipeline. Deployment changes
+are scheduled or manually dispatched through Crow; do not claim a deployment
+passed without checking the actual run.

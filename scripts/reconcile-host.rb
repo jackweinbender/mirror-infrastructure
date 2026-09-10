@@ -36,7 +36,7 @@ stacks.each do |stack|
     cleanup = proc { ssh_command.call(remote, "rm -rf -- #{quote.call(stage)}") }
     begin
       merged = Tempfile.new(['merged-', '.env'])
-      merge = ScriptCommands.capture_result('ruby', '.github/scripts/merge-dotenv.rb', File.join(local_dir, '.env.template'), assignment)
+      merge = ScriptCommands.capture_result('ruby', 'scripts/merge-dotenv.rb', File.join(local_dir, '.env.template'), assignment)
       unless merge[2].success?
         ScriptOutput.error('dotenv merge failed', context: "#{host_id}/#{stack}")
         failed << "#{host_id}/#{stack}"

@@ -8,12 +8,11 @@ steps:
   - name: validate
     image: git.weinbender.io/labs/ci-base:main
     commands:
-      - ruby -ryaml -e 'Dir[".forgejo/workflows/*.{yml,yaml}"].each { |path| YAML.load_file(path); puts "YAML OK " + path }'
-      - for script in .github/scripts/*.rb .github/scripts/lib/*.rb; do ruby -c "$script"; done
-      - ruby .github/scripts/test/lib_test.rb
-      - ruby .github/scripts/preflight.rb
+
+      - for script in scripts/*.rb scripts/lib/*.rb; do ruby -c "$script"; done
+      - ruby scripts/test/lib_test.rb
+      - ruby scripts/preflight.rb
       - git diff --check
 
 
-# Safe for pull requests because it has no secrets. Existing GitHub and Forgejo
-# workflows remain unchanged.
+# Safe for pull requests because it has no secrets.

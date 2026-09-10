@@ -27,11 +27,8 @@ treat unrelated working-tree changes as protected.
 - [`terraform/AGENTS.md`](terraform/AGENTS.md): component boundaries, state,
   credentials, and Terraform validation.
 
-- [`.github/scripts/AGENTS.md`](.github/scripts/AGENTS.md): Ruby libraries,
-  entrypoints, and unit tests.
-- [`.forgejo/workflows/AGENTS.md`](.forgejo/workflows/AGENTS.md): workflow
-  orchestration, triggers, and CI/deployment verification.
-
+- [`scripts/AGENTS.md`](scripts/AGENTS.md): Ruby libraries, entrypoints, and
+  unit tests.
 
 For Compose work, also load the project-local `compose-deployments` skill and
 read [`compose-stacks/OPERATIONS.md`](compose-stacks/OPERATIONS.md), the

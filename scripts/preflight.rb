@@ -6,12 +6,12 @@ require 'tempfile'
 require_relative 'lib/commands'
 require_relative 'lib/output'
 
-ROOT = File.expand_path('../..', __dir__)
+ROOT = File.expand_path('..', __dir__)
 STACKS_DIR = File.join(ROOT, 'compose-stacks')
 NAME_PATTERN = /\A[a-z0-9][a-z0-9_-]*\z/
-DISCOVER_SCRIPT = File.join(ROOT, '.github/scripts/discover-deploy-hosts.rb')
-MERGE_SCRIPT = File.join(ROOT, '.github/scripts/merge-dotenv.rb')
-VALIDATE_TERRAFORM_COMPONENTS = File.join(ROOT, '.github/scripts/validate-terraform-components.rb')
+DISCOVER_SCRIPT = File.join(ROOT, 'scripts/discover-deploy-hosts.rb')
+MERGE_SCRIPT = File.join(ROOT, 'scripts/merge-dotenv.rb')
+VALIDATE_TERRAFORM_COMPONENTS = File.join(ROOT, 'scripts/validate-terraform-components.rb')
 
 def fail_preflight(message)
   ScriptOutput.fail!(message, prefix: 'preflight')

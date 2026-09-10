@@ -2,8 +2,9 @@
 
 Personal infrastructure as code. The repository manages cloud resources with
 Terraform, configures Debian and Proxmox hosts with Ansible, and deploys
+<<<<<<< HEAD
 self-hosted services with Docker Compose through self-hosted Crow-CI. This repo
-is hosted locally at ssh://git@git.weinbender.io:2222/labs/infrastructure.git and 
+is hosted locally at ssh://git@git.weinbender.io:2222/labs/infrastructure.git and
 is mirrored to github at git@github.com:jackweinbender/mirror-infrastructure.git
 
 ## Repository Layout
@@ -12,9 +13,10 @@ is mirrored to github at git@github.com:jackweinbender/mirror-infrastructure.git
 ansible/                 Debian host configuration and Proxmox bootstrap
 compose-stacks/          Docker Compose projects and host assignments
 terraform/               Independent cloud and virtualization components
+.crow/                   Crow CI, validation, and deployment pipelines
+scripts/                Ruby CI entrypoints, reusable libraries, and tests
 .github/
-  scripts/               Ruby workflow entrypoints, reusable libraries, and tests
-  workflows/             CI, validation, and deployment workflows
+  dependabot.yaml        GitHub mirror dependency-update configuration
 ```
 
 Each area has more focused guidance:
@@ -24,24 +26,20 @@ Each area has more focused guidance:
 - [`compose-stacks/OPERATIONS.md`](compose-stacks/OPERATIONS.md) — stack layout,
   assignments, deployment lifecycle, and recovery
 - [`terraform/`](terraform/) — component-specific READMEs and state boundaries
-- [`.forgejo/workflows/README.md`](.forgejo/workflows/README.md) — workflow
-  orchestration, triggers, and deployment safety
+- [`.crow/`](.crow/) — CI, validation, and deployment pipelines
 
 ## Delivery model
 
-| Area | Workflow | Trigger | Effect |
+| Area | Pipeline | Trigger | Effect |
 | --- | --- | --- | --- |
-| Ansible | [`main-ansible.yaml`](.forgejo/workflows/main-ansible.yaml) | Pushes to `main` affecting `ansible/**`, daily at 04:00 UTC, or manual dispatch | Lints and applies `playbooks/workloads.yaml` |
-| Terraform | [`pr-plan-all.yml`](.forgejo/workflows/pr-plan-all.yml) | Pull requests affecting Terraform or its automation | Validates changed components and posts plan comments; never applies |
-| Terraform | [`main-plan-apply-all.yml`](.forgejo/workflows/main-plan-apply-all.yml) | Pushes to `main` affecting `terraform/**`, or manual dispatch | Plans and applies all components; manual runs can be plan-only |
-| Terraform | [`plan-or-apply.yml`](.forgejo/workflows/plan-or-apply.yml) | Manual dispatch on `main` | Plans or optionally applies one selected component |
-| Compose | [`deploy.yaml`](.forgejo/workflows/deploy.yaml) | Pushes to `main` affecting Compose/inventory/deployment workflow, daily at 05:00 UTC, or manual dispatch | Reconciles the platform and assigned application stacks |
-| Forgejo automation | [`validate-forgejo-automation.yml`](.forgejo/workflows/validate-forgejo-automation.yml) | Pull requests affecting workflows or Ruby scripts | Parses workflow YAML, checks Ruby syntax, and runs library tests |
+| Ansible | [`.crow/ansible.yaml`](.crow/ansible.yaml) | Scheduled or manual | Lints and applies `playbooks/workloads.yaml` |
+| Terraform | [`.crow/terraform-validation.yaml`](.crow/terraform-validation.yaml) | Pull requests, pushes, or manual runs | Validates Terraform components and formatting |
+| Terraform | [`.crow/terraform-plan-apply.yaml`](.crow/terraform-plan-apply.yaml) | Manual | Plans or optionally applies each component |
+| Compose | [`.crow/deploy.yaml`](.crow/deploy.yaml) | Scheduled or manual | Reconciles the platform and assigned application stacks |
+| Repository | [`.crow/repository-validation.yaml`](.crow/repository-validation.yaml) | Push, pull request, or manual | Checks Ruby syntax, tests, preflight, and repository whitespace |
 
-The Terraform workflows call the reusable implementation in
-[`terraform.yml`](.forgejo/workflows/terraform.yml). Terraform components are
-listed in [`.github/terraform-components.json`](.github/terraform-components.json)
-and must remain synchronized with the manual workflow choices.
+Terraform components are listed in [`terraform/components.json`](terraform/components.json)
+and validated against the Terraform root directories.
 
 ## Compose deployments
 
@@ -111,11 +109,11 @@ Run the checks relevant to the area you changed. From the repository root:
 
 ```bash
 # Compose inventory, assignments, dotenv templates, and Compose files
-ruby .github/scripts/preflight.rb
+ruby scripts/preflight.rb
 
 # Ruby automation libraries and entrypoints
-ruby .github/scripts/test/lib_test.rb
-for script in .github/scripts/*.rb .github/scripts/lib/*.rb .github/scripts/test/*.rb; do
+ruby scripts/test/lib_test.rb
+for script in scripts/*.rb scripts/lib/*.rb scripts/test/*.rb; do
   ruby -c "$script" || exit 1
 done
 

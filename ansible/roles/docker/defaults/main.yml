@@ -2,8 +2,8 @@
 # docker role: Docker Engine (official apt repo) + compose plugin, for any
 # compose-stack workload host. Grants docker-group membership (passwordless
 # docker access, no sudo) to docker_group_users. This role is the missing
-# prerequisite compose-stacks/.forgejo/workflows/deploy.yaml assumes already
-# exists on the target host - it never provisions Docker itself.
+# prerequisite the Compose deployment pipeline assumes already exists on the
+# target host - it never provisions Docker itself.
 
 # Accounts that get passwordless Docker access through the docker group.
 # The deploy account is created by the deploy role before this role runs.

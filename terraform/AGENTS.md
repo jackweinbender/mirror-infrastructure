@@ -9,8 +9,8 @@
 - Do not move resources between components or change backend identity casually.
 - Follow the existing provider, variable, output, and backend conventions in the
   component.
-- Keep component names synchronized with `.github/terraform-components.json` and
-  the manual workflow choices.
+- Keep component names synchronized with `terraform/components.json` and
+  the Crow component matrix.
 
 ## State and credentials
 

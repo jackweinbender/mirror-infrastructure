@@ -16,8 +16,8 @@ first.
   own state key and backend. Do not move resources between components or change
   backend identity casually.
 - Keep provider, variable, output, and backend conventions local to the component.
-- Keep component names synchronized with `.github/terraform-components.json` and
-  manual workflow choices.
+- Keep component names synchronized with `terraform/components.json` and
+  the Crow component matrix.
 - Prefer plan-only validation. Apply only when explicitly requested or through
   the intended workflow.
 

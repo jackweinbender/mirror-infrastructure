@@ -3,7 +3,7 @@ name: Ansible validation
 when:
   - event: pull_request
     path:
-      include: ['ansible/**', '.crow/**', '.forgejo/workflows/**', '.github/workflows/**']
+      include: ['ansible/**', '.crow/**']
   - event: push
     branch: ${CI_REPO_DEFAULT_BRANCH}
     path:

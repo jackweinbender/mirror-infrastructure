@@ -162,16 +162,16 @@ migration is preferable.
 Preflight is the authoritative repository-wide check:
 
 ```bash
-ruby .github/scripts/preflight.rb
+ruby scripts/preflight.rb
 ```
 
 Useful focused checks are:
 
 ```bash
-ruby -c .github/scripts/preflight.rb
-ruby -c .github/scripts/reconcile-platform.rb
-ruby -c .github/scripts/reconcile-host.rb
-ruby -c .github/scripts/discover-deploy-hosts.rb
+ruby -c scripts/preflight.rb
+ruby -c scripts/reconcile-platform.rb
+ruby -c scripts/reconcile-host.rb
+ruby -c scripts/discover-deploy-hosts.rb
 git diff --check
 
 docker compose \
@@ -199,13 +199,9 @@ When a deployment job fails:
 3. Do not manually delete an unmarked live directory. Check its marker and
    filesystem contents first.
 4. Fix the repository source and validate locally before rerunning.
-5. For changes under `.github/scripts`, `.forgejo/workflows`, or other paths not
-   covered by the Compose push filter, manually dispatch the workflow:
-
-   ```bash
-   gh workflow run deploy.yaml --ref main
-   gh run watch <run-id> --exit-status
-   ```
+5. For changes under `scripts` or other paths not covered by the
+   deployment schedule, manually dispatch the Crow deployment and inspect the
+   completed run before treating the change as deployed.
 
 The reconciler contains a narrowly scoped migration recovery path for the
 known legacy Traefik layout where Docker created nested directories for

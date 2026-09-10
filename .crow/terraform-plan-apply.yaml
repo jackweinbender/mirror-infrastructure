@@ -10,7 +10,7 @@ when:
 # are never written to Git or printed to logs.
 #
 # Each component in the matrix runs as its own workflow instance (parallel),
-# mirroring the GHA matrix approach in .github/workflows/terraform.yml.
+# mirroring the component matrix used by the repository's CI validation.
 matrix:
   COMPONENT:
     - mgmt
@@ -68,4 +68,4 @@ steps:
 # TERRAFORM_APPLY is a literal flag (not a secret): "true" to allow apply,
 # otherwise plan-only.
 # Components are enumerated in the matrix (mgmt, aws, gcp-remind-me,
-# gcp-weinbender-io, cloudflare); keep in sync with .github/terraform-components.json.
+# gcp-weinbender-io, cloudflare); keep in sync with terraform/components.json.
