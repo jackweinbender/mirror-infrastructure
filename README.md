@@ -2,7 +2,6 @@
 
 Personal infrastructure as code. The repository manages cloud resources with
 Terraform, configures Debian and Proxmox hosts with Ansible, and deploys
-<<<<<<< HEAD
 self-hosted services with Docker Compose through self-hosted Crow-CI. This repo
 is hosted locally at ssh://git@git.weinbender.io:2222/labs/infrastructure.git and
 is mirrored to github at git@github.com:jackweinbender/mirror-infrastructure.git
@@ -60,7 +59,7 @@ Deployments connect over Tailscale, stage privately on the remote host, inject
 1Password-backed environment values directly into remote staging, validate with
 `docker compose config --quiet`, and publish only marked managed directories.
 Resolved secrets are not committed, printed, passed as command-line arguments,
-or stored on the GitHub runner.
+or stored on the runner.
 
 Read [`compose-stacks/OPERATIONS.md`](compose-stacks/OPERATIONS.md) before adding
 or moving a stack. In particular, do not add a `deployments/ALL/` assignment, do
@@ -72,9 +71,9 @@ directory during recovery.
 Terraform components keep their own state boundaries and backend configuration.
 The AWS component uses the S3 backend bucket `tf-backend-61rckk` in
 `us-east-1`; other backend settings are defined by their component. CI uses
-GitHub OIDC for AWS and GCP where configured and 1Password-backed credentials
-for secrets. Never commit state, plans containing secrets, provider credentials,
-private keys, or resolved secret values.
+static service-account credentials for AWS and GCP managed as Crow secrets and
+1Password-backed credentials for secrets. Never commit state, plans containing
+secrets, provider credentials, private keys, or resolved secret values.
 
 ## Ansible
 
