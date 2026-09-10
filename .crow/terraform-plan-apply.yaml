@@ -31,6 +31,10 @@ steps:
         from_secret: gcp_terraform_sa
       OP_SERVICE_ACCOUNT_TOKEN:
         from_secret: one_password_sa_token
+      TF_VAR_cloudflare_zone_id:
+        from_secret: cloudflare_zone_id
+      TF_VAR_cloudflare_account_id:
+        from_secret: cloudflare_account_id
       TERRAFORM_APPLY: "false"
       # NOTE: plain value, not a secret. Crow compiles every from_secret
       # reference at startup and fails the whole pipeline if the secret is
@@ -58,9 +62,9 @@ steps:
         '
       - rm -f .env /tmp/gcp-sa.json
 # Required Crow repository secrets: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY,
-# AWS_DEFAULT_REGION (a dedicated Terraform service account; not a human's),
 # GOOGLE_SA_JSON (the GCP service-account key for the Terraform identity),
-# and ONE_PASSWORD_SA_TOKEN (existing). AWS/GCP access runs without OIDC/IdP.
+# ONE_PASSWORD_SA_TOKEN (existing), CLOUDFLARE_ZONE_ID, and
+# CLOUDFLARE_ACCOUNT_ID. AWS/GCP access runs without OIDC/IdP.
 # TERRAFORM_APPLY is a literal flag (not a secret): "true" to allow apply,
 # otherwise plan-only.
 # Components are enumerated in the matrix (mgmt, aws, gcp-remind-me,

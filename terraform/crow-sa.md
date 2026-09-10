@@ -41,10 +41,14 @@ names are **all lowercase** (Crow lowercases secret names).
 | `aws_terraform_secret_access_key` | secret key from the AWS service account |
 | `gcp_terraform_sa` | full GCP service-account JSON (single value) |
 | `one_password_sa_token` | existing token (unchanged) |
+| `cloudflare_zone_id` | Cloudflare `weinbender.io` zone ID |
+| `cloudflare_account_id` | Cloudflare account ID |
 
 `AWS_DEFAULT_REGION` is **not** a secret: the AWS provider and the S3 state
 backend already hardcode `region = "us-east-1"`, so the workflow sets it as a
-literal.
+literal. The Cloudflare zone and account IDs are injected as `TF_VAR_*`
+environment variables because the Cloudflare component declares them as
+required Terraform inputs.
 
 `TERRAFORM_APPLY` is **not** a secret either — it is a literal flag in the
 workflow file (`.crow/terraform-plan-apply.yaml`), defaulting to `"false"`.
