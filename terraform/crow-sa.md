@@ -24,7 +24,7 @@ path. This page lists the exact keys to create and the Crow secrets to set.
    `remind-me-481700`), create a service account with the roles Terraform needs
    (Artifact Registry, Cloud Run, IAM, workload-identity management).
 2. Download its **JSON service-account key** and paste the full JSON contents
-   into the Crow secret `GOOGLE_SA_JSON`.
+   into the Crow secret `gcp_terraform_sa`.
 
 ### Cloudflare (unchanged)
 Already via 1Password (`op://network/cloudflare-terraform/credential`), plus the
@@ -32,17 +32,41 @@ google-oauth client id/secret for the Cloudflare component. Nothing to create.
 
 ## Crow repository secrets to set (labs/infrastructure)
 
+The workflow pulls only the credential-bearing values from Crow secrets. The
+names are **all lowercase** (Crow lowercases secret names).
+
 | Secret | Value |
 |--------|-------|
-| `AWS_ACCESS_KEY_ID` | access key id from the AWS service account |
-| `AWS_SECRET_ACCESS_KEY` | secret key from the AWS service account |
-| `AWS_DEFAULT_REGION` | `us-east-1` |
-| `GOOGLE_SA_JSON` | full GCP service-account JSON (single value) |
-| `ONE_PASSWORD_SA_TOKEN` | existing token (unchanged) |
-| `TERRAFORM_APPLY` | `"true"` to allow apply; leave unset/other for plan-only |
+| `aws_terraform_access_key_id` | access key id from the AWS service account |
+| `aws_terraform_secret_access_key` | secret key from the AWS service account |
+| `gcp_terraform_sa` | full GCP service-account JSON (single value) |
+| `one_password_sa_token` | existing token (unchanged) |
+
+`AWS_DEFAULT_REGION` is **not** a secret: the AWS provider and the S3 state
+backend already hardcode `region = "us-east-1"`, so the workflow sets it as a
+literal.
+
+`TERRAFORM_APPLY` is **not** a secret either — it is a literal flag in the
+workflow file (`.crow/terraform-plan-apply.yaml`), defaulting to `"false"`.
+Crow compiles every `from_secret` reference at startup and aborts the whole
+pipeline if a referenced secret is missing, so this must be kept as a plain
+value rather than a secret.
+
+## What controls plan vs apply
+
+`terraform apply` changes infrastructure, so the workflow defaults to
+**plan-only**.
+
+- `TERRAFORM_APPLY: "false"` (default) → run only plans; changes nothing.
+- `TERRAFORM_APPLY: "true"` → run also executes `apply -auto-approve`.
+
+Change the literal in `terraform-plan-apply.yaml` to flip this. Storing it as a
+workflow literal (not a Crow secret) means the pipeline always compiles without
+you having to create an extra secret, and apply stays an explicit, committed
+decision.
 
 Launch: Crow -> `labs/infrastructure` -> manual pipeline `Terraform plan/apply
-(service account)`. Apply is only performed when `TERRAFORM_APPLY=true`.
+(service account)`.
 
 ## Security notes
 
@@ -62,7 +86,7 @@ Launch: Crow -> `labs/infrastructure` -> manual pipeline `Terraform plan/apply
 - [ ] Create AWS service-account key (steps above).
 - [ ] Create GCP service-account key (steps above).
 - [ ] Set Crow secrets (table above).
-- [ ] Run one manual pipeline and verify `plan` (and `apply` only when asked).
+- [ ] Run one manual pipeline and verify `plan`.
 
 Do not claim the flow works until a manual Crow run returns credentials and a
 successful `terraform plan`.
