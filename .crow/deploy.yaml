@@ -34,11 +34,12 @@ steps:
       - ruby -c scripts/reconcile-platform.rb
       - ruby -c scripts/reconcile-host.rb
       - |
-        ruby -rjson -e 'JSON.parse(File.read("/tmp/deploy-hosts.json")).each { |host| puts "#{host.fetch("id")} #{host.fetch("address")}" }' | while read -r host_id host_address; do
-          ssh-keyscan -H "$host_address" >> ~/.ssh/known_hosts
-          ruby scripts/reconcile-platform.rb "$host_id" "$host_address"
-          ruby scripts/reconcile-host.rb "$host_id" "$host_address" "$(ruby -rjson -e 'puts JSON.generate(Dir.children("compose-stacks").select { |n| File.file?(File.join("compose-stacks", n, "docker-compose.yaml")) && n != "docker-networking" }.sort)')"
-        done
+        ruby -rjson -e 'JSON.parse(File.read("/tmp/deploy-hosts.json")).each { |host| puts "#{host.fetch("id")} #{host.fetch("address")}" }' > /tmp/deploy-hosts.txt
+        while read -r host_id host_address; do
+          ssh-keyscan -H "$host_address" < /dev/null >> ~/.ssh/known_hosts
+          ruby scripts/reconcile-platform.rb "$host_id" "$host_address" < /dev/null
+          ruby scripts/reconcile-host.rb "$host_id" "$host_address" "$(ruby -rjson -e 'puts JSON.generate(Dir.children("compose-stacks").select { |n| File.file?(File.join("compose-stacks", n, "docker-compose.yaml")) && n != "docker-networking" }.sort)')" < /dev/null
+        done < /tmp/deploy-hosts.txt
 
 # Configure the existing 05:00 UTC schedule as a Crow cron named `deploy`.
 # Deployment is manual/cron-only during migration; it is not enabled for pushes
