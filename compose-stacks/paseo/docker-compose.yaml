@@ -1,0 +1,39 @@
+---
+services:
+  paseo:
+    image: git.weinbender.io/labs/paseo:0.9.1
+    container_name: paseo
+    restart: unless-stopped
+    environment:
+      PASEO_PASSWORD: ${PASEO_PASSWORD}
+      PASEO_HOSTNAMES: ${PASEO_HOSTNAME}
+      PASEO_WEB_UI_ENABLED: "true"
+    volumes:
+      - paseo_home:/home/paseo
+      - paseo_workspace:/workspace
+    networks:
+      - proxy
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.paseo.rule: Host(`${PASEO_HOSTNAME}`)
+      traefik.http.routers.paseo.entrypoints: websecure
+      traefik.http.routers.paseo.tls: "true"
+      traefik.http.routers.paseo.tls.certresolver: letsencrypt
+      traefik.http.services.paseo.loadbalancer.server.port: "6767"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --tries=1 http://localhost:6767/ -O - >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+networks:
+  proxy:
+    external: true
+    name: proxy
+
+volumes:
+  paseo_home:
+    name: paseo_home
+  paseo_workspace:
+    name: paseo_workspace
