@@ -8,6 +8,8 @@ services:
       PASEO_PASSWORD: ${PASEO_PASSWORD}
       PASEO_HOSTNAMES: ${PASEO_HOSTNAME}
       PASEO_WEB_UI_ENABLED: "true"
+    ports:
+      - "6767:6767"
     volumes:
       - paseo_home:/home/paseo
       - paseo_workspace:/workspace
