@@ -197,3 +197,20 @@ class ScriptOutputTest < LibTest
     assert_equal "preflight: failed\n", stderr
   end
 end
+
+class ComposeDeploymentTest < LibTest
+  def test_application_stacks_removes_self_managed_stacks
+    stacks = ['cloudflare-tunnel', 'crow-ci', 'forgejo', 'grafana', 'paseo']
+    assert_equal ['cloudflare-tunnel', 'forgejo', 'grafana', 'paseo'],
+                 ComposeDeployment.application_stacks(stacks)
+  end
+
+  def test_application_stacks_is_identity_when_none_self_managed
+    assert_equal ['paseo', 'traefik'],
+                 ComposeDeployment.application_stacks(['paseo', 'traefik'])
+  end
+
+  def test_application_stacks_tolerates_all_self_managed
+    assert_equal [], ComposeDeployment.application_stacks(['crow-ci'])
+  end
+end

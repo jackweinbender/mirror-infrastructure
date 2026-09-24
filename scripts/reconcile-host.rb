@@ -20,7 +20,7 @@ base = ComposeDeployment::BASE_DIR
 failed = []
 
 begin
-  stacks = JSON.parse(stacks_json)
+  stacks = ComposeDeployment.application_stacks(JSON.parse(stacks_json))
 rescue JSON::ParserError => e
   abort "invalid stacks JSON: #{e.message}"
 end
