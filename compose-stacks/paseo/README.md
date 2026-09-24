@@ -39,8 +39,11 @@ paseo <agent> login`. See [Paseo · Docker](https://paseo.sh/docs/docker) and
 The service joins the external `proxy` network supplied by `docker-networking`;
 it does not create or manage that network. Traefik routes
 `https://paseo.weinbender.io` to the container and terminates TLS with
-Let's Encrypt. `PASEO_HOSTNAMES` is set to the public hostname so the daemon's
-DNS-rebinding protection accepts requests for it.
+Let's Encrypt. Direct client connections to the daemon on TCP `6767` are also
+fronted by Traefik (the gateway): a `paseo` TCP entrypoint on the docker0-lxc
+Traefik overlay exposes `:6767` and the container's `traefik.tcp.*` router
+labels forward it to the daemon. `PASEO_HOSTNAMES` is set to the public
+hostname so the daemon's DNS-rebinding protection accepts requests for it.
 
 ## Secrets
 

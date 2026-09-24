@@ -1,0 +1,8 @@
+---
+# Host-specific Traefik config. docker0-lxc hosts the paseo stack, so expose the
+# paseo TCP entrypoint (6767) here only; the other Traefik hosts do not publish
+# it. Traffic is routed to the paseo container via its Docker TCP router labels.
+services:
+  traefik:
+    ports:
+      - "6767:6767"

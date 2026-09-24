@@ -17,7 +17,7 @@ deployments/
     .env.template
 ```
 
-The `traefik-lxc` deployment also has a Compose overlay that mounts dynamic routes from `traefik/dynamic/`. Add or remove a deployment directory to change where Traefik runs.
+The `traefik-lxc` deployment also has a Compose overlay that mounts dynamic routes from `traefik/dynamic/`. The `docker0-lxc` deployment has an overlay that publishes the `paseo` TCP entrypoint (`6767`) for the paseo daemon's direct client connections; the other Traefik hosts do not expose it. Add or remove a deployment directory to change where Traefik runs.
 
 The normal `deploy.yaml` workflow reconciles `docker-networking` first, then deploys assigned application stacks including Traefik.
 

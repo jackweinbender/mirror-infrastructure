@@ -13,6 +13,8 @@ entryPoints:
     address: :80
   websecure:
     address: :443
+  paseo:
+    address: :6767
 
 certificatesResolvers:
   letsencrypt:

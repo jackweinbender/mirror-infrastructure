@@ -20,6 +20,10 @@ services:
       traefik.http.routers.paseo.tls: "true"
       traefik.http.routers.paseo.tls.certresolver: letsencrypt
       traefik.http.services.paseo.loadbalancer.server.port: "6767"
+      traefik.tcp.routers.paseo.rule: HostSNI(`*`)
+      traefik.tcp.routers.paseo.entrypoints: paseo
+      traefik.tcp.routers.paseo.service: paseo
+      traefik.tcp.services.paseo.loadbalancer.server.port: "6767"
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:6767/ >/dev/null || exit 1"]
       interval: 30s
