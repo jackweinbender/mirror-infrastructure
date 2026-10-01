@@ -35,7 +35,7 @@ steps:
         from_secret: cloudflare_zone_id
       TF_VAR_cloudflare_account_id:
         from_secret: cloudflare_account_id
-      TERRAFORM_APPLY: "false"
+      TERRAFORM_APPLY: "true"
       # NOTE: plain value, not a secret. Crow compiles every from_secret
       # reference at startup and fails the whole pipeline if the secret is
       # missing, so this must stay a literal. Set to "true" to allow apply;
