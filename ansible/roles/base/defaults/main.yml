@@ -37,7 +37,9 @@ base_logrotate_weeks: 4
 base_locale: en_US.UTF-8
 base_timezone: Etc/UTC
 
-base_vector_sink_url: "https://victorialogs.weinbender.io/insert/jsonline"
+base_vector_sink_host: "https://victorialogs.weinbender.io"
+base_vector_sink_url: "{{ base_vector_sink_host }}/insert/jsonline"
+base_vector_sink_elasticsearch_url: "{{ base_vector_sink_host }}/insert/elasticsearch/"
 base_vector_sink_common_query: "_msg_field=message&_time_field=timestamp"
 base_vector_host_id: "{{ inventory_hostname_short }}"
 base_vector_buffer_max_size: 536870912
