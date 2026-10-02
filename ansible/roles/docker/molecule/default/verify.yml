@@ -50,7 +50,7 @@
         src: /etc/vector/conf.d/10-docker.toml
       register: docker_vector_config_content
 
-    - name: Assert Docker Vector uses Elasticsearch bulk ingestion and per-container streams
+    - name: Assert Docker Vector uses Elasticsearch bulk ingestion and app streams
       ansible.builtin.assert:
         that:
           - >-
@@ -66,7 +66,10 @@
             'mode = "bulk"' in
             (docker_vector_config_content.content | b64decode)
           - >-
-            '_stream_fields = "host,source_type,container_name"' in
+            '.app = .label."com.docker.compose.service" ?? .container_name ?? "unknown"' in
+            (docker_vector_config_content.content | b64decode)
+          - >-
+            '_stream_fields = "host,app"' in
             (docker_vector_config_content.content | b64decode)
 
     - name: Check Vector is in the docker group

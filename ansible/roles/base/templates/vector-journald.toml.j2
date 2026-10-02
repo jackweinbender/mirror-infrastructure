@@ -5,33 +5,20 @@ type = "journald"
 current_boot_only = true
 exclude_matches = { _SYSTEMD_UNIT = ["vector.service"] }
 
-[transforms.tag_journald]
+[transforms.normalize_journald]
 type = "remap"
 inputs = ["journald"]
 source = '''
 .host = "{{ base_vector_host_id }}"
 .source_type = "journald"
-
-priority, err = to_int(.PRIORITY)
-if err == null {
-  if priority <= 2 {
-    .level = "fatal"
-  } else if priority == 3 {
-    .level = "error"
-  } else if priority == 4 {
-    .level = "warn"
-  } else if priority <= 6 {
-    .level = "info"
-  } else if priority == 7 {
-    .level = "debug"
-  }
-}
+.app = .SYSLOG_IDENTIFIER ?? ._SYSTEMD_UNIT ?? "unknown"
+.level = to_syslog_level(to_int(.PRIORITY) ?? 6) ?? "info"
 '''
 
 [sinks.victorialogs_journald]
 type = "http"
-inputs = ["tag_journald"]
-uri = "{{ base_vector_sink_url }}?_stream_fields=host,source_type&{{ base_vector_sink_common_query }}"
+inputs = ["normalize_journald"]
+uri = "{{ base_vector_sink_url }}?_stream_fields=host,app&{{ base_vector_sink_common_query }}"
 method = "post"
 compression = "gzip"
 encoding.codec = "json"
