@@ -23,7 +23,7 @@ deployments/
 
 The `traefik-lxc` deployment also has a Compose overlay that mounts dynamic routes from `traefik/dynamic/`. Add or remove a deployment directory to change where Traefik runs.
 
-The normal `deploy.yaml` workflow reconciles `docker-networking` first, then deploys assigned application stacks including Traefik.
+The `.crow/deploy.yaml` platform workflow reconciles `docker-networking` first. The `deploy-traefik` matrix workflow in `.crow/deploy-stack.yaml` then deploys Traefik on its assigned hosts.
 
 ## DNS convention for LAN-backed services
 

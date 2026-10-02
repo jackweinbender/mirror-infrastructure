@@ -34,7 +34,8 @@ Each area has more focused guidance:
 | Terraform validation | [`.crow/terraform-validation.yaml`](.crow/terraform-validation.yaml) | Relevant pull requests, default-branch pushes, or manual | Validates Terraform components and formatting |
 | Terraform plan/apply | [`.crow/terraform-plan-apply.yaml`](.crow/terraform-plan-apply.yaml) | Manual | Plans or optionally applies each component |
 | Compose validation | [`.crow/compose-validation.yaml`](.crow/compose-validation.yaml) | Relevant pull requests, default-branch pushes, or manual | Checks inventory, assignments, templates, and Compose files |
-| Compose deployment | [`.crow/deploy.yaml`](.crow/deploy.yaml) | Relevant default-branch pushes, scheduled, or manual | Reconciles the platform and assigned application stacks; no PR deployments |
+| Compose platform | [`.crow/deploy.yaml`](.crow/deploy.yaml) | Relevant default-branch pushes, scheduled, or manual | Reconciles the shared platform stack |
+| Compose stacks | [`.crow/deploy-stack.yaml`](.crow/deploy-stack.yaml) | Per-stack default-branch paths, scheduled, or manual | Reconciles each application stack independently |
 | CI images | [`.crow/ci-base.yaml`](.crow/ci-base.yaml) | Relevant default-branch pushes or manual | Builds and publishes the CI images |
 | Repository validation | [`.crow/repository-validation.yaml`](.crow/repository-validation.yaml) | Default-branch pushes, pull requests, or manual | Checks Ruby syntax, tests, preflight, and repository whitespace |
 
@@ -51,12 +52,16 @@ Compose deployment has two layers:
    through `deployments/<host>/.env.template` and is reconciled only on hosts
    where it is assigned.
 
-`deploy.yaml` validates the inventory, assignments, dotenv templates, overlays,
-and Compose files before making an SSH connection. It then:
+The deployment workflows validate the inventory, assignments, dotenv
+templates, overlays, and Compose files before making an SSH connection. They
+then:
 
-1. Reconciles `docker-networking` on every deploy host.
-2. Waits for all platform jobs to succeed.
-3. Reconciles assigned application stacks on each host.
+1. Reconcile `docker-networking` on every deploy host through `deploy.yaml`.
+2. Reconcile each application stack through its independent matrix entry in
+   `deploy-stack.yaml`; these entries depend on the platform workflow and can
+   run in parallel.
+3. Use each stack's path filter so a default-branch push does not deploy
+   unrelated stacks.
 
 Deployments connect over Tailscale, stage privately on the remote host, inject
 1Password-backed environment values directly into remote staging, validate with

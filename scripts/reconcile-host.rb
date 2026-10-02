@@ -1,7 +1,6 @@
 #!/usr/bin/env ruby
 # frozen_string_literal: true
 
-require 'json'
 require 'tempfile'
 require_relative 'lib/commands'
 require_relative 'lib/compose_deployment'
@@ -12,18 +11,15 @@ quote = ScriptCommands.method(:quote)
 inject_to_remote = ScriptCommands.method(:inject_to_remote)
 write_remote = ScriptCommands.method(:write_remote)
 
-host_id, host_address, stacks_json = ARGV
-ScriptOutput.usage!('usage: reconcile-host.rb HOST_ID HOST_ADDRESS STACKS_JSON') unless host_id && host_address && stacks_json
+host_id, host_address, stack = ARGV
+ScriptOutput.usage!('usage: reconcile-host.rb HOST_ID HOST_ADDRESS STACK') unless host_id && host_address && stack
+ScriptOutput.fail!("stack #{stack.inspect} is self-managed and cannot be reconciled") if ComposeDeployment::SELF_MANAGED_STACKS.include?(stack)
 
 remote = "#{ENV.fetch('DOCKER_USER', 'deploy')}@#{host_address}"
 base = ComposeDeployment::BASE_DIR
 failed = []
 
-begin
-  stacks = ComposeDeployment.application_stacks(JSON.parse(stacks_json))
-rescue JSON::ParserError => e
-  abort "invalid stacks JSON: #{e.message}"
-end
+stacks = ComposeDeployment.application_stacks([stack])
 
 stacks.each do |stack|
   local_dir = File.join('compose-stacks', stack)

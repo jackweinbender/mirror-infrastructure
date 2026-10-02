@@ -1,17 +1,39 @@
 ---
-name: Compose platform deployment
+name: Compose stack deployment
+matrix:
+  include:
+    - NAME: deploy-cloudflare-tunnel
+      STACK: cloudflare-tunnel
+    - NAME: deploy-forgejo
+      STACK: forgejo
+    - NAME: deploy-grafana
+      STACK: grafana
+    - NAME: deploy-ntfy
+      STACK: ntfy
+    - NAME: deploy-paseo
+      STACK: paseo
+    - NAME: deploy-planet-express
+      STACK: planet-express
+    - NAME: deploy-traefik
+      STACK: traefik
+    - NAME: deploy-uptime-kuma
+      STACK: uptime-kuma
+    - NAME: deploy-victorialogs
+      STACK: victorialogs
 when:
   - event: push
     branch: ${CI_REPO_DEFAULT_BRANCH}
     path:
       include:
-        - 'compose-stacks/docker-networking/**'
+        - 'compose-stacks/${STACK}/**'
         - 'ansible/inventory.yaml'
         - 'scripts/**'
-        - '.crow/deploy.yaml'
+        - '.crow/deploy-stack.yaml'
   - event: manual
   - event: cron
     cron: deploy
+depends_on:
+  - deploy
 steps:
   - name: preflight
     image: git.weinbender.io/labs/ci-base:main
@@ -20,7 +42,7 @@ steps:
       LC_ALL: C.UTF-8
     commands:
       - ruby scripts/preflight.rb
-  - name: deploy-platform
+  - name: deploy-stack
     image: git.weinbender.io/labs/ci-base:main
     environment:
       LANG: C.UTF-8
@@ -39,16 +61,16 @@ steps:
       - printf 'Host *\n  ProxyCommand tailscale nc %%h %%p\n' > ~/.ssh/config
       - chmod 600 ~/.ssh/config
       - ruby scripts/discover-deploy-hosts.rb ansible/inventory.yaml > /tmp/deploy-hosts.json
-      - ruby -c scripts/reconcile-platform.rb
+      - ruby -c scripts/reconcile-host.rb
       - |
         ruby -rjson -e 'JSON.parse(File.read("/tmp/deploy-hosts.json")).each { |host| puts "#{host.fetch("id")} #{host.fetch("address")}" }' > /tmp/deploy-hosts.txt
         while read -r host_id host_address; do
           ssh-keyscan -H "$host_address" < /dev/null >> ~/.ssh/known_hosts
-          ruby scripts/reconcile-platform.rb "$host_id" "$host_address"
+          ruby scripts/reconcile-host.rb "$host_id" "$host_address" "$STACK"
         done < /tmp/deploy-hosts.txt
 
-# Configure the existing 05:00 UTC schedule as a Crow cron named `deploy`.
-# The platform is reconciled independently so stack workflows can depend on it
-# while still running in parallel with one another. Pull requests never deploy.
+# Each matrix entry is a separately schedulable workflow. Its path filter is
+# interpolated with STACK, so a stack change deploys only that stack; manually
+# selecting multiple entries lets Crow run them in parallel.
 # Required Crow repository secrets: ONE_PASSWORD_SA_TOKEN and
 # TS_OAUTH_CLIENT_SECRET. The deployment user is currently `deploy`.

@@ -47,7 +47,7 @@ The deployment template is kept with the deployment-specific files and injected 
 The application assignment is represented by a deployment directory such as `deployments/docker-vm-dmz/`, containing `.env.template`. Add another `deployments/<deploy-host>/.env.template` file to run this stack on another inventory host. A deployment may also include `deployments/<deploy-host>/docker-compose.yaml` for host-specific Compose overrides. Remove the deployment directory to stop it there; the application workflow tears down Compose before deleting its remote files.
 
 Prerequisites:
-1. Deploy with `deploy.yaml`; it reconciles `compose-stacks/docker-networking` first so the external `proxy` network exists, then deploys Traefik and application stacks.
+1. Deploy with the `deploy-cloudflare-tunnel` workflow in `.crow/deploy-stack.yaml`; it runs after `.crow/deploy.yaml` has reconciled `compose-stacks/docker-networking` so the external `proxy` network exists.
 2. Apply `terraform/cloudflare/` if using the tunnel.
 3. Store the tunnel token in 1Password.
 

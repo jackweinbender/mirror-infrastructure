@@ -13,6 +13,6 @@ Traefik and application services are separate Compose stacks. Services that shou
 
 ## Deployment
 
-Changes under `compose-stacks/docker-networking/` run the platform phase of `deploy.yaml`. The workflow validates the networking Compose project, stages it privately, and reconciles it on every discovered deploy host. This stack has no host assignment files because it is always deployed everywhere.
+Changes under `compose-stacks/docker-networking/` run the platform workflow in `deploy.yaml`. The workflow validates the networking Compose project, stages it privately, and reconciles it on every discovered deploy host. This stack has no host assignment files because it is always deployed everywhere.
 
 The platform owns the `proxy` network. Application stacks that declare the network as external run after this phase succeeds; application reconciliation never removes it.

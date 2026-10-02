@@ -17,9 +17,11 @@ The deployment order is intentional:
 
 1. Preflight validates inventory, stack names, dotenv templates, assignments,
    overlays, and Compose configuration.
-2. `docker-networking` is reconciled on every deploy host.
-3. Only after every networking job succeeds, assigned application stacks are
-   reconciled on each host.
+2. `.crow/deploy.yaml` reconciles `docker-networking` on every deploy host.
+3. `.crow/deploy-stack.yaml` expands into one explicit workflow per application
+   stack. Each stack workflow depends on the platform workflow, then
+   reconciles that stack on each host where it is assigned. Independent stack
+   workflows can run in parallel.
 
 Application stacks may declare `proxy` as an external network. They must not
 create, delete, or otherwise manage that network themselves.
@@ -150,8 +152,10 @@ Named volumes and images are intentionally retained.
 5. Confirm all external networks are supplied by `docker-networking`.
 6. Check bind-mount source types, especially file mounts.
 7. Run local validation (below).
-8. Push to `main`, or manually dispatch `deploy.yaml` for script-only changes.
-9. Inspect the workflow's preflight, platform, and per-host application jobs.
+8. Push to `main`, or manually dispatch the relevant stack workflow for
+   script-only changes. The platform workflow is `.crow/deploy.yaml`; application
+   stacks are the named matrix entries in `.crow/deploy-stack.yaml`.
+9. Inspect the workflow's preflight, platform, and per-host stack jobs.
 
 To move a stack between hosts, add the new assignment first, verify the new
 host, then remove the old assignment in a subsequent change when a staged
@@ -199,9 +203,9 @@ When a deployment job fails:
 3. Do not manually delete an unmarked live directory. Check its marker and
    filesystem contents first.
 4. Fix the repository source and validate locally before rerunning.
-5. For changes under `scripts` or other paths not covered by the
-   deployment schedule, manually dispatch the Crow deployment and inspect the
-   completed run before treating the change as deployed.
+5. For changes under `scripts` or other paths not covered by a stack's
+   deployment path, manually dispatch the affected Crow workflow and inspect
+   the completed run before treating the change as deployed.
 
 The reconciler contains a narrowly scoped migration recovery path for the
 known legacy Traefik layout where Docker created nested directories for
