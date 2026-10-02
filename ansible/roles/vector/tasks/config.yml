@@ -1,0 +1,96 @@
+---
+# Detect whether the Docker socket is available so this host can ship Docker
+# container logs in addition to journald (docker-enabled LXC/VMs). The vector
+# role never installs Docker itself; it only collects when Docker is present.
+
+- name: Detect whether the Docker socket is available
+  ansible.builtin.stat:
+    path: "{{ vector_docker_socket }}"
+  register: vector_docker_socket_stat
+
+- name: Enable Docker log collection when the socket is present
+  ansible.builtin.set_fact:
+    vector_collect_docker: "{{ vector_docker_socket_stat.stat.exists | bool }}"
+
+- name: Ensure the Vector system user exists
+  ansible.builtin.user:
+    name: vector
+    system: true
+    shell: /usr/sbin/nologin
+    create_home: false
+  register: vector_user
+
+- name: Ensure the data directory (disk buffer) exists
+  ansible.builtin.file:
+    path: /var/lib/vector
+    state: directory
+    owner: vector
+    group: vector
+    mode: "0755"
+
+- name: Check whether the systemd-journal group exists
+  ansible.builtin.command:
+    argv:
+      - getent
+      - group
+      - systemd-journal
+  register: vector_journal_group
+  failed_when: false
+  changed_when: false
+
+- name: Check whether the docker group exists
+  ansible.builtin.command:
+    argv:
+      - getent
+      - group
+      - docker
+  register: vector_docker_group
+  failed_when: false
+  changed_when: false
+
+- name: Grant the Vector service user journald read access
+  ansible.builtin.user:
+    name: vector
+    groups: systemd-journal
+    append: true
+  when: vector_journal_group.rc == 0
+
+- name: Grant the Vector service user access to the Docker socket
+  ansible.builtin.user:
+    name: vector
+    groups: docker
+    append: true
+  when:
+    - vector_collect_docker | bool
+    - vector_docker_group.rc == 0
+
+- name: Write the Vector configuration
+  ansible.builtin.template:
+    src: vector.toml.j2
+    dest: /etc/vector/vector.toml
+    owner: root
+    group: root
+    mode: "0644"
+  register: vector_config
+
+- name: Write the Vector systemd override (config path)
+  ansible.builtin.template:
+    src: vector-override.conf.j2
+    dest: /etc/systemd/system/vector.service.d/override.conf
+    owner: root
+    group: root
+    mode: "0600"
+  register: vector_override
+
+- name: Reload systemd to pick up the override
+  ansible.builtin.systemd:
+    daemon_reload: true
+  when: vector_override.changed
+
+- name: Enable and restart Vector
+  ansible.builtin.systemd:
+    name: vector
+    enabled: true
+    state: restarted
+  when:
+    - vector_config.changed or vector_override.changed

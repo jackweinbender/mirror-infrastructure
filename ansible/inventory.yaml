@@ -2,24 +2,30 @@ workloads:
   vars:
     ansible_user: ansible
   hosts:
-    jellyfin-lxc.tortoise-noodlefish.ts.net: null
+    jellyfin-lxc.tortoise-noodlefish.ts.net:
+      host_roles:
+        - vector
     traefik-lxc.tortoise-noodlefish.ts.net:
       host_roles:
         - deploy
         - docker
+        - vector
     docker0-lxc.tortoise-noodlefish.ts.net:
       host_roles:
         - deploy
         - docker
+        - vector
       docker_configure_data_root: true
     docker-vm-dmz.tortoise-noodlefish.ts.net:
       host_roles:
         - deploy
         - docker
+        - vector
     lxc-docker-core0.tortoise-noodlefish.ts.net:
       host_roles:
         - docker
         - deploy
+        - vector
 hypervisors:
   vars:
     ansible_user: root

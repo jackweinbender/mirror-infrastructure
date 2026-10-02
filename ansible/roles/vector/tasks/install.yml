@@ -1,0 +1,73 @@
+---
+- name: Require a Debian host
+  ansible.builtin.assert:
+    that:
+      - ansible_facts['distribution'] == 'Debian'
+    fail_msg: >-
+      This role only supports Debian ({{ ansible_facts['distribution'] }}
+      {{ ansible_facts['distribution_release'] }} detected on
+      {{ inventory_hostname }}). Vector's apt.vector.dev repository publishes
+      Debian packages.
+
+- name: Ensure prerequisite packages are installed
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - gpg
+      - python3-debian
+    state: present
+
+- name: Ensure the apt keyrings directory exists
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Remove any prior temporary key directory
+  ansible.builtin.file:
+    path: /tmp/vector-keys
+    state: absent
+
+- name: Download the Datadog archive signing keys for the Vector repo
+  ansible.builtin.get_url:
+    url: "https://keys.datadoghq.com/{{ item }}"
+    dest: "/tmp/vector-keys/{{ item }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - DATADOG_APT_KEY_CURRENT.public
+    - DATADOG_APT_KEY_F14F620E.public
+    - DATADOG_APT_KEY_C0962C7D.public
+
+- name: Assemble the Vector repository keyring
+  ansible.builtin.assemble:
+    src: /tmp/vector-keys
+    dest: /etc/apt/keyrings/vector.asc
+    owner: root
+    group: root
+    mode: "0644"
+    validate: /usr/bin/gpg --dearmor --output /dev/null %s
+
+- name: Remove the temporary key directory
+  ansible.builtin.file:
+    path: /tmp/vector-keys
+    state: absent
+
+- name: Add Vector's apt repository
+  ansible.builtin.deb822_repository:
+    name: vector
+    types: deb
+    uris: https://apt.vector.dev/
+    suites: "{{ vector_apt_suite }}"
+    components:
+      - "{{ vector_apt_component }}"
+    signed_by: /etc/apt/keyrings/vector.asc
+
+- name: Install Vector (apt package - current stable)
+  ansible.builtin.apt:
+    name: vector
+    state: present
+    update_cache: true

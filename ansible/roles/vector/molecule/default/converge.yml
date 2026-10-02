@@ -1,0 +1,17 @@
+---
+# Converge playbook for the Vector role.
+# First applies base role (prerequisite), then applies the vector role in its
+# default (non-Docker) configuration, since the test container has no Docker
+# socket.
+- name: Converge Vector role
+  hosts: all
+  gather_facts: true
+  tasks:
+    - name: Include base role (prerequisite)
+      ansible.builtin.include_role:
+        name: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/../base" # noqa role-name[path]
+        public: true
+
+    - name: Include vector role
+      ansible.builtin.include_role:
+        name: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}" # noqa role-name[path]
