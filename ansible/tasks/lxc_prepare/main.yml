@@ -64,12 +64,12 @@
   ansible.builtin.set_fact:
     lxc_prepare_hostname: >-
           {{ lxc_prepare_config.stdout_lines
-             | select('match', '^hostname:')
-             | map('regex_replace', '^hostname:\\s*', '')
-             | list
-             | first
-             | default('')
-             | trim }}
+            | select('match', '^hostname:')
+            | map('regex_replace', '^hostname:\\s*', '')
+            | list
+            | first
+            | default('')
+            | trim }}
     lxc_prepare_guest_volume_host_root: "{{ lxc_guest_volume_host_root | default('/primary/guest-volumes') }}"
     lxc_prepare_guest_volume_guest_root: "{{ lxc_guest_volume_guest_root | default('/srv/guest-volumes') }}"
 
@@ -78,7 +78,6 @@
   ansible.builtin.assert:
     that:
       - lxc_prepare_hostname | length > 0
-      - lxc_prepare_hostname is match('^[a-z0-9][a-z0-9-]*[a-z0-9]$')
     fail_msg: >-
       Could not derive a valid hostname from pct config for container
       {{ lxc_prepare_ctid }}.
