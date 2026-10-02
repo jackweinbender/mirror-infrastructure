@@ -14,7 +14,7 @@ services:
       # Forgejo's default webhook allowlist is `external`, which denies private
       # LAN addresses; grant the hosts Forgejo must deliver webhooks to on the
       # LAN. Keep `external` first so outbound public webhooks still work.
-      FORGEJO__webhook__ALLOWED_HOST_LIST: external,planet-express.weinbender.io
+      FORGEJO__webhook__ALLOWED_HOST_LIST: external,planet-express.weinbender.io,crow.weinbender.io
     ports:
       - "2222:22"
     volumes:
