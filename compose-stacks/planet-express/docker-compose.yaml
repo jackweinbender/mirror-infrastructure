@@ -1,7 +1,7 @@
 ---
 services:
   planet-express:
-    image: git.weinbender.io/labs/planet-express:f66c5c668bf319d6dd3c965976795e3cf734292a
+    image: git.weinbender.io/labs/planet-express:5a9c1c0df0030cd60f41730b8225fd6045ab66d8
     container_name: planet-express
     restart: unless-stopped
     environment:
