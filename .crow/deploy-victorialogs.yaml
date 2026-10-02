@@ -13,7 +13,7 @@ when:
   - event: cron
     cron: deploy
 depends_on:
-  - deploy
+  - Compose platform deployment
 steps:
   - name: preflight
     image: git.weinbender.io/labs/ci-base:main
