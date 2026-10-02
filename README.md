@@ -35,7 +35,7 @@ Each area has more focused guidance:
 | Terraform plan/apply | [`.crow/terraform-plan-apply.yaml`](.crow/terraform-plan-apply.yaml) | Manual | Plans or optionally applies each component |
 | Compose validation | [`.crow/compose-validation.yaml`](.crow/compose-validation.yaml) | Relevant pull requests, default-branch pushes, or manual | Checks inventory, assignments, templates, and Compose files |
 | Compose platform | [`.crow/deploy.yaml`](.crow/deploy.yaml) | Relevant default-branch pushes, scheduled, or manual | Reconciles the shared platform stack |
-| Compose stacks | [`.crow/deploy-stack.yaml`](.crow/deploy-stack.yaml) | Per-stack default-branch paths, scheduled, or manual | Reconciles each application stack independently |
+| Compose stacks | [`.crow/deploy-*.yaml`](.crow/) | Per-stack default-branch paths, scheduled, or manual | Reconciles each application stack independently; manual runs can select stacks |
 | CI images | [`.crow/ci-base.yaml`](.crow/ci-base.yaml) | Relevant default-branch pushes or manual | Builds and publishes the CI images |
 | Repository validation | [`.crow/repository-validation.yaml`](.crow/repository-validation.yaml) | Default-branch pushes, pull requests, or manual | Checks Ruby syntax, tests, preflight, and repository whitespace |
 
@@ -57,9 +57,9 @@ templates, overlays, and Compose files before making an SSH connection. They
 then:
 
 1. Reconcile `docker-networking` on every deploy host through `deploy.yaml`.
-2. Reconcile each application stack through its independent matrix entry in
-   `deploy-stack.yaml`; these entries depend on the platform workflow and can
-   run in parallel.
+2. Reconcile each application stack through its independent
+   `.crow/deploy-<stack>.yaml` workflow; these workflows depend on the platform
+   workflow and can run in parallel.
 3. Use each stack's path filter so a default-branch push does not deploy
    unrelated stacks.
 

@@ -1,0 +1,36 @@
+---
+name: Deploy Traefik
+when:
+  - event: push
+    branch: ${CI_REPO_DEFAULT_BRANCH}
+    path:
+      include:
+        - 'compose-stacks/traefik/**'
+        - 'ansible/inventory.yaml'
+        - 'scripts/**'
+        - '.crow/deploy-traefik.yaml'
+  - event: manual
+  - event: cron
+    cron: deploy
+depends_on:
+  - deploy
+steps:
+  - name: preflight
+    image: git.weinbender.io/labs/ci-base:main
+    environment:
+      LANG: C.UTF-8
+      LC_ALL: C.UTF-8
+    commands:
+      - ruby scripts/preflight.rb
+  - name: deploy-stack
+    image: git.weinbender.io/labs/ci-base:main
+    environment:
+      LANG: C.UTF-8
+      LC_ALL: C.UTF-8
+      STACK: traefik
+      OP_SERVICE_ACCOUNT_TOKEN:
+        from_secret: ONE_PASSWORD_SA_TOKEN
+      TS_OAUTH_CLIENT_SECRET:
+        from_secret: TS_OAUTH_CLIENT_SECRET
+    commands:
+      - bash scripts/deploy-compose-stack.sh

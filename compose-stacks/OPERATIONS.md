@@ -18,10 +18,11 @@ The deployment order is intentional:
 1. Preflight validates inventory, stack names, dotenv templates, assignments,
    overlays, and Compose configuration.
 2. `.crow/deploy.yaml` reconciles `docker-networking` on every deploy host.
-3. `.crow/deploy-stack.yaml` expands into one explicit workflow per application
+3. The `.crow/deploy-<stack>.yaml` workflows each reconcile one application
    stack. Each stack workflow depends on the platform workflow, then
    reconciles that stack on each host where it is assigned. Independent stack
-   workflows can run in parallel.
+   workflows can run in parallel and can be selected individually for manual
+   runs.
 
 Application stacks may declare `proxy` as an external network. They must not
 create, delete, or otherwise manage that network themselves.
@@ -154,7 +155,7 @@ Named volumes and images are intentionally retained.
 7. Run local validation (below).
 8. Push to `main`, or manually dispatch the relevant stack workflow for
    script-only changes. The platform workflow is `.crow/deploy.yaml`; application
-   stacks are the named matrix entries in `.crow/deploy-stack.yaml`.
+   stacks are the `.crow/deploy-<stack>.yaml` workflows.
 9. Inspect the workflow's preflight, platform, and per-host stack jobs.
 
 To move a stack between hosts, add the new assignment first, verify the new
