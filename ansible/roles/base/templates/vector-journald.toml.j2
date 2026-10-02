@@ -11,6 +11,21 @@ inputs = ["journald"]
 source = '''
 .host = "{{ base_vector_host_id }}"
 .source_type = "journald"
+
+priority, err = to_int(.PRIORITY)
+if err == null {
+  if priority <= 2 {
+    .level = "fatal"
+  } else if priority == 3 {
+    .level = "error"
+  } else if priority == 4 {
+    .level = "warn"
+  } else if priority <= 6 {
+    .level = "info"
+  } else if priority == 7 {
+    .level = "debug"
+  }
+}
 '''
 
 [sinks.victorialogs_journald]

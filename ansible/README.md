@@ -23,7 +23,9 @@ Roles are composable and inventory-driven. `workloads.yaml` always applies
 
 ## Supported model
 
-- Debian is the only supported guest operating system.
+- Debian is the supported guest operating system for the full baseline. The
+  Vector installation also accepts Ubuntu so existing Ubuntu workloads can ship
+  journald logs; this does not imply full Ubuntu support for the baseline.
 - Tailscale SSH is the only supported remote access path.
 - The Proxmox console is the recovery path during initial bootstrap.
 - Docker and privileged LXC features are opt-in.

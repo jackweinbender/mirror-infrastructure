@@ -5,6 +5,8 @@
 log:
   level: INFO
 
+accessLog: {}
+
 api:
   dashboard: true
 

@@ -1,13 +1,12 @@
 ---
-- name: Require a Debian host
+- name: Require a Debian or Ubuntu host
   ansible.builtin.assert:
     that:
-      - ansible_facts['distribution'] == 'Debian'
+      - ansible_facts['distribution'] in ['Debian', 'Ubuntu']
     fail_msg: >-
-      This role only supports Debian ({{ ansible_facts['distribution'] }}
-      {{ ansible_facts['distribution_release'] }} detected on
-      {{ inventory_hostname }}). Vector's apt.vector.dev repository publishes
-      Debian packages.
+      Vector's apt.vector.dev repository supports Debian and Ubuntu (detected
+      {{ ansible_facts['distribution'] }} {{ ansible_facts['distribution_release'] }}
+      on {{ inventory_hostname }}).
 
 - name: Ensure prerequisite packages are installed
   ansible.builtin.apt:

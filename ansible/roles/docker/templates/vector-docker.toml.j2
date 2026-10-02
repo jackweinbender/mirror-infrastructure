@@ -8,6 +8,31 @@ inputs = ["docker"]
 source = '''
 .host = "{{ base_vector_host_id }}"
 .source_type = "docker"
+
+parsed, err = parse_json(.message)
+if err == null && is_object(parsed) {
+  severity = parsed.level
+  if is_null(severity) {
+    severity = parsed.severity
+  }
+  if is_null(severity) {
+    severity = parsed.severity_text
+  }
+  if is_string(severity) {
+    severity = downcase!(severity)
+    if includes(["fatal", "panic", "emergency", "alert", "critical"], severity) {
+      .level = "fatal"
+    } else if includes(["error", "err"], severity) {
+      .level = "error"
+    } else if includes(["warn", "warning"], severity) {
+      .level = "warn"
+    } else if includes(["info", "notice"], severity) {
+      .level = "info"
+    } else if includes(["debug", "trace"], severity) {
+      .level = severity
+    }
+  }
+}
 '''
 
 [sinks.victorialogs_docker]
