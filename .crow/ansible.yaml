@@ -1,6 +1,10 @@
 ---
 name: Ansible Playbook
 when:
+  - event: push
+    branch: ${CI_REPO_DEFAULT_BRANCH}
+    path:
+      include: ['ansible/**', '.crow/ansible.yaml']
   - event: manual
   - event: cron
     cron: ansible
@@ -24,5 +28,5 @@ steps:
       - ANSIBLE_CONFIG="$PWD/ansible/ansible.cfg" ANSIBLE_ROLES_PATH="$PWD/ansible/roles" ansible-playbook -i ansible/inventory.yaml ansible/playbooks/workloads.yaml
 
 # Configure the existing 04:00 UTC schedule as a Crow cron named `ansible`.
-# This workflow intentionally has no automatic push trigger because it changes
-# infrastructure hosts.
+# Relevant default-branch pushes apply the host configuration; pull requests do
+# not. Manual dispatch and the existing schedule remain available.

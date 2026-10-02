@@ -1,6 +1,10 @@
 ---
 name: Compose stack deployments
 when:
+  - event: push
+    branch: ${CI_REPO_DEFAULT_BRANCH}
+    path:
+      include: ['compose-stacks/**', 'ansible/inventory.yaml', 'scripts/**', '.crow/deploy.yaml']
   - event: manual
   - event: cron
     cron: deploy
@@ -42,7 +46,7 @@ steps:
         done < /tmp/deploy-hosts.txt
 
 # Configure the existing 05:00 UTC schedule as a Crow cron named `deploy`.
-# Deployment is manual/cron-only during migration; it is not enabled for pushes
-# or pull requests.
+# Deployment runs for relevant default-branch pushes, and remains available by
+# manual dispatch or the scheduled Crow cron. Pull requests never deploy.
 # Required Crow repository secret: ONE_PASSWORD_SA_TOKEN and
 # TS_OAUTH_CLIENT_SECRET. The deployment user is currently `deploy`.

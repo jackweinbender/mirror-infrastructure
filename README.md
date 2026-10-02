@@ -29,11 +29,14 @@ Each area has more focused guidance:
 
 | Area | Pipeline | Trigger | Effect |
 | --- | --- | --- | --- |
-| Ansible | [`.crow/ansible.yaml`](.crow/ansible.yaml) | Scheduled or manual | Lints and applies `playbooks/workloads.yaml` |
-| Terraform | [`.crow/terraform-validation.yaml`](.crow/terraform-validation.yaml) | Pull requests, pushes, or manual runs | Validates Terraform components and formatting |
-| Terraform | [`.crow/terraform-plan-apply.yaml`](.crow/terraform-plan-apply.yaml) | Manual | Plans or optionally applies each component |
-| Compose | [`.crow/deploy.yaml`](.crow/deploy.yaml) | Scheduled or manual | Reconciles the platform and assigned application stacks |
-| Repository | [`.crow/repository-validation.yaml`](.crow/repository-validation.yaml) | Push, pull request, or manual | Checks Ruby syntax, tests, preflight, and repository whitespace |
+| Ansible | [`.crow/ansible.yaml`](.crow/ansible.yaml) | Relevant default-branch pushes, scheduled, or manual | Lints and applies `playbooks/workloads.yaml`; no PR host changes |
+| Ansible validation | [`.crow/ansible-validation.yaml`](.crow/ansible-validation.yaml) | Relevant pull requests, default-branch pushes, or manual | Lints Ansible and checks playbook syntax |
+| Terraform validation | [`.crow/terraform-validation.yaml`](.crow/terraform-validation.yaml) | Relevant pull requests, default-branch pushes, or manual | Validates Terraform components and formatting |
+| Terraform plan/apply | [`.crow/terraform-plan-apply.yaml`](.crow/terraform-plan-apply.yaml) | Manual | Plans or optionally applies each component |
+| Compose validation | [`.crow/compose-validation.yaml`](.crow/compose-validation.yaml) | Relevant pull requests, default-branch pushes, or manual | Checks inventory, assignments, templates, and Compose files |
+| Compose deployment | [`.crow/deploy.yaml`](.crow/deploy.yaml) | Relevant default-branch pushes, scheduled, or manual | Reconciles the platform and assigned application stacks; no PR deployments |
+| CI images | [`.crow/ci-base.yaml`](.crow/ci-base.yaml) | Relevant default-branch pushes or manual | Builds and publishes the CI images |
+| Repository validation | [`.crow/repository-validation.yaml`](.crow/repository-validation.yaml) | Default-branch pushes, pull requests, or manual | Checks Ruby syntax, tests, preflight, and repository whitespace |
 
 Terraform components are listed in [`terraform/components.json`](terraform/components.json)
 and validated against the Terraform root directories.

@@ -2,6 +2,7 @@
 name: Repository validation
 when:
   - event: push
+    branch: ${CI_REPO_DEFAULT_BRANCH}
   - event: pull_request
   - event: manual
 steps:

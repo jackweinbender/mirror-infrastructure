@@ -3,7 +3,11 @@ name: Compose validation
 when:
   - event: pull_request
     path:
-      include: ['compose-stacks/**', 'ansible/inventory.yaml', '.crow/**']
+      include: ['compose-stacks/**', 'ansible/inventory.yaml', 'scripts/**', '.crow/**']
+  - event: push
+    branch: ${CI_REPO_DEFAULT_BRANCH}
+    path:
+      include: ['compose-stacks/**', 'ansible/inventory.yaml', 'scripts/**', '.crow/**']
   - event: manual
 steps:
   - name: preflight
