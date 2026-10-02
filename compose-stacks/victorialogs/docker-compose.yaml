@@ -1,0 +1,29 @@
+---
+services:
+  victorialogs:
+    image: docker.io/victoriametrics/victoria-logs:v1.53.0
+    container_name: victorialogs
+    restart: unless-stopped
+    command:
+      - -storageDataPath=/vlogs
+      - -retentionPeriod=30d
+    volumes:
+      - vlogs_data:/vlogs
+    networks:
+      - proxy
+    labels:
+      traefik.enable: "true"
+      traefik.http.routers.victorialogs.rule: Host(`${VICTORIALOGS_HOSTNAME}`)
+      traefik.http.routers.victorialogs.entrypoints: websecure
+      traefik.http.routers.victorialogs.tls: "true"
+      traefik.http.routers.victorialogs.tls.certresolver: letsencrypt
+      traefik.http.services.victorialogs.loadbalancer.server.port: "9428"
+
+networks:
+  proxy:
+    external: true
+    name: proxy
+
+volumes:
+  vlogs_data:
+    name: vlogs_data
