@@ -14,3 +14,9 @@ The application assignment is represented by
 `deployments/docker0-lxc/.env.template`; remove that assignment to stop the stack
 on the host during the next reconciliation. The normal deployment workflow
 reconciles `docker-networking` and Traefik before Forgejo.
+
+Forgejo's webhook delivery honors `FORGEJO__webhook__ALLOWED_HOST_LIST`
+(default `external`, which denies private LAN addresses). The Compose
+environment extends it with the LAN webhook receivers Forgejo must reach, such
+as the `planet-express` stack; add future LAN receivers to that list. A
+redeployment of this stack is required for changes to take effect.

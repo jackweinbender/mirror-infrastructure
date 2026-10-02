@@ -11,6 +11,10 @@ services:
       FORGEJO__server__SSH_DOMAIN: ${FORGEJO_HOSTNAME}
       FORGEJO__server__ROOT_URL: https://${FORGEJO_HOSTNAME}/
       FORGEJO__server__SSH_PORT: "2222"
+      # Forgejo's default webhook allowlist is `external`, which denies private
+      # LAN addresses; grant the hosts Forgejo must deliver webhooks to on the
+      # LAN. Keep `external` first so outbound public webhooks still work.
+      FORGEJO__webhook__ALLOWED_HOST_LIST: external,planet-express.weinbender.io
     ports:
       - "2222:22"
     volumes:
