@@ -45,6 +45,16 @@
       register: docker_vector_config
       failed_when: not docker_vector_config.stat.exists
 
+    - name: Read Vector Docker log config
+      ansible.builtin.slurp:
+        src: /etc/vector/conf.d/10-docker.toml
+      register: docker_vector_config_content
+
+    - name: Assert Docker logs use per-container streams
+      ansible.builtin.assert:
+        that:
+          - "'_stream_fields=host,source_type,container_name' in (docker_vector_config_content.content | b64decode)"
+
     - name: Check Vector is in the docker group
       ansible.builtin.command:
         argv:

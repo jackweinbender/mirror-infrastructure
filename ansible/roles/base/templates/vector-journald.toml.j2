@@ -31,7 +31,7 @@ if err == null {
 [sinks.victorialogs_journald]
 type = "http"
 inputs = ["tag_journald"]
-uri = "{{ base_vector_sink_uri }}"
+uri = "{{ base_vector_sink_url }}?_stream_fields=host,source_type&{{ base_vector_sink_common_query }}"
 method = "post"
 compression = "gzip"
 encoding.codec = "json"

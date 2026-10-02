@@ -12,3 +12,4 @@ docker_group_users: "{{ [base_ansible_user] + base_extra_sudo_users + ['deploy']
 # Docker named volumes for LXC workloads belong on the host-backed guest mount.
 docker_configure_data_root: false
 docker_data_root: /srv/guest-volumes/docker
+docker_vector_sink_uri: "{{ base_vector_sink_url }}?_stream_fields=host,source_type,container_name&{{ base_vector_sink_common_query }}"

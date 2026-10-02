@@ -38,7 +38,7 @@ if err == null && is_object(parsed) {
 [sinks.victorialogs_docker]
 type = "http"
 inputs = ["tag_docker"]
-uri = "{{ base_vector_sink_uri }}"
+uri = "{{ docker_vector_sink_uri }}"
 method = "post"
 compression = "gzip"
 encoding.codec = "json"
