@@ -1,0 +1,6 @@
+[Service]
+# Managed by Ansible (roles/base). Do not edit by hand.
+ExecStartPre=
+ExecStartPre=/usr/bin/vector validate --config-dir /etc/vector/conf.d
+ExecStart=
+ExecStart=/usr/bin/vector --config-dir /etc/vector/conf.d

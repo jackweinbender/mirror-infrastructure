@@ -5,13 +5,12 @@ Debian host configuration and Proxmox LXC bootstrap.
 ## Boundaries
 
 - `roles/base/` is the idempotent Debian baseline: users, sudo, SSH, locale,
-  time, console fallback, MOTD, and log retention.
+  time, console fallback, MOTD, log retention, and Vector journald shipping.
 - `roles/tailscale/` installs Tailscale and joins a tailnet only when supplied an
   auth key.
 - `roles/deploy/` creates the local GitHub Actions account used over Tailscale SSH.
-- `roles/docker/` installs Docker Engine and Compose, and grants configured users Docker access.
-- `roles/vector/` installs the Vector agent and ships this host's Docker
-  container + systemd journald logs to the central VictoriaLogs collector.
+- `roles/docker/` installs Docker Engine and Compose, grants configured users
+  Docker access, and adds Docker container log shipping to Vector.
 - `tasks/lxc_*` and `tasks/pve_host/` are procedural Proxmox workflows. They
   create and prepare infrastructure; they are not steady-state roles.
 - `playbooks/workloads.yaml` applies the baseline and inventory-selected roles
@@ -143,5 +142,4 @@ Role tests require Docker and run one suite at a time:
 cd roles/base && ../../.venv/bin/molecule test
 cd ../docker && ../../.venv/bin/molecule test
 cd ../tailscale && ../../.venv/bin/molecule test
-cd ../vector && ../../.venv/bin/molecule test
 ```

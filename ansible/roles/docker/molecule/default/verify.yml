@@ -39,6 +39,22 @@
         database: group
         key: docker
 
+    - name: Check Vector Docker log config exists
+      ansible.builtin.stat:
+        path: /etc/vector/conf.d/10-docker.toml
+      register: docker_vector_config
+      failed_when: not docker_vector_config.stat.exists
+
+    - name: Check Vector is in the docker group
+      ansible.builtin.command:
+        argv:
+          - id
+          - -Gn
+          - vector
+      register: docker_vector_groups
+      changed_when: false
+      failed_when: docker_vector_groups.rc != 0 or 'docker' not in docker_vector_groups.stdout.split()
+
     - name: Check Docker users are in docker group
       ansible.builtin.command:
         argv:

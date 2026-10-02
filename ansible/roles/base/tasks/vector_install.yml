@@ -25,15 +25,18 @@
     group: root
     mode: "0755"
 
-- name: Remove any prior temporary key directory
+- name: Ensure the Vector key directory exists
   ansible.builtin.file:
-    path: /tmp/vector-keys
-    state: absent
+    path: /etc/apt/keyrings/vector
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
 
 - name: Download the Datadog archive signing keys for the Vector repo
   ansible.builtin.get_url:
     url: "https://keys.datadoghq.com/{{ item }}"
-    dest: "/tmp/vector-keys/{{ item }}"
+    dest: "/etc/apt/keyrings/vector/{{ item }}"
     owner: root
     group: root
     mode: "0644"
@@ -44,26 +47,21 @@
 
 - name: Assemble the Vector repository keyring
   ansible.builtin.assemble:
-    src: /tmp/vector-keys
+    src: /etc/apt/keyrings/vector
     dest: /etc/apt/keyrings/vector.asc
     owner: root
     group: root
     mode: "0644"
     validate: /usr/bin/gpg --dearmor --output /dev/null %s
 
-- name: Remove the temporary key directory
-  ansible.builtin.file:
-    path: /tmp/vector-keys
-    state: absent
-
 - name: Add Vector's apt repository
   ansible.builtin.deb822_repository:
     name: vector
     types: deb
     uris: https://apt.vector.dev/
-    suites: "{{ vector_apt_suite }}"
+    suites: "{{ base_vector_apt_suite }}"
     components:
-      - "{{ vector_apt_component }}"
+      - "{{ base_vector_apt_component }}"
     signed_by: /etc/apt/keyrings/vector.asc
 
 - name: Install Vector (apt package - current stable)

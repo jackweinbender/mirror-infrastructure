@@ -1,0 +1,16 @@
+---
+- name: Grant Vector access to Docker logs
+  ansible.builtin.user:
+    name: vector
+    groups: docker
+    append: true
+  notify: Restart Vector
+
+- name: Configure Vector to ship Docker container logs
+  ansible.builtin.template:
+    src: vector-docker.toml.j2
+    dest: /etc/vector/conf.d/10-docker.toml
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart Vector

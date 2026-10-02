@@ -1,9 +1,0 @@
----
-# Each task file is one self-contained feature. Install first, then configure
-# and start the service.
-
-- name: Install Vector from the official apt.vector.dev repository
-  ansible.builtin.import_tasks: install.yml
-
-- name: Configure and start the Vector service
-  ansible.builtin.import_tasks: config.yml

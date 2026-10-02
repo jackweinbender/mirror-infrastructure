@@ -10,3 +10,9 @@
   ansible.builtin.systemd:
     name: ssh
     state: restarted
+
+- name: Restart Vector
+  ansible.builtin.systemd:
+    name: vector
+    daemon_reload: true
+    state: restarted

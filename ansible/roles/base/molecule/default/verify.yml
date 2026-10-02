@@ -78,7 +78,24 @@
           - "'zsh' in base_package_facts.ansible_facts.packages"
           - "'unattended-upgrades' in base_package_facts.ansible_facts.packages"
           - "'needrestart' in base_package_facts.ansible_facts.packages"
+          - "'vector' in base_package_facts.ansible_facts.packages"
         fail_msg: Critical packages missing from base role installation
+
+    - name: Check Vector journald config exists
+      ansible.builtin.stat:
+        path: /etc/vector/conf.d/00-journald.toml
+      register: base_vector_config
+      failed_when: not base_vector_config.stat.exists
+
+    - name: Check Vector service is active
+      ansible.builtin.command:
+        argv:
+          - systemctl
+          - is-active
+          - vector
+      register: base_vector_service
+      changed_when: false
+      failed_when: base_vector_service.stdout.strip() != "active"
 
     - name: Collect unattended-upgrades config metadata
       ansible.builtin.stat:

@@ -1,0 +1,26 @@
+[sources.docker]
+type = "docker_logs"
+docker_host = "unix:///var/run/docker.sock"
+
+[transforms.tag_docker]
+type = "remap"
+inputs = ["docker"]
+source = '''
+.host = "{{ base_vector_host_id }}"
+.source_type = "docker"
+'''
+
+[sinks.victorialogs_docker]
+type = "http"
+inputs = ["tag_docker"]
+uri = "{{ base_vector_sink_uri }}"
+method = "post"
+compression = "gzip"
+encoding.codec = "json"
+framing.method = "newline_delimited"
+healthcheck.enabled = false
+
+[sinks.victorialogs_docker.buffer]
+type = "disk"
+max_size = {{ base_vector_buffer_max_size }}
+when_full = "block"

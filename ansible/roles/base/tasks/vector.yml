@@ -1,0 +1,59 @@
+---
+- name: Install Vector
+  ansible.builtin.import_tasks: vector_install.yml
+
+- name: Ensure the Vector data directory exists
+  ansible.builtin.file:
+    path: /var/lib/vector
+    state: directory
+    owner: vector
+    group: vector
+    mode: "0755"
+
+- name: Ensure Vector can read systemd journal logs
+  ansible.builtin.user:
+    name: vector
+    groups: systemd-journal
+    append: true
+  notify: Restart Vector
+
+- name: Ensure the Vector config directory exists
+  ansible.builtin.file:
+    path: /etc/vector/conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Ensure the Vector systemd drop-in directory exists
+  ansible.builtin.file:
+    path: /etc/systemd/system/vector.service.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Configure Vector to load its config directory
+  ansible.builtin.template:
+    src: vector-override.conf.j2
+    dest: /etc/systemd/system/vector.service.d/override.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart Vector
+
+- name: Configure Vector to ship journald logs
+  ansible.builtin.template:
+    src: vector-journald.toml.j2
+    dest: /etc/vector/conf.d/00-journald.toml
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart Vector
+
+- name: Ensure Vector is enabled and running
+  ansible.builtin.systemd:
+    name: vector
+    daemon_reload: true
+    enabled: true
+    state: started
