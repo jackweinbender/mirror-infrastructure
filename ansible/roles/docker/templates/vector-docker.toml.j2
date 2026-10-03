@@ -13,7 +13,16 @@ source = '''
 if !is_null(.task) {
   .app = "crow"
 } else {
-  .app = .label."vector.app" ?? .label."com.docker.compose.service" ?? .container_name ?? "unknown"
+  .app = .label."vector.app"
+  if is_null(.app) {
+    .app = .label."com.docker.compose.service"
+  }
+  if is_null(.app) {
+    .app = .container_name
+  }
+  if is_null(.app) {
+    .app = "unknown"
+  }
 }
 
 parsed, err = parse_json(.message)

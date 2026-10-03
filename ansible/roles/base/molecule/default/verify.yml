@@ -96,10 +96,13 @@
       ansible.builtin.assert:
         that:
           - >-
-            '.app = .SYSLOG_IDENTIFIER ?? ._SYSTEMD_UNIT ?? "unknown"' in
+            '.app = .SYSLOG_IDENTIFIER' in
             (base_vector_config_content.content | b64decode)
           - >-
             '.level = to_syslog_level(to_int(.PRIORITY) ?? 6) ?? "info"' in
+            (base_vector_config_content.content | b64decode)
+          - >-
+            'if is_null(.app)' in
             (base_vector_config_content.content | b64decode)
           - >-
             '_stream_fields=host,app' in

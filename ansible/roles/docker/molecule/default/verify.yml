@@ -69,7 +69,10 @@
             '.task = .label."crowci/task-uuid"' in
             (docker_vector_config_content.content | b64decode)
           - >-
-            '.app = .label."vector.app" ?? .label."com.docker.compose.service" ?? .container_name ?? "unknown"' in
+            '.app = .label."vector.app"' in
+            (docker_vector_config_content.content | b64decode)
+          - >-
+            'if is_null(.app)' in
             (docker_vector_config_content.content | b64decode)
           - >-
             '_stream_fields = "host,app,task"' in

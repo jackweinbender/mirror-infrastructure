@@ -11,7 +11,13 @@ inputs = ["journald"]
 source = '''
 .host = "{{ base_vector_host_id }}"
 .source_type = "journald"
-.app = .SYSLOG_IDENTIFIER ?? ._SYSTEMD_UNIT ?? "unknown"
+.app = .SYSLOG_IDENTIFIER
+if is_null(.app) {
+  .app = ._SYSTEMD_UNIT
+}
+if is_null(.app) {
+  .app = "unknown"
+}
 .level = to_syslog_level(to_int(.PRIORITY) ?? 6) ?? "info"
 '''
 
