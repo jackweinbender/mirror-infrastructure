@@ -12,6 +12,7 @@ services:
     networks:
       - proxy
     labels:
+      vector.app: victorialogs
       traefik.enable: "true"
       traefik.http.routers.victorialogs.rule: Host(`${VICTORIALOGS_HOSTNAME}`)
       traefik.http.routers.victorialogs.entrypoints: websecure

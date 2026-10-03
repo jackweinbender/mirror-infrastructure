@@ -14,6 +14,7 @@ services:
     networks:
       - proxy
     labels:
+      vector.app: paseo
       traefik.enable: "true"
       traefik.http.routers.paseo.rule: Host(`${PASEO_HOSTNAME}`)
       traefik.http.routers.paseo.entrypoints: websecure

@@ -13,6 +13,7 @@ services:
     networks:
       - proxy
     labels:
+      vector.app: planet-express
       traefik.enable: "true"
       traefik.http.routers.planet-express.rule: Host(`${PLANET_EXPRESS_HOSTNAME}`)
       traefik.http.routers.planet-express.entrypoints: websecure

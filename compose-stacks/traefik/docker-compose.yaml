@@ -5,6 +5,7 @@ services:
     container_name: traefik
     restart: unless-stopped
     labels:
+      - vector.app=traefik
       - traefik.enable=true
       - >-
         traefik.http.routers.dashboard.rule=PathPrefix(`/dashboard/`) ||

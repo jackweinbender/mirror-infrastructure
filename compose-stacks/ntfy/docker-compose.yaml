@@ -20,6 +20,7 @@ services:
     networks:
       - proxy
     labels:
+      vector.app: ntfy
       traefik.enable: "true"
       traefik.http.routers.ntfy.rule: Host(`${NTFY_HOSTNAME}`)
       traefik.http.routers.ntfy.entrypoints: websecure

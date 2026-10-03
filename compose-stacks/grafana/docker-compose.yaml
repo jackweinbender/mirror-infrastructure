@@ -18,6 +18,7 @@ services:
     networks:
       - proxy
     labels:
+      vector.app: grafana
       traefik.enable: "true"
       traefik.http.routers.grafana.rule: Host(`${GRAFANA_HOSTNAME}`)
       traefik.http.routers.grafana.entrypoints: websecure

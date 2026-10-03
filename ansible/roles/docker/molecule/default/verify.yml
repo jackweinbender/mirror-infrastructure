@@ -66,10 +66,13 @@
             'mode = "bulk"' in
             (docker_vector_config_content.content | b64decode)
           - >-
-            '.app = .label."com.docker.compose.service" ?? .container_name ?? "unknown"' in
+            '.task = .label."crowci/task-uuid"' in
             (docker_vector_config_content.content | b64decode)
           - >-
-            '_stream_fields = "host,app"' in
+            '.app = .label."vector.app" ?? .label."com.docker.compose.service" ?? .container_name ?? "unknown"' in
+            (docker_vector_config_content.content | b64decode)
+          - >-
+            '_stream_fields = "host,app,task"' in
             (docker_vector_config_content.content | b64decode)
 
     - name: Check Vector is in the docker group
