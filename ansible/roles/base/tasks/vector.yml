@@ -57,3 +57,4 @@
     daemon_reload: true
     enabled: true
     state: started
+  when: base_vector_manage_service

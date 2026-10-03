@@ -43,5 +43,8 @@ base_vector_sink_elasticsearch_url: "{{ base_vector_sink_host }}/insert/elastics
 base_vector_sink_common_query: "_msg_field=message&_time_field=timestamp"
 base_vector_host_id: "{{ inventory_hostname_short }}"
 base_vector_buffer_max_size: 536870912
+# Docker hosts install their second Vector config after this role. Let the
+# Docker role start Vector only after both source configurations are present.
+base_vector_manage_service: "{{ 'docker' not in (host_roles | default([])) }}"
 base_vector_apt_suite: stable
 base_vector_apt_component: vector-0

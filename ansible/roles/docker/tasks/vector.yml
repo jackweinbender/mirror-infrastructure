@@ -14,3 +14,10 @@
     group: root
     mode: "0644"
   notify: Restart Vector
+
+- name: Ensure Vector is enabled and running after Docker configuration
+  ansible.builtin.systemd:
+    name: vector
+    daemon_reload: true
+    enabled: true
+    state: started
