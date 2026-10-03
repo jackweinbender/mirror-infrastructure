@@ -8,21 +8,9 @@ inputs = ["docker"]
 source = '''
 .host = "{{ base_vector_host_id }}"
 .source_type = "docker"
-.task = .label."crowci/task-uuid"
-# Crow creates a separate container for each step; task is the stable CI identity.
-if !is_null(.task) {
-  .app = "crow"
-} else {
-  .app = .label."vector.app"
-  if is_null(.app) {
-    .app = .label."com.docker.compose.service"
-  }
-  if is_null(.app) {
-    .app = .container_name
-  }
-  if is_null(.app) {
+.app = .label."vector.app"
+if is_null(.app) {
     .app = "unknown"
-  }
 }
 
 parsed, err = parse_json(.message)
