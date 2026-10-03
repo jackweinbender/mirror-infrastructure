@@ -7,7 +7,7 @@ module DeployInventory
 
   module_function
 
-  def deploy_hosts(path, selected_host: ENV.fetch('HOST_FILTER', ''))
+  def deploy_hosts(path)
     inventory = YAML.load_file(path, aliases: true) || {}
     hosts = inventory.fetch('workloads', {}).fetch('hosts', {})
     deploy_hosts = hosts.filter_map do |hostname, data|
@@ -21,11 +21,6 @@ module DeployInventory
 
     abort 'discover deploy hosts: no workload hosts have the deploy role' if deploy_hosts.empty?
     abort 'discover deploy hosts: deploy host identifiers are not unique' unless deploy_hosts.map { |host| host['id'] }.uniq.length == deploy_hosts.length
-
-    unless selected_host.empty?
-      deploy_hosts.select! { |host| host['id'] == selected_host }
-      abort "discover deploy hosts: selected host is not a deploy host: #{selected_host}" if deploy_hosts.empty?
-    end
 
     deploy_hosts.sort_by { |host| host['id'] }
   end

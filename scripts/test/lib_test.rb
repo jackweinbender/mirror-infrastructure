@@ -93,21 +93,7 @@ class DeployInventoryTest < LibTest
     end
   end
 
-  def test_host_filter_selects_one_deploy_host
-    with_file(@inventory) do |file|
-      assert_equal(
-        [{ 'id' => 'zeta', 'address' => '10.0.0.2' }],
-        DeployInventory.deploy_hosts(file, selected_host: 'zeta')
-      )
-    end
-  end
-
-  def test_rejects_unknown_host_filter_and_reserved_host
-    with_file(@inventory) do |file|
-      error = assert_raises(SystemExit) { DeployInventory.deploy_hosts(file, selected_host: 'missing') }
-      assert_equal 1, error.status
-    end
-
+  def test_rejects_reserved_host
     reserved = @inventory.sub('zeta.example:', 'docker-networking.example:')
     with_file(reserved) do |file|
       assert_raises(SystemExit) { DeployInventory.deploy_hosts(file) }
