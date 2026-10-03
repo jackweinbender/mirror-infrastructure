@@ -20,6 +20,7 @@ workloads:
       host_roles:
         - docker
         - deploy
+    w3040-01.tortoise-noodlefish.ts.net: {}
 hypervisors:
   vars:
     ansible_user: root
