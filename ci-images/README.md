@@ -33,7 +33,7 @@ The image does not connect to Tailscale or require credentials at build time. At
 ```bash
 docker run --rm \
   --env OP_SERVICE_ACCOUNT_TOKEN \
-  git.weinbender.io/labs/ci-base:latest \
+  forgejo.weinbender.io/labs/ci-base:latest \
   op vault list
 ```
 

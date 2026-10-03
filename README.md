@@ -3,7 +3,7 @@
 Personal infrastructure as code. The repository manages cloud resources with
 Terraform, configures Debian and Proxmox hosts with Ansible, and deploys
 self-hosted services with Docker Compose through self-hosted Crow-CI. This repo
-is hosted locally at ssh://git@git.weinbender.io:2222/labs/infrastructure.git and
+is hosted locally at ssh://git@forgejo.weinbender.io:2222/labs/infrastructure.git and
 is mirrored to github at git@github.com:jackweinbender/mirror-infrastructure.git
 
 ## Repository Layout

@@ -19,13 +19,13 @@ steps:
     settings:
       context: .
       dockerfile: ci-images/ci-base/Dockerfile
-      repo: git.weinbender.io/labs/ci-base
+      repo: forgejo.weinbender.io/labs/ci-base
       cache_images:
-        - git.weinbender.io/labs/ci-base:cache
+        - forgejo.weinbender.io/labs/ci-base:cache
       tags:
         - main
         - ${CI_COMMIT_SHA}
-      registry: https://git.weinbender.io
+      registry: https://forgejo.weinbender.io
       username:
         from_secret: registry_username
       password:
@@ -36,13 +36,13 @@ steps:
     settings:
       context: .
       dockerfile: ci-images/ansible/Dockerfile
-      repo: git.weinbender.io/labs/ansible
+      repo: forgejo.weinbender.io/labs/ansible
       cache_images:
-        - git.weinbender.io/labs/ansible:cache
+        - forgejo.weinbender.io/labs/ansible:cache
       tags:
         - main
         - ${CI_COMMIT_SHA}
-      registry: https://git.weinbender.io
+      registry: https://forgejo.weinbender.io
       username:
         from_secret: registry_username
       password:

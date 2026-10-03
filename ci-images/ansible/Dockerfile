@@ -1,4 +1,4 @@
-FROM git.weinbender.io/labs/ci-base:main
+FROM forgejo.weinbender.io/labs/ci-base:main
 
 COPY ansible/requirements.txt /tmp/ansible-requirements.txt
 RUN pip install --break-system-packages --no-cache-dir -r /tmp/ansible-requirements.txt \

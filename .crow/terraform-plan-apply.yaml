@@ -20,7 +20,7 @@ matrix:
     - cloudflare
 steps:
   - name: plan-or-apply
-    image: git.weinbender.io/labs/ci-base:main
+    image: forgejo.weinbender.io/labs/ci-base:main
     environment:
       AWS_ACCESS_KEY_ID:
         from_secret: aws_terraform_access_key_id

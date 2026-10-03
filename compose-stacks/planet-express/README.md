@@ -1,7 +1,7 @@
 # Planet Express
 
 Planet Express is the Forgejo webhook receiver from the
-[`labs/planet-express`](https://git.weinbender.io/labs/planet-express) repository.
+[`labs/planet-express`](https://forgejo.weinbender.io/labs/planet-express) repository.
 This stack consumes its image; image build and publish CI live in that
 repository. The stack is assigned to `docker0-lxc` and exposed through host
 Traefik at `https://planet-express.weinbender.io`.
@@ -11,7 +11,7 @@ Traefik at `https://planet-express.weinbender.io`.
 The Compose definition pins an immutable full-SHA image tag:
 
 ```yaml
-image: git.weinbender.io/labs/planet-express:f66c5c668bf319d6dd3c965976795e3cf734292a
+image: forgejo.weinbender.io/labs/planet-express:f66c5c668bf319d6dd3c965976795e3cf734292a
 ```
 
 To upgrade, merge the desired change in `labs/planet-express`, let CrowCI

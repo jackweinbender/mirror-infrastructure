@@ -1,7 +1,7 @@
 ---
 services:
   paseo:
-    image: git.weinbender.io/labs/paseo:0.9.1
+    image: forgejo.weinbender.io/labs/paseo:0.9.1
     container_name: paseo
     restart: unless-stopped
     environment:

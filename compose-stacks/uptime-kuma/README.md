@@ -10,7 +10,8 @@ application data is stored in the named `uptime_kuma_data` volume. On
 `/srv/guest-volumes/docker`.
 
 The service joins the external `proxy` network supplied by
-`docker-networking`; it does not create or manage that network. Add an
+`docker-networking`; it does not create or manage that network. The host Docker
+socket is mounted read-only so Uptime Kuma can use its Docker monitor. Add an
 unproxied Cloudflare CNAME for `uptime-kuma.weinbender.io` pointing to the
 `docker0-lxc` Traefik gateway hostname, following the convention in
 [`../traefik/README.md`](../traefik/README.md).

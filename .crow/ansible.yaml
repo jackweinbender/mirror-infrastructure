@@ -10,7 +10,7 @@ when:
     cron: ansible
 steps:
   - name: ansible
-    image: git.weinbender.io/labs/ansible:main
+    image: forgejo.weinbender.io/labs/ansible:main
     environment:
       OP_SERVICE_ACCOUNT_TOKEN:
         from_secret: ONE_PASSWORD_SA_TOKEN

@@ -16,14 +16,14 @@ depends_on:
   - Compose platform deployment
 steps:
   - name: preflight
-    image: git.weinbender.io/labs/ci-base:main
+    image: forgejo.weinbender.io/labs/ci-base:main
     environment:
       LANG: C.UTF-8
       LC_ALL: C.UTF-8
     commands:
       - ruby scripts/preflight.rb
   - name: deploy-stack
-    image: git.weinbender.io/labs/ci-base:main
+    image: forgejo.weinbender.io/labs/ci-base:main
     environment:
       LANG: C.UTF-8
       LC_ALL: C.UTF-8

@@ -7,7 +7,7 @@ when:
   - event: manual
 steps:
   - name: validate
-    image: git.weinbender.io/labs/ci-base:main
+    image: forgejo.weinbender.io/labs/ci-base:main
     commands:
 
       - for script in scripts/*.rb scripts/lib/*.rb; do ruby -c "$script"; done

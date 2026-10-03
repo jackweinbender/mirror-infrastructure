@@ -9,15 +9,15 @@ assigned to `docker0-lxc` and exposed through host Traefik at
 ## Stack
 
 This stack is a **consumer** of the application image owned by the separate
-[`labs/paseo`](https://git.weinbender.io/labs/paseo) repository — the image
+[`labs/paseo`](https://forgejo.weinbender.io/labs/paseo) repository — the image
 source (Dockerfile and its build/publish CI) does not live in this repo. That
 repo extends the pinned `ghcr.io/getpaseo/paseo:0.9.1` base with the coding-agent
 CLIs (Pi by default) and publishes
-`git.weinbender.io/labs/paseo:<tag>` to the Forgejo Container Registry. This
+`forgejo.weinbender.io/labs/paseo:<tag>` to the Forgejo Container Registry. This
 compose pins that immutable tag:
 
 ```yaml
-image: git.weinbender.io/labs/paseo:0.9.1
+image: forgejo.weinbender.io/labs/paseo:0.9.1
 ```
 
 The deploy host's reconciler pulls it fresh on each reconciliation via
@@ -79,7 +79,7 @@ runtime environment (including the 1Password-resolved password) remotely.
   [`terraform/cloudflare/dns.tf`](../../terraform/cloudflare/dns.tf), following
   the same convention as `ntfy`, `crow`, `uptime-kuma`, and `grafana`.
 - Publish the pinned image tag once from the separate
-  [`labs/paseo`](https://git.weinbender.io/labs/paseo) repo (its Crow pipeline)
+  [`labs/paseo`](https://forgejo.weinbender.io/labs/paseo) repo (its Crow pipeline)
   so `--pull always` has a tag to fetch.
 - Authenticate at least one provider after deployment, either from the web UI
   or `docker exec -it --user paseo paseo <agent> login`; credentials persist in
@@ -96,7 +96,7 @@ taking manual action.
 ## Upgrade and security
 
 The pinned image tag (and the paseo base version it contains) is owned by the
-[`labs/paseo`](https://git.weinbender.io/labs/paseo) repo. To upgrade, bump the
+[`labs/paseo`](https://forgejo.weinbender.io/labs/paseo) repo. To upgrade, bump the
 version there, republish, then update the pinned `image:` tag in
 `docker-compose.yaml` to match. If only the agent CLIs change (same paseo base,
 same tag), rebuilding in `labs/paseo` suffices and the deploy host picks it up on
