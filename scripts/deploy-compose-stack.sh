@@ -20,5 +20,7 @@ ruby -c scripts/reconcile-host.rb
 ruby -rjson -e 'JSON.parse(File.read("/tmp/deploy-hosts.json")).each { |host| puts "#{host.fetch("id")} #{host.fetch("address")}" }' > /tmp/deploy-hosts.txt
 while read -r host_id host_address; do
   ssh-keyscan -H "$host_address" < /dev/null >> ~/.ssh/known_hosts
-  ruby scripts/reconcile-host.rb "$host_id" "$host_address" "$STACK"
+  # The reconciler's SSH commands inherit stdin; keep them from consuming the
+  # remaining host list and terminating the loop after the first host.
+  ruby scripts/reconcile-host.rb "$host_id" "$host_address" "$STACK" < /dev/null
 done < /tmp/deploy-hosts.txt
