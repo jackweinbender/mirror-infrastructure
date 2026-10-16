@@ -78,3 +78,12 @@ resource "cloudflare_dns_record" "planet_express" {
   proxied = false
   ttl     = 1
 }
+
+resource "cloudflare_dns_record" "idamayes" {
+  zone_id = var.cloudflare_zone_id
+  name    = "idamayes"
+  content = "docker0-lxc.weinbender.io"
+  type    = "CNAME"
+  proxied = false
+  ttl     = 1
+}

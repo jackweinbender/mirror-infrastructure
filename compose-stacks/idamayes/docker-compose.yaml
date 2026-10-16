@@ -1,0 +1,21 @@
+---
+services:
+  idamayes:
+    image: forgejo.weinbender.io/idamayes/idamayes.com:main
+    container_name: idamayes
+    restart: unless-stopped
+    networks:
+      - proxy
+    labels:
+      vector.app: idamayes
+      traefik.enable: "true"
+      traefik.http.routers.idamayes.rule: Host(`${IDAMAYES_HOSTNAME}`)
+      traefik.http.routers.idamayes.entrypoints: websecure
+      traefik.http.routers.idamayes.tls: "true"
+      traefik.http.routers.idamayes.tls.certresolver: letsencrypt
+      traefik.http.services.idamayes.loadbalancer.server.port: "8080"
+
+networks:
+  proxy:
+    external: true
+    name: proxy
