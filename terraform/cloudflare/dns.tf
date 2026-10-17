@@ -96,3 +96,12 @@ resource "cloudflare_dns_record" "komodo" {
   proxied = false
   ttl     = 1
 }
+
+resource "cloudflare_dns_record" "arcane" {
+  zone_id = var.cloudflare_zone_id
+  name    = "arcane"
+  content = "docker0-lxc.weinbender.io"
+  type    = "CNAME"
+  proxied = false
+  ttl     = 1
+}

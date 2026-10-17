@@ -1,0 +1,47 @@
+---
+services:
+  arcane:
+    image: ghcr.io/getarcaneapp/manager:v2.16.1
+    container_name: arcane
+    restart: unless-stopped
+    cgroup: host
+    environment:
+      GIN_MODE: release
+      ENVIRONMENT: production
+      PORT: "3552"
+      APP_URL: https://${ARCANE_HOSTNAME}
+      ENCRYPTION_KEY: ${ARCANE_ENCRYPTION_KEY}
+      JWT_SECRET: ${ARCANE_JWT_SECRET}
+      PROJECTS_DIRECTORY: /srv/guest-volumes/arcane/projects
+      TZ: UTC
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - arcane_data:/app/data
+      - /srv/guest-volumes/arcane/projects:/srv/guest-volumes/arcane/projects
+      - /srv/guest-volumes/arcane/builds:/builds
+    networks:
+      - proxy
+    healthcheck:
+      test: ["CMD", "./arcane", "health", "--timeout", "2s"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
+    labels:
+      vector.app: arcane
+      traefik.enable: "true"
+      traefik.docker.network: proxy
+      traefik.http.routers.arcane.rule: Host(`${ARCANE_HOSTNAME}`)
+      traefik.http.routers.arcane.entrypoints: websecure
+      traefik.http.routers.arcane.tls: "true"
+      traefik.http.routers.arcane.tls.certresolver: letsencrypt
+      traefik.http.services.arcane.loadbalancer.server.port: "3552"
+
+networks:
+  proxy:
+    external: true
+    name: proxy
+
+volumes:
+  arcane_data:
+    name: arcane_data

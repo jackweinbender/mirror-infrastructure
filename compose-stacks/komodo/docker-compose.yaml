@@ -5,6 +5,7 @@ services:
     restart: unless-stopped
     command: --quiet --wiredTigerCacheSizeGB 0.25
     labels:
+      vector.app: komodo-mongo
       komodo.skip: "true"
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${KOMODO_DATABASE_USERNAME}
@@ -65,6 +66,7 @@ services:
       PERIPHERY_DISABLE_CONTAINER_TERMINALS: "true"
       PERIPHERY_INCLUDE_DISK_MOUNTS: /etc/hostname
     labels:
+      vector.app: komodo-periphery
       komodo.skip: "true"
     volumes:
       - komodo_keys:/config/keys
