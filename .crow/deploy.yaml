@@ -1,4 +1,6 @@
 ---
+# Compose platform deployment — deploys docker-networking to every deploy host.
+# Other stack workflows depend on this to ensure the proxy network exists.
 name: Compose platform deployment
 when:
   - event: push
@@ -7,7 +9,10 @@ when:
       include:
         - 'compose-stacks/docker-networking/**'
         - 'ansible/inventory.yaml'
-        - 'scripts/**'
+        - 'scripts/deploy-stack.sh'
+        - 'scripts/deploy-all-hosts.sh'
+        - 'scripts/setup-ssh.sh'
+        - 'scripts/merge-dotenv.rb'
         - '.crow/deploy.yaml'
   - event: manual
   - event: cron
@@ -30,25 +35,10 @@ steps:
       TS_OAUTH_CLIENT_SECRET:
         from_secret: TS_OAUTH_CLIENT_SECRET
     commands:
-      - export GITHUB_REPOSITORY="$CI_REPO" GITHUB_SHA="$CI_COMMIT_SHA" GITHUB_RUN_ID="$CI_PIPELINE_NUMBER" GITHUB_RUN_ATTEMPT=1 GITHUB_RUN_NUMBER="$CI_PIPELINE_NUMBER" DOCKER_USER=deploy
-      - mkdir -p ~/.ssh
-      - tailscaled --tun=userspace-networking --socks5-server=localhost:1055 --state=/tmp/tailscale.state >/tmp/tailscaled.log 2>&1 &
-      - for i in $(seq 1 30); do [ -S /var/run/tailscale/tailscaled.sock ] && break; sleep 1; done; [ -S /var/run/tailscale/tailscaled.sock ] || { cat /tmp/tailscaled.log; exit 1; }
-      - tailscale up --auth-key="$TS_OAUTH_CLIENT_SECRET?preauthorized=true&ephemeral=true" --advertise-tags=tag:ci --timeout=30s
-      - tailscale status >/dev/null 2>&1 || { cat /tmp/tailscaled.log; exit 1; }
-      - printf 'Host *\n  ProxyCommand tailscale nc %%h %%p\n' > ~/.ssh/config
-      - chmod 600 ~/.ssh/config
-      - ruby scripts/discover-deploy-hosts.rb ansible/inventory.yaml > /tmp/deploy-hosts.json
-      - ruby -c scripts/reconcile-platform.rb
-      - |
-        ruby -rjson -e 'JSON.parse(File.read("/tmp/deploy-hosts.json")).each { |host| puts "#{host.fetch("id")} #{host.fetch("address")}" }' > /tmp/deploy-hosts.txt
-        while read -r host_id host_address; do
-          ssh-keyscan -H "$host_address" < /dev/null >> ~/.ssh/known_hosts
-          ruby scripts/reconcile-platform.rb "$host_id" "$host_address"
-        done < /tmp/deploy-hosts.txt
+      - bash scripts/setup-ssh.sh
+      - bash scripts/deploy-all-hosts.sh docker-networking
 
 # Configure the existing 05:00 UTC schedule as a Crow cron named `deploy`.
-# The platform is reconciled independently so stack workflows can depend on it
-# while still running in parallel with one another. Pull requests never deploy.
-# Required Crow repository secrets: ONE_PASSWORD_SA_TOKEN and
-# TS_OAUTH_CLIENT_SECRET. The deployment user is currently `deploy`.
+# Other stack workflows depend on this workflow. Pull requests never deploy.
+# Required Crow repository secrets: ONE_PASSWORD_SA_TOKEN,
+# TS_OAUTH_CLIENT_SECRET.

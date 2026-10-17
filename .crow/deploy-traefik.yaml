@@ -7,7 +7,10 @@ when:
       include:
         - 'compose-stacks/traefik/**'
         - 'ansible/inventory.yaml'
-        - 'scripts/**'
+        - 'scripts/deploy-stack.sh'
+        - 'scripts/deploy-all-hosts.sh'
+        - 'scripts/setup-ssh.sh'
+        - 'scripts/merge-dotenv.rb'
         - '.crow/deploy-traefik.yaml'
   - event: manual
   - event: cron
@@ -27,10 +30,10 @@ steps:
     environment:
       LANG: C.UTF-8
       LC_ALL: C.UTF-8
-      STACK: traefik
       OP_SERVICE_ACCOUNT_TOKEN:
         from_secret: ONE_PASSWORD_SA_TOKEN
       TS_OAUTH_CLIENT_SECRET:
         from_secret: TS_OAUTH_CLIENT_SECRET
     commands:
-      - bash scripts/deploy-compose-stack.sh
+      - bash scripts/setup-ssh.sh
+      - bash scripts/deploy-all-hosts.sh traefik

@@ -6,7 +6,6 @@ require 'open3'
 require 'tempfile'
 
 require_relative '../lib/commands'
-require_relative '../lib/compose_deployment'
 require_relative '../lib/dotenv'
 require_relative '../lib/inventory'
 require_relative '../lib/output'
@@ -127,31 +126,6 @@ class TerraformComponentsTest < LibTest
   end
 end
 
-class ComposeDeploymentTest < LibTest
-  def test_staging_path_uses_run_identity
-    with_environment('GITHUB_RUN_ID' => '123', 'GITHUB_RUN_ATTEMPT' => '2') do
-      assert_equal '/etc/compose-stacks/.staging/traefik-123-2', ComposeDeployment.staging_path('traefik')
-    end
-  end
-
-  def test_marker_contains_deployment_identity
-    environment = {
-      'GITHUB_REPOSITORY' => 'owner/repository',
-      'GITHUB_SHA' => 'abc123',
-      'GITHUB_RUN_ID' => '123',
-      'GITHUB_RUN_NUMBER' => '45'
-    }
-
-    with_environment(environment) do
-      marker = ComposeDeployment.marker('traefik')
-      assert_includes marker, "REPOSITORY=owner/repository\n"
-      assert_includes marker, "STACK_NAME=traefik\n"
-      assert_includes marker, "COMMIT_SHA=abc123\n"
-      assert_match(/^SYNCED_AT=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/, marker.lines.last.chomp)
-    end
-  end
-end
-
 class ScriptCommandsTest < LibTest
   def test_quote_shell_escapes_values
     assert_equal 'value\\ with\\ spaces', ScriptCommands.quote('value with spaces')
@@ -184,19 +158,3 @@ class ScriptOutputTest < LibTest
   end
 end
 
-class ComposeDeploymentTest < LibTest
-  def test_application_stacks_removes_self_managed_stacks
-    stacks = ['cloudflare-tunnel', 'crow-ci', 'forgejo', 'grafana', 'paseo']
-    assert_equal ['cloudflare-tunnel', 'forgejo', 'grafana', 'paseo'],
-                 ComposeDeployment.application_stacks(stacks)
-  end
-
-  def test_application_stacks_is_identity_when_none_self_managed
-    assert_equal ['paseo', 'traefik'],
-                 ComposeDeployment.application_stacks(['paseo', 'traefik'])
-  end
-
-  def test_application_stacks_tolerates_all_self_managed
-    assert_equal [], ComposeDeployment.application_stacks(['crow-ci'])
-  end
-end
