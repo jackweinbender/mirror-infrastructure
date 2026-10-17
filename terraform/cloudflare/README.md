@@ -7,7 +7,7 @@ Cloudflare resources for `weinbender.io` — Zero Trust Access, DNS, Tunnel.
 | File | Resources |
 |------|-----------|
 | `access.tf` | Google OAuth provider, existing Access policy data source, Access Application `uk2026.weinbender.io`, Service Token `weinbender-io-api` |
-| `dns.tf` | CNAME records: `uk2026`, `helloworld` → Tunnel CNAME; `forgejo`, `ntfy`, `crow`, `uptime-kuma`, `grafana`, `paseo`, `planet-express`, `idamayes` → `docker0-lxc` Traefik gateway |
+| `dns.tf` | CNAME records: `uk2026`, `helloworld` → Tunnel CNAME; `forgejo`, `ntfy`, `crow`, `uptime-kuma`, `grafana`, `paseo`, `planet-express`, `idamayes`, `komodo` → `docker0-lxc` Traefik gateway |
 | `tunnel.tf` | Cloudflare Tunnel `weinbender-io` + config |
 
 ## Access Policy (uk2026.weinbender.io)
@@ -45,6 +45,7 @@ ntfy.weinbender.io     CNAME docker0-lxc.weinbender.io
 crow.weinbender.io     CNAME docker0-lxc.weinbender.io
 forgejo.weinbender.io  CNAME docker0-lxc.weinbender.io
 idamayes.weinbender.io CNAME docker0-lxc.weinbender.io
+komodo.weinbender.io   CNAME docker0-lxc.weinbender.io
 ```
 
 This record is intentionally unproxied. The `docker0-lxc.weinbender.io` gateway A

@@ -87,3 +87,12 @@ resource "cloudflare_dns_record" "idamayes" {
   proxied = false
   ttl     = 1
 }
+
+resource "cloudflare_dns_record" "komodo" {
+  zone_id = var.cloudflare_zone_id
+  name    = "komodo"
+  content = "docker0-lxc.weinbender.io"
+  type    = "CNAME"
+  proxied = false
+  ttl     = 1
+}

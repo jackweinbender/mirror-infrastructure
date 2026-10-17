@@ -1,0 +1,88 @@
+---
+services:
+  mongo:
+    image: mongo:8.0.34
+    restart: unless-stopped
+    command: --quiet --wiredTigerCacheSizeGB 0.25
+    labels:
+      komodo.skip: "true"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${KOMODO_DATABASE_USERNAME}
+      MONGO_INITDB_ROOT_PASSWORD: ${KOMODO_DATABASE_PASSWORD}
+    volumes:
+      - mongo_data:/data/db
+      - mongo_config:/data/configdb
+
+  core:
+    image: ghcr.io/moghtech/komodo-core:2.3.3
+    init: true
+    restart: unless-stopped
+    depends_on:
+      - mongo
+    environment:
+      KOMODO_DATABASE_ADDRESS: mongo:27017
+      KOMODO_DATABASE_USERNAME: ${KOMODO_DATABASE_USERNAME}
+      KOMODO_DATABASE_PASSWORD: ${KOMODO_DATABASE_PASSWORD}
+      KOMODO_HOST: https://${KOMODO_HOSTNAME}
+      KOMODO_TITLE: Komodo
+      KOMODO_LOCAL_AUTH: "true"
+      KOMODO_INIT_ADMIN_USERNAME: ${KOMODO_INIT_ADMIN_USERNAME}
+      KOMODO_INIT_ADMIN_PASSWORD: ${KOMODO_INIT_ADMIN_PASSWORD}
+      KOMODO_DISABLE_USER_REGISTRATION: "true"
+      KOMODO_JWT_SECRET: ${KOMODO_JWT_SECRET}
+      KOMODO_WEBHOOK_SECRET: ${KOMODO_WEBHOOK_SECRET}
+      KOMODO_PERIPHERY_PUBLIC_KEY: file:/config/keys/periphery.pub
+      KOMODO_FIRST_SERVER_NAME: docker0-lxc
+    volumes:
+      - komodo_keys:/config/keys
+      - komodo_backups:/backups
+    networks:
+      - default
+      - proxy
+    labels:
+      vector.app: komodo-core
+      komodo.skip: "true"
+      traefik.enable: "true"
+      traefik.docker.network: proxy
+      traefik.http.routers.komodo.rule: Host(`${KOMODO_HOSTNAME}`)
+      traefik.http.routers.komodo.entrypoints: websecure
+      traefik.http.routers.komodo.tls: "true"
+      traefik.http.routers.komodo.tls.certresolver: letsencrypt
+      traefik.http.services.komodo.loadbalancer.server.port: "9120"
+
+  periphery:
+    image: ghcr.io/moghtech/komodo-periphery:2.3.3
+    init: true
+    restart: unless-stopped
+    depends_on:
+      - core
+    environment:
+      PERIPHERY_CORE_ADDRESS: ws://core:9120
+      PERIPHERY_CONNECT_AS: docker0-lxc
+      PERIPHERY_CORE_PUBLIC_KEYS: file:/config/keys/core.pub
+      PERIPHERY_ROOT_DIRECTORY: /srv/guest-volumes/komodo
+      PERIPHERY_DISABLE_TERMINALS: "true"
+      PERIPHERY_DISABLE_CONTAINER_TERMINALS: "true"
+      PERIPHERY_INCLUDE_DISK_MOUNTS: /etc/hostname
+    labels:
+      komodo.skip: "true"
+    volumes:
+      - komodo_keys:/config/keys
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /proc:/proc
+      - /srv/guest-volumes/komodo:/srv/guest-volumes/komodo
+
+networks:
+  proxy:
+    external: true
+    name: proxy
+
+volumes:
+  mongo_data:
+    name: komodo_mongo_data
+  mongo_config:
+    name: komodo_mongo_config
+  komodo_keys:
+    name: komodo_keys
+  komodo_backups:
+    name: komodo_backups
