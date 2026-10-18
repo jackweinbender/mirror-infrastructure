@@ -4,7 +4,11 @@ module TerraformComponents
   module_function
 
   def changed(manifest, paths)
-    return manifest if paths.any? { |path| path.split('/').length <= 2 }
+    shared_root_change = paths.any? do |path|
+      path == 'terraform/components.json' ||
+        path.match?(%r{\Aterraform/(?:[^/]+\.tf(?:\.json)?|[^/]+\.tfvars(?:\.json)?|\.terraform\.lock\.hcl)\z})
+    end
+    return manifest if shared_root_change
 
     paths.filter_map do |path|
       manifest.find { |component| path.start_with?("terraform/#{component}/") }

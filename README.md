@@ -32,7 +32,7 @@ Each area has more focused guidance:
 | Ansible | [`.crow/ansible.yaml`](.crow/ansible.yaml) | Relevant default-branch pushes, scheduled, or manual | Lints and applies `playbooks/workloads.yaml`; no PR host changes |
 | Ansible validation | [`.crow/ansible-validation.yaml`](.crow/ansible-validation.yaml) | Relevant pull requests, default-branch pushes, or manual | Lints Ansible and checks playbook syntax |
 | Terraform validation | [`.crow/terraform-validation.yaml`](.crow/terraform-validation.yaml) | Relevant pull requests, default-branch pushes, or manual | Validates Terraform components and formatting |
-| Terraform plan/apply | [`.crow/terraform-plan-apply.yaml`](.crow/terraform-plan-apply.yaml) | Manual | Plans or optionally applies each component |
+| Terraform plan/apply | [`.crow/terraform-plan-apply.yaml`](.crow/terraform-plan-apply.yaml) | Pull requests and default-branch pushes affecting Terraform | Plans changed roots on PRs; plans and applies changed roots on the default branch |
 | Compose validation | [`.crow/compose-validation.yaml`](.crow/compose-validation.yaml) | Relevant pull requests, default-branch pushes, or manual | Checks inventory, assignments, templates, and Compose files |
 | Compose platform | [`.crow/deploy.yaml`](.crow/deploy.yaml) | Relevant default-branch pushes, scheduled, or manual | Reconciles the shared platform stack |
 | Compose stacks | [`.crow/deploy-*.yaml`](.crow/) | Per-stack default-branch paths, scheduled, or manual | Reconciles each application stack independently; manual runs can select stacks |

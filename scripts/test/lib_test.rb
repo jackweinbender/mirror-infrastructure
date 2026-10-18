@@ -106,13 +106,18 @@ class TerraformComponentsTest < LibTest
     @manifest = %w[aws gcp cloudflare]
   end
 
-  def test_changed_returns_all_components_for_root_changes
-    assert_equal @manifest, TerraformComponents.changed(@manifest, ['.github'])
+  def test_changed_returns_all_components_for_shared_terraform_root_changes
+    assert_equal @manifest, TerraformComponents.changed(@manifest, ['terraform/components.json'])
+    assert_equal @manifest, TerraformComponents.changed(@manifest, ['terraform/providers.tf'])
   end
 
   def test_changed_returns_unique_components_for_component_paths
     paths = ['terraform/aws/main.tf', 'terraform/aws/variables.tf', 'terraform/cloudflare/main.tf', 'docs/reference/README.md']
     assert_equal %w[aws cloudflare], TerraformComponents.changed(@manifest, paths)
+  end
+
+  def test_changed_ignores_unrelated_paths
+    assert_empty TerraformComponents.changed(@manifest, ['.github/workflows/terraform.yaml', 'README.md', 'terraform/README.md'])
   end
 
   def test_consistency_checks_report_each_mismatch

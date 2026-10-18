@@ -27,10 +27,12 @@ Multi-cloud Terraform configurations. Each subdirectory is an independent compon
 | Cloudflare | API token from 1Password (`op://network/cloudflare-terraform/credential`) |
 | Proxmox | API token from 1Password (`op://network/proxmox-terraform/api-token`) |
 
-Crow CI runs `plan`/`apply` through `.crow/terraform-plan-apply.yaml` using
-static service-account credentials stored as Crow secrets (no OIDC/IdP). See
-[`terraform/crow-sa.md`](crow-sa.md) for the keys to create and secrets to set.
-The GitHub/Forgejo Actions path still uses OIDC + Workload Identity Federation.
+Crow CI runs Terraform through `.crow/terraform-plan-apply.yaml` using static
+service-account credentials stored as Crow secrets (no OIDC/IdP). Pull requests
+plan changed roots; pushes to the default branch plan and apply changed roots.
+Changes to `components.json` or shared Terraform root configuration run every
+component. See [`terraform/crow-sa.md`](crow-sa.md) for credential setup and PR
+security considerations.
 
 ## Usage
 
@@ -41,7 +43,7 @@ terraform init
 terraform plan
 terraform apply
 
-# CI/CD: PR plans are advisory; push to main → fresh plan and apply; workflow_dispatch applies by default and can be changed to plan-only
+# CI/CD: pull requests plan changed roots; pushes to the default branch plan and apply changed roots
 ```
 
 ## Conventions
@@ -49,5 +51,5 @@ terraform apply
 - One component per subdirectory
 - `terraform.tf` declares required_providers + backend
 - Variables in `variables.tf`, outputs in `outputs.tf`
-- Secrets via 1Password `op://` references injected at runtime by the Terraform reusable workflow
-- No hardcoded secrets — all sensitive values come from 1Password or GitHub secrets
+- Crow injects static cloud credentials as secrets and resolves 1Password `op://` references at runtime
+- No hardcoded secrets — sensitive values come from 1Password or the relevant CI secret store

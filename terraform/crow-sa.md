@@ -50,36 +50,32 @@ literal. The Cloudflare zone and account IDs are injected as `TF_VAR_*`
 environment variables because the Cloudflare component declares them as
 required Terraform inputs.
 
-`TERRAFORM_APPLY` is **not** a secret either — it is a literal flag in the
-workflow file (`.crow/terraform-plan-apply.yaml`), defaulting to `"false"`.
-Crow compiles every `from_secret` reference at startup and aborts the whole
-pipeline if a referenced secret is missing, so this must be kept as a plain
-value rather than a secret.
-
 ## What controls plan vs apply
 
-`terraform apply` changes infrastructure, so the workflow defaults to
-**plan-only**.
+The workflow runs for Terraform changes only:
 
-- `TERRAFORM_APPLY: "false"` (default) → run only plans; changes nothing.
-- `TERRAFORM_APPLY: "true"` → run also executes `apply -auto-approve`.
+- Pull request → plan each changed component root; no apply.
+- Push to the default branch (including a merge) → plan, then apply each
+  changed component root.
+- Changes to `terraform/components.json` or shared Terraform root configuration
+  select every component. Unrelated files do not select a component.
 
-Change the literal in `terraform-plan-apply.yaml` to flip this. Storing it as a
-workflow literal (not a Crow secret) means the pipeline always compiles without
-you having to create an extra secret, and apply stays an explicit, committed
-decision.
-
-Launch: Crow -> `labs/infrastructure` -> manual pipeline `Terraform plan/apply
-(service account)`.
+Each matrix instance checks Crow's `CI_PIPELINE_FILES` list before initializing
+Terraform. If Crow omits that variable because more than 500 files changed, the
+workflow conservatively selects every component. Crow secrets must be available
+to pull-request workflows for PR plans to succeed.
 
 ## Security notes
 
+- PR plans run Terraform code from the proposed change with static cloud
+  credentials available. Only enable this for trusted contributors and ensure
+  Crow's pull-request secret policy is appropriate; Terraform data sources and
+  providers can execute code during planning.
 - Static keys never expire on their own: rotate them on a schedule and revoke
   immediately if ever exposed. Prefer the narrowest permission set for the
   service accounts.
-- Secrets are injected only into the Crow step environment and the local,
-  uncommitted `.env` is removed at the end of the run — nothing is written to
-  Git.
+- Secrets are injected into the Crow step environment; the local `.env` and
+  Google service-account file are uncommitted and removed after the run.
 - When you later want keyless auth, the OIDC path (Forgejo Actions as issuer)
   described earlier is the upgrade; keep the key-based flow for now.
 
@@ -90,7 +86,7 @@ Launch: Crow -> `labs/infrastructure` -> manual pipeline `Terraform plan/apply
 - [ ] Create AWS service-account key (steps above).
 - [ ] Create GCP service-account key (steps above).
 - [ ] Set Crow secrets (table above).
-- [ ] Run one manual pipeline and verify `plan`.
+- [ ] Verify a pull-request plan and a default-branch merge plan/apply in Crow.
 
-Do not claim the flow works until a manual Crow run returns credentials and a
-successful `terraform plan`.
+Do not claim the flow works until Crow successfully plans a PR and applies a
+changed root after it is merged to the default branch.
