@@ -24,6 +24,18 @@ The receiver listens on port `8080`. Its SQLite database is stored at
 Docker volumes live under the host-backed data root at
 `/srv/guest-volumes/docker`; confirm this volume is covered by host backups.
 
+When upgrading from the old root-running Go container to the Chainguard Node
+image, change ownership of the existing named-volume data once before
+deploying the non-root image:
+
+```bash
+sudo chown -R 65532:65532 /srv/guest-volumes/docker/volumes/planet_express_data/_data
+```
+
+Run that one-time migration only for the existing `planet_express_data` volume
+on `docker0-lxc`; otherwise the new container will not be able to write its
+SQLite database.
+
 The service joins the external `proxy` network supplied by `docker-networking`.
 Traefik routes the configured hostname and terminates TLS with Let's Encrypt.
 
