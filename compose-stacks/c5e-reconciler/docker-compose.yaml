@@ -19,14 +19,9 @@ services:
       - --docker-deadline=5m
       - --op-credentials-env=C5E_OP_CREDENTIALS
     labels:
-      vector.app: c5e-reconciler
-    read_only: true
-    cap_drop: [ALL]
-    security_opt: [no-new-privileges:true]
-    stop_grace_period: 6m
-    tmpfs: [/tmp:rw,nosuid,nodev,size=64m,mode=1777]
+      vector.app: c5e
     volumes:
-      - /etc/compose-stacks:/etc/compose-stacks:ro
+      - /var/lib/c5e-live:/var/lib/c5e-live
       - /var/run/docker.sock:/var/run/docker.sock
       - c5e_reconciler_state:/var/lib/c5e-state
 
