@@ -1,0 +1,24 @@
+---
+- name: Install the c5e controller on its dedicated workload host
+  hosts: lxc-docker-core0.tortoise-noodlefish.ts.net
+  gather_facts: true
+  become: true
+  vars_prompt:
+    - name: c5e_op_credentials
+      prompt: C5E_OP_CREDENTIALS service-account credential
+      private: true
+    - name: c5e_proxy_network_migration_id
+      prompt: Exact existing proxy network ID (leave blank to omit migration)
+      private: false
+      default: ""
+    - name: c5e_proxy_network_migration_daemon_id
+      prompt: Exact Docker daemon ID for that network (leave blank to omit migration)
+      private: false
+      default: ""
+    - name: c5e_state_volume_identity_confirmation
+      prompt: >-
+        Type CONFIRM_C5E_STATE_VOLUME only after inspecting a volume with missing Compose labels
+      private: false
+      default: ""
+  roles:
+    - c5e_reconciler

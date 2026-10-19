@@ -13,12 +13,15 @@ for the full repository runbook before making non-trivial changes.
 ## Repository model
 
 - `compose-stacks/docker-networking/` is the platform stack. It owns the
-  external `proxy` network and is reconciled on every host discovered from
-  `ansible/inventory.yaml` with `host_roles: deploy`.
+  external `proxy` network and is reconciled by GitHub Actions on hosts with
+  `host_roles: deploy` only.
 - Every other Compose stack is an application stack. Traefik is a normal
   assigned application stack, not part of the platform stack.
+- Application assignment hosts must have `deploy` or `c5e_reconciler` in
+  `host_roles`; only `deploy` hosts enter GitHub Actions discovery and matrices.
+  c5e reconciles assignments on its own host independently of GHA.
 - Never introduce `deployments/ALL/`. Assignment is explicit for application
-  stacks; only `docker-networking` has implicit all-host behavior.
+  stacks; only `docker-networking` has implicit all-deploy-host behavior.
 
 Use this shape for application stacks:
 
@@ -33,8 +36,9 @@ compose-stacks/<stack>/
 ```
 
 The presence of `deployments/<host>/.env.template` assigns the stack to that
-short inventory host ID. An overlay does not assign a stack; it is copied to
-the remote staging directory as `docker-compose.override.yaml`.
+short inventory host ID. The host must have `deploy` or `c5e_reconciler`; only
+`deploy` hosts are GitHub Actions targets. An overlay does not assign a stack;
+it is copied to the remote staging directory as `docker-compose.override.yaml`.
 
 ## Environment and secrets
 
@@ -64,8 +68,9 @@ the remote staging directory as `docker-compose.override.yaml`.
 ## Required workflow for changes
 
 1. Inspect the relevant stack README and `compose-stacks/OPERATIONS.md`.
-2. Confirm the target host exists in `ansible/inventory.yaml` and has
-   `host_roles: deploy`.
+2. Confirm the target host exists in `ansible/inventory.yaml`. GitHub Actions
+   targets require `host_roles: deploy`; c5e-managed assignments require
+   `host_roles: c5e_reconciler`.
 3. Update the base Compose file, root env template, host assignment template,
    and/or host overlay as appropriate.
 4. Verify every bind source is the expected regular-file or directory type.
@@ -123,9 +128,10 @@ The deployment order is platform first, application stacks second. A failed
 stack is reported after other stacks on that host are attempted; a connectivity
 failure or failed teardown must not trigger destructive cleanup.
 
-When changing a stack assignment, remember that removing the assignment causes
-workflow reconciliation to run `docker compose down --remove-orphans` and
-remove the marked project directory, while retaining named volumes and images.
+When removing an assignment from a `deploy` host, the next GitHub Actions
+reconciliation runs `docker compose down --remove-orphans` and removes the
+marked project directory while retaining named volumes and images. Assignments
+on `c5e_reconciler` hosts are handled by c5e's configured removal policy.
 
 ## Ingress and DNS
 

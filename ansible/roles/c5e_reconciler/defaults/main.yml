@@ -1,0 +1,8 @@
+---
+# Optional one-time adoption inputs for the legacy proxy network. Keep unset
+# unless an operator has inspected the exact network and Docker daemon IDs.
+c5e_proxy_network_migration_id: ""
+c5e_proxy_network_migration_daemon_id: ""
+
+# Required once only when the existing volume lacks complete Compose owner labels.
+c5e_state_volume_identity_confirmation: ""

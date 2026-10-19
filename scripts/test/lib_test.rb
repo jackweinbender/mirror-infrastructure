@@ -75,6 +75,10 @@ class DeployInventoryTest < LibTest
           alpha.example:
             host_roles:
               - deploy
+          controller.example:
+            host_roles:
+              - docker
+              - c5e_reconciler
           worker.example:
             host_roles:
               - worker
@@ -90,6 +94,21 @@ class DeployInventoryTest < LibTest
         ],
         DeployInventory.deploy_hosts(file)
       )
+    end
+  end
+
+  def test_controller_host_is_application_eligible_but_not_a_deploy_target
+    with_file(@inventory) do |file|
+      assert_equal %w[alpha controller zeta], DeployInventory.application_host_ids(file)
+      assert_equal %w[alpha zeta], DeployInventory.deploy_hosts(file).map { |host| host['id'] }
+    end
+  end
+
+  def test_rejects_duplicate_application_host_ids
+    duplicate = @inventory.sub('controller.example:', 'alpha.other.example:')
+    with_file(duplicate) do |file|
+      error = assert_raises(ArgumentError) { DeployInventory.application_host_ids(file) }
+      assert_match(/not unique/, error.message)
     end
   end
 

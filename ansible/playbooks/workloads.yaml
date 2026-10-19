@@ -4,8 +4,9 @@
 #
 # Every host gets the base + tailscale baseline. Anything beyond that is
 # declared per-host in inventory.yaml via host_roles (e.g. host_roles:
-# [deploy, docker]) - this playbook is generic and doesn't hardcode which host
-# gets which specialized role; that decision lives in inventory, in one place.
+# [deploy, docker] or [docker, c5e_reconciler]) - this playbook is generic and
+# doesn't hardcode which host gets which specialized role; that decision lives
+# in inventory, in one place.
 ---
 - name: Configure workloads
   hosts: workloads

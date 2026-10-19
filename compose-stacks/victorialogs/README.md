@@ -3,9 +3,9 @@
 [VictoriaLogs](https://docs.victoriametrics.com/victorialogs/) is a single-node
 log database that accepts Docker/`syslog`/JSON log ingestion on port `9428` and
 serves LogsQL read queries and a built-in web UI from the same port. This stack
-is assigned to the `lxc-docker-core0` deploy host and is a pure consumer of the
-upstream `docker.io/victoriametrics/victoria-logs` image pinned to an immutable
-tag:
+is assigned to `lxc-docker-core0`, where c5e is the application reconciler. It
+uses the upstream `docker.io/victoriametrics/victoria-logs` image pinned to an
+immutable tag:
 
 ```yaml
 image: docker.io/victoriametrics/victoria-logs:v1.53.0

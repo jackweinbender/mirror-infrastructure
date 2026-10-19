@@ -1,0 +1,100 @@
+---
+- name: Ensure the c5e live worktree directory exists
+  ansible.builtin.file:
+    path: /var/lib/c5e-live
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Ensure the c5e configuration directory is root-only
+  ansible.builtin.file:
+    path: /etc/c5e-reconciler
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Inspect the existing c5e credential environment file
+  ansible.builtin.stat:
+    path: /etc/c5e-reconciler/c5e.env
+    follow: false
+  register: c5e_environment_file
+
+- name: Require a protected credential input or an existing environment file
+  ansible.builtin.assert:
+    that:
+      - >-
+        (c5e_op_credentials is defined and (c5e_op_credentials | length > 0))
+        or (c5e_environment_file.stat.isreg | default(false))
+    fail_msg: >-
+      Supply c5e_op_credentials through the protected c5e Ansible playbook on
+      first install; subsequent workload runs use the root-only environment file.
+  no_log: true
+
+- name: Install the c5e service-account credential in a root-only environment file
+  ansible.builtin.copy:
+    dest: /etc/c5e-reconciler/c5e.env
+    content: "C5E_OP_CREDENTIALS={{ c5e_op_credentials | to_json }}\n"
+    owner: root
+    group: root
+    mode: "0600"
+    diff: false
+  when: c5e_op_credentials is defined and (c5e_op_credentials | length > 0)
+  register: c5e_environment_file_install
+  no_log: true
+
+- name: Enforce root-only ownership on the existing c5e environment file
+  ansible.builtin.file:
+    path: /etc/c5e-reconciler/c5e.env
+    state: file
+    owner: root
+    group: root
+    mode: "0600"
+  when: c5e_op_credentials is not defined or (c5e_op_credentials | length == 0)
+  register: c5e_environment_file_protection
+
+- name: Pull the current c5e controller image before handoff
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/docker
+      - image
+      - pull
+      - forgejo.weinbender.io/labs/c5e:main
+  register: c5e_image_pull
+  changed_when: "'Downloaded newer image' in (c5e_image_pull.stdout + c5e_image_pull.stderr)"
+
+- name: Check the pulled c5e image advertises every required launch option
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/docker
+      - run
+      - --rm
+      - forgejo.weinbender.io/labs/c5e:main
+      - --help
+  register: c5e_cli_help
+  changed_when: false
+
+- name: Require the current c5e CLI contract before retiring Compose
+  ansible.builtin.assert:
+    that:
+      - "'--repo-url' in (c5e_cli_help.stdout + c5e_cli_help.stderr)"
+      - "'--repo-ref' in (c5e_cli_help.stdout + c5e_cli_help.stderr)"
+      - "'--host-id' in (c5e_cli_help.stdout + c5e_cli_help.stderr)"
+      - "'--worktree' in (c5e_cli_help.stdout + c5e_cli_help.stderr)"
+      - "'--stack-root' in (c5e_cli_help.stdout + c5e_cli_help.stderr)"
+      - "'--state' in (c5e_cli_help.stdout + c5e_cli_help.stderr)"
+      - "'--deploy-host' in (c5e_cli_help.stdout + c5e_cli_help.stderr)"
+      - "'--removal-policy' in (c5e_cli_help.stdout + c5e_cli_help.stderr)"
+      - "'--poll-interval' in (c5e_cli_help.stdout + c5e_cli_help.stderr)"
+      - "'--reconcile-interval' in (c5e_cli_help.stdout + c5e_cli_help.stderr)"
+      - "'--git-deadline' in (c5e_cli_help.stdout + c5e_cli_help.stderr)"
+      - "'--secrets-deadline' in (c5e_cli_help.stdout + c5e_cli_help.stderr)"
+      - "'--docker-deadline' in (c5e_cli_help.stdout + c5e_cli_help.stderr)"
+      - "'--op-credentials-env' in (c5e_cli_help.stdout + c5e_cli_help.stderr)"
+      - "'--dashboard-listen' in (c5e_cli_help.stdout + c5e_cli_help.stderr)"
+      - "'--proxy-network-migration-id' in (c5e_cli_help.stdout + c5e_cli_help.stderr)"
+      - "'--proxy-network-migration-daemon-id' in (c5e_cli_help.stdout + c5e_cli_help.stderr)"
+    fail_msg: >-
+      The pulled c5e image does not advertise the complete required CLI
+      contract; refusing to retire the legacy Compose controller.

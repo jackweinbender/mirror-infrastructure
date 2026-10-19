@@ -25,6 +25,30 @@ module DeployInventory
     deploy_hosts.sort_by { |host| host['id'] }
   end
 
+  # Hosts eligible for application assignments. Only deploy hosts are returned
+  # by deploy_hosts and can ever become GitHub Actions deployment targets.
+  def application_host_ids(path)
+    inventory = YAML.load_file(path, aliases: true) || {}
+    hosts = inventory.fetch('workloads', {}).fetch('hosts', {})
+    application_hosts = hosts.filter_map do |hostname, data|
+      roles = Array(data&.fetch('host_roles', nil))
+      next unless roles.include?('deploy') || roles.include?('c5e_reconciler')
+
+      id = hostname.split('.').first
+      unless valid_id?(id) && id != 'docker-networking'
+        raise ArgumentError, "invalid or reserved application host identifier: #{id}"
+      end
+
+      id
+    end
+
+    if application_hosts.uniq.length != application_hosts.length
+      raise ArgumentError, 'application host identifiers are not unique'
+    end
+
+    application_hosts.sort
+  end
+
   def valid_id?(id)
     NAME_PATTERN.match?(id)
   end
