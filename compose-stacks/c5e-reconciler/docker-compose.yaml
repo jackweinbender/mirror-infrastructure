@@ -18,12 +18,28 @@ services:
       - --secrets-deadline=30s
       - --docker-deadline=5m
       - --op-credentials-env=C5E_OP_CREDENTIALS
+      - --dashboard-listen=0.0.0.0:8080
     labels:
       vector.app: c5e
+      traefik.enable: "true"
+      traefik.docker.network: proxy
+      traefik.http.routers.c5e-reconciler.rule: Host(`${C5E_HOSTNAME}`)
+      traefik.http.routers.c5e-reconciler.entrypoints: websecure
+      traefik.http.routers.c5e-reconciler.tls: "true"
+      traefik.http.routers.c5e-reconciler.tls.certresolver: letsencrypt
+      traefik.http.services.c5e-reconciler.loadbalancer.server.port: "8080"
     volumes:
       - /var/lib/c5e-live:/var/lib/c5e-live
       - /var/run/docker.sock:/var/run/docker.sock
       - c5e_reconciler_state:/var/lib/c5e-state
+
+    networks:
+      - proxy
+
+networks:
+  proxy:
+    external: true
+    name: proxy
 
 volumes:
   c5e_reconciler_state:
