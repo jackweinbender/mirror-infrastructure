@@ -19,29 +19,29 @@
   ansible.builtin.stat:
     path: /etc/c5e-reconciler/c5e.env
     follow: false
-  register: c5e_environment_file
+  register: c5e_reconciler_environment_file
 
 - name: Require a protected credential input or an existing environment file
   ansible.builtin.assert:
     that:
       - >-
-        (c5e_op_credentials is defined and (c5e_op_credentials | length > 0))
-        or (c5e_environment_file.stat.isreg | default(false))
+        (c5e_reconciler_op_credentials is defined and (c5e_reconciler_op_credentials | length > 0))
+        or (c5e_reconciler_environment_file.stat.isreg | default(false))
     fail_msg: >-
-      Supply c5e_op_credentials through the protected c5e Ansible playbook on
+      Supply c5e_reconciler_op_credentials through the protected c5e Ansible playbook on
       first install; subsequent workload runs use the root-only environment file.
   no_log: true
 
 - name: Install the c5e service-account credential in a root-only environment file
   ansible.builtin.copy:
     dest: /etc/c5e-reconciler/c5e.env
-    content: "C5E_OP_CREDENTIALS={{ c5e_op_credentials | to_json }}\n"
+    content: "C5E_OP_CREDENTIALS={{ c5e_reconciler_op_credentials | to_json }}\n"
     owner: root
     group: root
     mode: "0600"
     diff: false
-  when: c5e_op_credentials is defined and (c5e_op_credentials | length > 0)
-  register: c5e_environment_file_install
+  when: c5e_reconciler_op_credentials is defined and (c5e_reconciler_op_credentials | length > 0)
+  register: c5e_reconciler_environment_file_install
   no_log: true
 
 - name: Enforce root-only ownership on the existing c5e environment file
@@ -51,8 +51,8 @@
     owner: root
     group: root
     mode: "0600"
-  when: c5e_op_credentials is not defined or (c5e_op_credentials | length == 0)
-  register: c5e_environment_file_protection
+  when: c5e_reconciler_op_credentials is not defined or (c5e_reconciler_op_credentials | length == 0)
+  register: c5e_reconciler_environment_file_protection
 
 - name: Pull the current c5e controller image before handoff
   ansible.builtin.command:
@@ -61,5 +61,5 @@
       - image
       - pull
       - forgejo.weinbender.io/labs/c5e:main
-  register: c5e_image_pull
-  changed_when: "'Downloaded newer image' in (c5e_image_pull.stdout + c5e_image_pull.stderr)"
+  register: c5e_reconciler_image_pull
+  changed_when: "'Downloaded newer image' in (c5e_reconciler_image_pull.stdout + c5e_reconciler_image_pull.stderr)"

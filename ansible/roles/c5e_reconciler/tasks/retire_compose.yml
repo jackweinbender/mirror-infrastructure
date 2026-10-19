@@ -11,7 +11,7 @@
       - label=com.docker.compose.project=c5e-reconciler
       - --filter
       - label=com.docker.compose.service=c5e-reconciler
-  register: c5e_legacy_containers
+  register: c5e_reconciler_legacy_containers
   changed_when: false
 
 - name: Stop and remove existing c5e Compose controller containers
@@ -22,8 +22,8 @@
       - rm
       - --force
       - "{{ item }}"
-  loop: "{{ c5e_legacy_containers.stdout_lines }}"
+  loop: "{{ c5e_reconciler_legacy_containers.stdout_lines }}"
   loop_control:
     label: "{{ item }}"
-  when: c5e_legacy_containers.stdout_lines | length > 0
+  when: c5e_reconciler_legacy_containers.stdout_lines | length > 0
   changed_when: true
