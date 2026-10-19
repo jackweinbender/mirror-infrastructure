@@ -19,7 +19,7 @@
 - name: Prepare protected controller configuration
   ansible.builtin.import_tasks: prepare.yml
 
-- name: Retire the verified legacy Compose controller
+- name: Stop any existing c5e Compose controller
   ansible.builtin.import_tasks: retire_compose.yml
 
 - name: Install and start the c5e systemd controller

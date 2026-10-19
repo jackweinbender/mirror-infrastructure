@@ -129,86 +129,41 @@ Install or rotate the controller credential with the targeted playbook:
 .venv/bin/ansible-playbook playbooks/c5e-reconciler.yaml
 ```
 
-For the initial handoff, first merge the c5e CLI change and wait until
-`forgejo.weinbender.io/labs/c5e:main` has been rebuilt and published with both
-proxy-migration flags. Then run this playbook from the changed infrastructure
-checkout before merging/pushing its inventory and role change, so an automatic
-`playbooks/workloads.yaml` run cannot precede the credential bootstrap. The role
-pulls the image and checks its `--help` output for both migration flags and all
-current launch options; a stale image fails before Compose retirement. Ansible
-prompts privately for `C5E_OP_CREDENTIALS`; do not pass it in shell arguments or
-place it in inventory. The role writes it to the root-owned, mode-`0600`
-`/etc/c5e-reconciler/c5e.env` with `no_log`. Regular `playbooks/workloads.yaml`
-runs reuse that protected file without prompting.
+Merge the c5e controller change and wait for `forgejo.weinbender.io/labs/c5e:main`
+to be published before applying this playbook. It prompts privately for the
+service-account credential and, if the existing `proxy` network needs explicit
+approval, its exact network and daemon IDs. The role pulls the image, writes the
+credential to root-only `/etc/c5e-reconciler/c5e.env`, removes any existing
+container with the c5e Compose project/service labels, and starts the systemd
+unit. It leaves the old Compose directory and all named volumes in place.
 
-Before rollout, the exact existing `c5e_reconciler_state` Docker volume must be
-present; Ansible inspects it and never creates, removes, or recreates it. When
-Compose labels exist, they must match
-`com.docker.compose.project=c5e-reconciler` and
-`com.docker.compose.volume=c5e_reconciler_state`; conflicting labels fail closed.
-If either label is absent and no identity record exists, inspect the volume:
+The systemd unit uses host networking, keeps `/var/lib/c5e-live`, and mounts the
+named volume `c5e_reconciler_state` at `/var/lib/c5e-state`. Docker reuses that
+volume if present or creates an empty one if absent; no state/data migration is
+performed. The Docker socket grants host-root-equivalent access.
 
-```bash
-docker volume inspect c5e_reconciler_state
-```
+The dashboard listens on `127.0.0.1:8080`; no external Traefik route is
+configured. The controller itself is not attached to `proxy`, so its startup
+does not depend on the network it ensures for applications. Existing
+application containers with foreign ownership labels may still require a
+separate controller ownership transition.
 
-Enter `CONFIRM_C5E_STATE_VOLUME` at the targeted playbook prompt only after
-confirming this is the existing controller state volume. Ansible records its
-name, driver, mountpoint, creation time, scope, options, and labels in the
-root-only `/var/lib/c5e-reconciler/state-volume-identity.json` and rejects later
-changes.
-
-If the legacy project directory or any candidate Compose container exists,
-Ansible also requires the regular matching marker line
-`STACK_NAME=c5e-reconciler` and at least one candidate service container. It
-verifies both Docker labels `com.docker.compose.project=c5e-reconciler` and
-`com.docker.compose.service=c5e-reconciler` on every candidate; absent or
-mismatched evidence aborts before stopping/removing anything. Only verified
-service containers are stopped/removed and the exact marked c5e project
-directory (including its old runtime `.env`) is removed. Ansible does not run
-`docker compose down`, touch other stack directories, or delete any volume.
-
-The role pulls the current `forgejo.weinbender.io/labs/c5e:main` image and
-checks its advertised CLI contract before retiring the old service, so a pull
-or capability-check failure leaves the Compose controller running. The systemd
-unit runs that image with the current repository, host, reconciliation, and
-retention flags. It uses host networking and listens for the dashboard only on
-`127.0.0.1:8080`; there is deliberately no Traefik route or other externally
-reachable dashboard route. The controller is not attached to `proxy`, and
-this migration does not remove or disable the existing `proxy` network. Its
-Docker socket mount grants host-root-equivalent access.
-
-Persistent controller state reuses the exact existing Docker named volume
-`c5e_reconciler_state`, mounted at `/var/lib/c5e-state`; do not rename or remove
-it during rollout. `/var/lib/c5e-live` remains mounted at the same path.
-
-The current `docker-networking` definition creates `proxy` as an attachable,
-local bridge network. The infrastructure platform workflow can also create it
-with the raw fallback `docker network create --driver bridge --attachable
-proxy`, which has no `com.docker.compose.project` label. Before adopting the
-existing network, inspect its exact ID and the Docker daemon ID:
+The controller creates `proxy` if it is absent. If it already exists, inspect
+the network and daemon IDs:
 
 ```bash
 docker network inspect proxy --format '{{json .}}'
 docker info --format '{{.ID}}'
 ```
 
-Before production handoff, verify the network is named `proxy`, uses driver
-`bridge`, has local scope and `Attachable=true`. A Compose-created legacy
-network may carry `com.docker.compose.project=docker-networking`; the raw
-fallback may have no project label. Reject any other project label or
-conflicting c5e manager/host ownership labels. Enter both exact IDs at the
-prompts; each supplied ID must match
-`^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$`. The role passes them as
-`--proxy-network-migration-id` and
-`--proxy-network-migration-daemon-id`; c5e validates the network/daemon pair
-and persists an accepted pair. Keep the role defaults empty and never guess or
-hard-code IDs. If inspection does not match, stop rollout and leave the existing
-network untouched. c5e's proxy-network ensure is independent of
-`--deploy-host=false`; newly created networks must carry c5e manager/host labels.
+Enter both exact IDs at the playbook prompts to bind the existing local,
+attachable bridge. c5e rejects unexpected settings and conflicting project or
+owner labels; it never replaces or disconnects the network. Leave both IDs
+blank when `proxy` does not exist.
 
-The retirement removes only `/etc/compose-stacks/c5e-reconciler` after matching
-ownership evidence is verified; it leaves the existing `proxy` network intact.
+The role removes an old c5e container only when its Compose project and service
+labels match. It leaves the old Compose files and state volume; Docker reuses
+`c5e_reconciler_state` or creates an empty volume if it is absent.
 
 ## Playbooks
 

@@ -15,10 +15,5 @@
       prompt: Exact Docker daemon ID for that network (leave blank to omit migration)
       private: false
       default: ""
-    - name: c5e_state_volume_identity_confirmation
-      prompt: >-
-        Type CONFIRM_C5E_STATE_VOLUME only after inspecting a volume with missing Compose labels
-      private: false
-      default: ""
   roles:
     - c5e_reconciler
