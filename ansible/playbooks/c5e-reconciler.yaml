@@ -4,14 +4,14 @@
   gather_facts: true
   become: true
   vars_prompt:
-    - name: c5e_op_credentials
+    - name: c5e_reconciler_op_credentials
       prompt: C5E_OP_CREDENTIALS service-account credential
       private: true
-    - name: c5e_proxy_network_migration_id
+    - name: c5e_reconciler_proxy_network_migration_id
       prompt: Exact existing proxy network ID (leave blank to omit migration)
       private: false
       default: ""
-    - name: c5e_proxy_network_migration_daemon_id
+    - name: c5e_reconciler_proxy_network_migration_daemon_id
       prompt: Exact Docker daemon ID for that network (leave blank to omit migration)
       private: false
       default: ""

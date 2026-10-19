@@ -6,7 +6,7 @@
     owner: root
     group: root
     mode: "0644"
-  register: c5e_systemd_unit
+  register: c5e_reconciler_systemd_unit
 
 - name: Ensure the c5e systemd controller is enabled and running
   ansible.builtin.systemd:
@@ -15,8 +15,8 @@
     enabled: true
     state: >-
       {{ 'restarted' if
-         c5e_systemd_unit.changed
-         or (c5e_environment_file_install.changed | default(false))
-         or (c5e_environment_file_protection.changed | default(false))
-         or (c5e_image_pull.changed | default(false))
+         c5e_reconciler_systemd_unit.changed
+         or (c5e_reconciler_environment_file_install.changed | default(false))
+         or (c5e_reconciler_environment_file_protection.changed | default(false))
+         or (c5e_reconciler_image_pull.changed | default(false))
          else 'started' }}

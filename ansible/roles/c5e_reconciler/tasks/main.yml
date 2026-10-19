@@ -3,15 +3,15 @@
   ansible.builtin.assert:
     that:
       - >-
-        (c5e_proxy_network_migration_id | default('') | length == 0)
+        (c5e_reconciler_proxy_network_migration_id | default('') | length == 0)
         ==
-        (c5e_proxy_network_migration_daemon_id | default('') | length == 0)
+        (c5e_reconciler_proxy_network_migration_daemon_id | default('') | length == 0)
       - >-
-        (c5e_proxy_network_migration_id | default('') | length == 0)
-        or c5e_proxy_network_migration_id is match('^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$')
+        (c5e_reconciler_proxy_network_migration_id | default('') | length == 0)
+        or c5e_reconciler_proxy_network_migration_id is match('^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$')
       - >-
-        (c5e_proxy_network_migration_daemon_id | default('') | length == 0)
-        or c5e_proxy_network_migration_daemon_id is match('^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$')
+        (c5e_reconciler_proxy_network_migration_daemon_id | default('') | length == 0)
+        or c5e_reconciler_proxy_network_migration_daemon_id is match('^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$')
     fail_msg: >-
       Supply both exact proxy-network migration identifiers or leave both
       unset; each supplied identifier must match the c5e safe-ID format.
