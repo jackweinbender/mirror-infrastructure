@@ -6,7 +6,7 @@ services:
     command:
       - --repo-url=https://forgejo.weinbender.io/labs/infrastructure.git
       - --repo-ref=main
-      - --host-id=lxc-docker-core0-canary
+      - --host-id=lxc-docker-core0
       - --worktree=/etc
       - --stack-root=compose-stacks
       - --state=/var/lib/c5e-state
@@ -18,6 +18,8 @@ services:
       - --secrets-deadline=30s
       - --docker-deadline=5m
       - --op-credentials-env=C5E_OP_CREDENTIALS
+    labels:
+      vector.app: c5e-reconciler
     read_only: true
     cap_drop: [ALL]
     security_opt: [no-new-privileges:true]
