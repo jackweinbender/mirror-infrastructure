@@ -1,0 +1,36 @@
+---
+name: Deploy c5e reconciler
+when:
+  - event: push
+    branch: ${CI_REPO_DEFAULT_BRANCH}
+    path:
+      include:
+        - 'compose-stacks/c5e-reconciler/**'
+        - 'ansible/inventory.yaml'
+        - 'scripts/**'
+        - '.crow/deploy-c5e-reconciler.yaml'
+  - event: manual
+  - event: cron
+    cron: deploy
+depends_on:
+  - Compose platform deployment
+steps:
+  - name: preflight
+    image: forgejo.weinbender.io/labs/ci-base:main
+    environment:
+      LANG: C.UTF-8
+      LC_ALL: C.UTF-8
+    commands:
+      - ruby scripts/preflight.rb
+  - name: deploy-stack
+    image: forgejo.weinbender.io/labs/ci-base:main
+    environment:
+      LANG: C.UTF-8
+      LC_ALL: C.UTF-8
+      STACK: c5e-reconciler
+      OP_SERVICE_ACCOUNT_TOKEN:
+        from_secret: ONE_PASSWORD_SA_TOKEN
+      TS_OAUTH_CLIENT_SECRET:
+        from_secret: TS_OAUTH_CLIENT_SECRET
+    commands:
+      - bash scripts/deploy-compose-stack.sh

@@ -6,7 +6,7 @@ services:
     command:
       - --repo-url=https://forgejo.weinbender.io/labs/infrastructure.git
       - --repo-ref=main
-      - --host-id=lxc-docker-core0-canary
+      - --host-id=lxc-docker-core0
       - --worktree=/etc
       - --stack-root=compose-stacks
       - --state=/var/lib/c5e-state
