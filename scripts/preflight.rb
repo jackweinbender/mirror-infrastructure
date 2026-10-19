@@ -5,6 +5,7 @@ require 'json'
 require 'tempfile'
 require_relative 'lib/commands'
 require_relative 'lib/output'
+require_relative 'lib/inventory'
 
 ROOT = File.expand_path('..', __dir__)
 STACKS_DIR = File.join(ROOT, 'compose-stacks')
@@ -27,6 +28,12 @@ def parse_inventory
   JSON.parse(ScriptCommands.capture('ruby', DISCOVER_SCRIPT, File.join(ROOT, 'ansible/inventory.yaml')))
 rescue StandardError => e
   fail_preflight("could not read deploy hosts: #{e.message}")
+end
+
+def parse_application_host_ids
+  DeployInventory.application_host_ids(File.join(ROOT, 'ansible/inventory.yaml'))
+rescue StandardError => e
+  fail_preflight("could not read application assignment hosts: #{e.message}")
 end
 
 def merged_env(shared, assignment)
@@ -54,7 +61,8 @@ end
 
 validate_terraform_components
 hosts = parse_inventory
-host_ids = hosts.to_h { |host| [host['id'], true] }
+deploy_host_ids = hosts.to_h { |host| [host['id'], true] }
+application_host_ids = parse_application_host_ids.to_h { |host_id| [host_id, true] }
 stacks = []
 
 Dir.each_child(STACKS_DIR) do |stack|
@@ -76,13 +84,13 @@ Dir.each_child(STACKS_DIR) do |stack|
         assignment_dir = File.join(deployments, host)
         fail_preflight("invalid platform deployment entry: #{assignment_dir} is not a directory") unless File.directory?(assignment_dir)
         fail_preflight("invalid platform deployment host directory: #{host}") unless NAME_PATTERN.match?(host) && host != 'docker-networking'
-        fail_preflight("unknown platform deployment host #{host} in #{assignment_dir}") unless host_ids.key?(host)
+        fail_preflight("unknown platform deployment host #{host} in #{assignment_dir}") unless deploy_host_ids.key?(host)
         allowed = ['.env.template', 'docker-compose.yaml']
         unexpected = Dir.children(assignment_dir) - allowed
         fail_preflight("unexpected files in platform deployment #{assignment_dir}: #{unexpected.join(', ')}") unless unexpected.empty?
       end
     end
-    expected_hosts = host_ids.keys
+    expected_hosts = deploy_host_ids.keys
   else
     expected_hosts = File.directory?(deployments) ? Dir.children(deployments) : []
   end
@@ -92,7 +100,7 @@ Dir.each_child(STACKS_DIR) do |stack|
     if stack != 'docker-networking'
       fail_preflight("invalid deployment entry: #{assignment_dir} is not a directory") unless File.directory?(assignment_dir)
       fail_preflight("invalid deployment host directory: #{host}") unless NAME_PATTERN.match?(host) && host != 'docker-networking'
-      fail_preflight("unknown deployment host #{host} in #{assignment_dir}") unless host_ids.key?(host)
+      fail_preflight("unknown or ineligible application deployment host #{host} in #{assignment_dir}") unless application_host_ids.key?(host)
     end
 
     assignment = File.join(assignment_dir, '.env.template')

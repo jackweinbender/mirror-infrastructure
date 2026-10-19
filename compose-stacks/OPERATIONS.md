@@ -6,23 +6,27 @@ be changed manually except for recovery work described below.
 
 ## Architecture
 
-There are two kinds of Compose stack:
+Compose deployments have two ownership classes:
 
-- **Platform stack**: `docker-networking` is special. It owns the external
-  `proxy` network and is applied to every host with `host_roles: deploy`.
-- **Application stack**: every other stack is assigned to hosts by deployment
+- **Platform stack**: `docker-networking` owns the external `proxy` network
+  and is reconciled by GitHub Actions only on hosts with `host_roles: deploy`.
+- **Application stacks**: every other stack is assigned through deployment
   directories. Traefik is an application stack, not part of the platform stack.
+  Assignments are valid on `deploy` and `c5e_reconciler` hosts, but GitHub
+  Actions still targets only `deploy` hosts; c5e reconciles assignments on its
+  own controller host.
 
 The deployment order is intentional:
 
 1. Preflight validates inventory, stack names, dotenv templates, assignments,
-   overlays, and Compose configuration.
+   overlays, and Compose configuration. Application assignments on
+   `c5e_reconciler` hosts are validated but are not deployment targets.
 2. `.crow/deploy.yaml` reconciles `docker-networking` on every deploy host.
 3. The `.crow/deploy-<stack>.yaml` workflows each reconcile one application
-   stack. Each stack workflow depends on the platform workflow, then
-   reconciles that stack on each host where it is assigned. Independent stack
-   workflows can run in parallel and can be selected individually for manual
-   runs.
+   stack on assigned deploy hosts. Each stack workflow depends on the platform
+   workflow; controller-host assignments are reconciled by c5e instead.
+   Independent stack workflows can run in parallel and can be selected
+   individually for manual runs.
 
 Application stacks may declare `proxy` as an external network. They must not
 create, delete, or otherwise manage that network themselves.
@@ -47,10 +51,14 @@ Compose project.
 
 The presence of `deployments/<host>/.env.template` assigns the stack to that
 exact short host ID from `ansible/inventory.yaml`. An empty template is still an
-assignment. The host must have `host_roles: deploy`.
+assignment. The host must have either `deploy` or `c5e_reconciler` in
+`host_roles`. Only `deploy` hosts appear in GitHub Actions deployment discovery
+or matrices; assignments to a `c5e_reconciler` host are preflight-validated and
+left to that controller.
 
 There is no `deployments/ALL/` convention. A stack that belongs everywhere is
-handled explicitly by the platform reconciler, as with `docker-networking`.
+Deploy-host assignments use the platform reconciler; c5e-managed hosts ensure
+the shared `proxy` directly before dependent applications.
 For an ordinary application stack, enumerate its real assignments.
 
 ### Compose overlays
@@ -117,7 +125,7 @@ whole-VM backups or a separate offsite backup job. Do not assume the LXC
 
 ## Reconciliation lifecycle
 
-For an assigned application stack, the workflow:
+For an application assignment on a `deploy` host, the GitHub Actions workflow:
 
 1. Merges the root and host `.env.template` files.
 2. Creates a private remote staging directory.
@@ -132,16 +140,11 @@ Live projects are stored at `/etc/compose-stacks/<stack>` and use the stable
 Compose project name `<stack>`. Publication is not performed over the live
 directory; staging is validated first and then moved into place.
 
-A live directory may be replaced or removed only when
-`.managed-by-github-actions` exists and contains the matching
-`STACK_NAME=<stack>` entry. Unmarked directories are intentionally left alone
-for manual investigation. The reconciler records failures but continues with
-other stacks on the same host, so one failure does not hide the rest of the
-report.
-
-Removing a deployment directory causes the next reconciliation to run
-`docker compose down --remove-orphans` and remove the marked project directory.
-Named volumes and images are intentionally retained.
+For assignments on `deploy` hosts, removing a deployment directory causes the
+next GitHub Actions reconciliation to run `docker compose down --remove-orphans`
+and remove the marked project directory; named volumes and images are retained.
+Assignments on a `c5e_reconciler` host are not targeted by GitHub Actions and
+instead follow that controller's configured removal policy.
 
 ## Adding or changing a stack
 
@@ -150,7 +153,9 @@ Named volumes and images are intentionally retained.
 3. Add one `deployments/<host>/.env.template` per assigned host.
 4. Add a host overlay only when the base Compose definition cannot express the
    host-independent configuration.
-5. Confirm all external networks are supplied by `docker-networking`.
+5. Ensure external `proxy` is supplied by the platform stack on deploy hosts or
+   c5e's direct ensure on controller hosts; provision other external networks
+   separately.
 6. Check bind-mount source types, especially file mounts.
 7. Run local validation (below).
 8. Push to `main`, or manually dispatch the relevant stack workflow for

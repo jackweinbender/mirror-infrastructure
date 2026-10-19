@@ -11,6 +11,8 @@ Debian host configuration and Proxmox LXC bootstrap.
 - `roles/deploy/` creates the local GitHub Actions account used over Tailscale SSH.
 - `roles/docker/` installs Docker Engine and Compose, grants configured users
   Docker access, and adds Docker container log shipping to Vector.
+- `roles/c5e_reconciler/` installs the c5e controller as a systemd-managed
+  Docker container on its dedicated host.
 - `tasks/lxc_*` and `tasks/pve_host/` are procedural Proxmox workflows. They
   create and prepare infrastructure; they are not steady-state roles.
 - `playbooks/workloads.yaml` applies the baseline and inventory-selected roles
@@ -107,11 +109,61 @@ Use the project interpreter for every command:
 - `workloads`: Debian guests reached over Tailscale SSH.
 - `hypervisors`: Proxmox hosts configured by the local PVE playbook.
 
-A workload selects specialized roles with `host_roles`:
+A workload selects specialized roles with `host_roles`. `deploy` identifies GitHub Actions deployment hosts; `c5e_reconciler` permits application assignments that are reconciled by c5e but never adds that host to GitHub Actions deployment discovery.
 
 ```yaml
-host_roles: [deploy, docker]
+host_roles: [docker, c5e_reconciler]
 ```
+
+## c5e controller
+
+`lxc-docker-core0` is configured with `docker` and `c5e_reconciler`, but not
+`deploy`. Its application stack assignments remain eligible for preflight and
+are reconciled by c5e; Compose deployment workflows continue to discover only
+hosts with `deploy`. The platform workflow therefore no longer targets this
+host, while remaining unchanged for other deploy hosts.
+
+Install or rotate the controller credential with the targeted playbook:
+
+```bash
+.venv/bin/ansible-playbook playbooks/c5e-reconciler.yaml
+```
+
+Merge the c5e controller change and wait for `forgejo.weinbender.io/labs/c5e:main`
+to be published before applying this playbook. It prompts privately for the
+service-account credential and, if the existing `proxy` network needs explicit
+approval, its exact network and daemon IDs. The role pulls the image, writes the
+credential to root-only `/etc/c5e-reconciler/c5e.env`, removes any existing
+container with the c5e Compose project/service labels, and starts the systemd
+unit. It leaves the old Compose directory and all named volumes in place.
+
+The systemd unit uses host networking, keeps `/var/lib/c5e-live`, and mounts the
+named volume `c5e_reconciler_state` at `/var/lib/c5e-state`. Docker reuses that
+volume if present or creates an empty one if absent; no state/data migration is
+performed. The Docker socket grants host-root-equivalent access.
+
+The dashboard listens on `127.0.0.1:8080`; no external Traefik route is
+configured. The controller itself is not attached to `proxy`, so its startup
+does not depend on the network it ensures for applications. Existing
+application containers with foreign ownership labels may still require a
+separate controller ownership transition.
+
+The controller creates `proxy` if it is absent. If it already exists, inspect
+the network and daemon IDs:
+
+```bash
+docker network inspect proxy --format '{{json .}}'
+docker info --format '{{.ID}}'
+```
+
+Enter both exact IDs at the playbook prompts to bind the existing local,
+attachable bridge. c5e rejects unexpected settings and conflicting project or
+owner labels; it never replaces or disconnects the network. Leave both IDs
+blank when `proxy` does not exist.
+
+The role removes an old c5e container only when its Compose project and service
+labels match. It leaves the old Compose files and state volume; Docker reuses
+`c5e_reconciler_state` or creates an empty volume if it is absent.
 
 ## Playbooks
 

@@ -2,9 +2,10 @@
 
 Personal infrastructure as code. The repository manages cloud resources with
 Terraform, configures Debian and Proxmox hosts with Ansible, and deploys
-self-hosted services with Docker Compose through self-hosted Crow-CI. This repo
-is hosted locally at ssh://git@forgejo.weinbender.io:2222/labs/infrastructure.git and
-is mirrored to github at git@github.com:jackweinbender/mirror-infrastructure.git
+application services with Docker Compose through Crow-CI. The c5e controller
+runs as an Ansible-installed, systemd-managed Docker container. The repository
+is hosted locally at ssh://git@forgejo.weinbender.io:2222/labs/infrastructure.git
+and mirrored to GitHub at git@github.com:jackweinbender/mirror-infrastructure.git
 
 ## Repository Layout
 
@@ -47,19 +48,22 @@ and validated against the Terraform root directories.
 Compose deployment has two layers:
 
 1. **Platform:** `compose-stacks/docker-networking/` owns the external `proxy`
-   network and is reconciled on every inventory host with `host_roles: deploy`.
+   network and is reconciled by GitHub Actions only on inventory hosts with
+   `host_roles: deploy`.
 2. **Applications:** every other stack—including Traefik—is assigned explicitly
-   through `deployments/<host>/.env.template` and is reconciled only on hosts
-   where it is assigned.
+   through `deployments/<host>/.env.template`. Assignments may target `deploy`
+   hosts or a `c5e_reconciler` host; GitHub Actions discovers only `deploy`
+   hosts, while c5e owns reconciliation of its controller-host assignments.
 
 The deployment workflows validate the inventory, assignments, dotenv
 templates, overlays, and Compose files before making an SSH connection. They
 then:
 
-1. Reconcile `docker-networking` on every deploy host through `deploy.yaml`.
-2. Reconcile each application stack through its independent
-   `.crow/deploy-<stack>.yaml` workflow; these workflows depend on the platform
-   workflow and can run in parallel.
+1. Reconcile `docker-networking` on deploy hosts only through `deploy.yaml`.
+2. Reconcile assigned application stacks through their independent
+   `.crow/deploy-<stack>.yaml` workflows on deploy hosts only; these workflows
+   depend on the platform workflow and can run in parallel. The c5e controller
+   reconciles its own application assignments outside GitHub Actions discovery.
 3. Use each stack's path filter so a default-branch push does not deploy
    unrelated stacks.
 
@@ -83,17 +87,17 @@ static service-account credentials for AWS and GCP managed as Crow secrets and
 1Password-backed credentials for secrets. Never commit state, plans containing
 secrets, provider credentials, private keys, or resolved secret values.
 
-## Ansible
-
 Ansible supports Debian guests and Proxmox bootstrap workflows. The steady-state
 `playbooks/workloads.yaml` playbook always applies the baseline roles and then
-selects additional roles from each host's `host_roles`, such as `deploy` and
-`docker`. LXC persistent data follows the host-backed
+selects additional roles from each host's `host_roles`, such as `deploy`,
+`docker`, and `c5e_reconciler`. LXC persistent data follows the host-backed
 `/primary/guest-volumes/<hostname>` to guest `/srv/guest-volumes` convention;
 `mp0` is reserved for that mount. VMs are the exception: `docker-vm-dmz` keeps
 Docker data in `/var/lib/docker` and requires whole-VM or separate offsite
 backups. Tailscale SSH is the supported remote access path; the Proxmox console
-is the bootstrap recovery path.
+is the bootstrap recovery path. The c5e host's dashboard is deliberately
+loopback-only at `127.0.0.1:8080`; Ansible reuses its existing named state volume
+and retires the marked Compose service only after verifying ownership evidence.
 
 Set up the local environment with:
 

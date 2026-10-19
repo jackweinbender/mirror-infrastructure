@@ -1,0 +1,17 @@
+[Unit]
+Description=c5e infrastructure reconciler container
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/c5e-reconciler/c5e.env
+Restart=always
+RestartSec=5s
+TimeoutStopSec=45s
+ExecStart=/usr/bin/docker run --rm --name c5e-reconciler-controller --network host --user 0:0 --env C5E_OP_CREDENTIALS --label vector.app=c5e --volume /var/lib/c5e-live:/var/lib/c5e-live --volume /var/run/docker.sock:/var/run/docker.sock --volume c5e_reconciler_state:/var/lib/c5e-state forgejo.weinbender.io/labs/c5e:main --repo-url=https://forgejo.weinbender.io/labs/infrastructure.git --repo-ref=main --host-id=lxc-docker-core0 --worktree=/etc --stack-root=compose-stacks --state=/var/lib/c5e-state --deploy-host=false --removal-policy=retain --poll-interval=1m --reconcile-interval=5m --git-deadline=2m --secrets-deadline=30s --docker-deadline=5m --op-credentials-env=C5E_OP_CREDENTIALS --dashboard-listen=127.0.0.1:8080{% if c5e_proxy_network_migration_id | default('') | length > 0 %} --proxy-network-migration-id={{ c5e_proxy_network_migration_id }} --proxy-network-migration-daemon-id={{ c5e_proxy_network_migration_daemon_id }}{% endif %}
+ExecStop=-/usr/bin/docker container stop --time 30 c5e-reconciler-controller
+
+[Install]
+WantedBy=multi-user.target

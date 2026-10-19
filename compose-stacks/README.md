@@ -1,8 +1,10 @@
 # Compose stacks
 
 This directory contains reusable, host-independent Docker Compose definitions.
-The operational source of truth for adding, validating, deploying, and
-recovering stacks is [`OPERATIONS.md`](OPERATIONS.md). The application deployment workflow evaluates every application stack against every Docker host whose inventory entry has `host_roles: deploy`.
+The operational source of truth for adding, validating, deploying, and recovering
+stacks is [`OPERATIONS.md`](OPERATIONS.md). GitHub Actions reconciles application
+assignments only on `deploy` hosts; `c5e_reconciler` assignments pass preflight
+but are handled by c5e and excluded from GitHub Actions targets.
 
 ## Stack layout and assignments
 
@@ -40,15 +42,39 @@ services:
       DEPLOYMENT_HOST: traefik-lxc
 ```
 
-`docker-networking/` is the platform stack: it owns only the external `proxy` network and is reconciled first by `.crow/deploy.yaml` on every deploy host. `.crow/deploy-stack.yaml` then reconciles each assigned application stack as an independent matrix workflow; these entries run after the platform workflow and can run in parallel. `traefik/` is a normal assigned application stack.
+`docker-networking/` is the platform stack: it owns only the external `proxy`
+network and is reconciled first by `.crow/deploy.yaml` on deploy hosts only.
+The `.crow/deploy-<stack>.yaml` workflows reconcile assigned applications on
+deploy hosts after the platform workflow; c5e handles application assignments
+on `c5e_reconciler` hosts, which are excluded from GitHub Actions discovery and
+matrices. `traefik/` remains a normal assigned application stack.
 
-The deployment workflow supports an optional host-specific Compose overlay named `deployments/<host>/docker-compose.yaml` for assigned application stacks. During deployment, when that file exists for the target host, it is copied into the private staging directory as Compose's conventional `docker-compose.override.yaml`. This lets the remote workflow use the same Compose commands on every host while keeping host-specific composition out of the base `docker-compose.yaml`. The overlay is applied only to its matching host; it does not determine assignment. Application assignment is controlled by the presence of `deployments/<host>/.env.template`. The special `docker-networking` platform stack is deployed to every discovered deploy host and has no deployment assignments.
+The deployment workflow supports an optional host-specific Compose overlay named
+`deployments/<host>/docker-compose.yaml` for assigned application stacks. It is
+copied into private staging as `docker-compose.override.yaml` and applied only
+to its matching host; it does not determine assignment. Application assignment
+is controlled by `deployments/<host>/.env.template`. The platform stack is
+deployed to every discovered deploy host and has no assignment directories.
 
-The presence of `deployments/<host>/.env.template` assigns a stack to that exact short inventory host identifier. An empty file is still an assignment. The root `.env.template` is optional and provides shared values; host-specific values override them. Env files may contain `op://...` references. GitHub Actions merges the files, resolves references with `op inject`, and streams the resolved `.env` directly to the private remote staging directory. Resolved secrets are never committed or written to runner artifacts.
+The presence of `deployments/<host>/.env.template` assigns a stack to that exact
+short inventory host identifier. An empty file is still an assignment. The root
+`.env.template` is optional and provides shared values; host-specific values
+override them. Env files may contain `op://...` references. GitHub Actions
+merges the files, resolves references with `op inject`, and streams resolved
+`.env` files to private remote staging. Resolved secrets are never committed or
+written to runner artifacts.
 
-To deploy to a new host, add `deployments/<host>/.env.template`, using a host with `host_roles: deploy` in `ansible/inventory.yaml`, then push to `main` or manually dispatch the relevant stack workflow. To remove a deployment, delete that deployment directory and run that stack's workflow. The workflow runs `docker compose down --remove-orphans` with the existing remote files and `.env` before removing the marked remote directory. It does not remove named volumes or images.
+For a GitHub Actions-managed application, add an assignment for a host with
+`host_roles: deploy`. A `c5e_reconciler` host may also have application
+assignments; preflight validates them, but GitHub Actions does not target that
+host and c5e reconciles them. Removing a deploy-host assignment and running its
+stack workflow invokes `docker compose down --remove-orphans` before removing
+the marked directory; named volumes and images are retained. c5e-managed
+assignments follow the controller's `--removal-policy=retain` behavior instead.
 
-The external `proxy` network is provided by the `docker-networking` platform phase of the deployment workflow. Application Compose files that declare it as external run only after that phase succeeds; application reconciliation never removes it.
+The `docker-networking` platform workflow provides `proxy` on deploy hosts.
+On a `c5e_reconciler` host, c5e independently ensures its `proxy` network.
+Application Compose files that declare `proxy` as external must not remove it.
 
 ## Remote safety
 

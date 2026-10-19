@@ -1,0 +1,29 @@
+---
+- name: Find existing c5e Compose controller containers
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/docker
+      - container
+      - ls
+      - --all
+      - --quiet
+      - --filter
+      - label=com.docker.compose.project=c5e-reconciler
+      - --filter
+      - label=com.docker.compose.service=c5e-reconciler
+  register: c5e_legacy_containers
+  changed_when: false
+
+- name: Stop and remove existing c5e Compose controller containers
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/docker
+      - container
+      - rm
+      - --force
+      - "{{ item }}"
+  loop: "{{ c5e_legacy_containers.stdout_lines }}"
+  loop_control:
+    label: "{{ item }}"
+  when: c5e_legacy_containers.stdout_lines | length > 0
+  changed_when: true

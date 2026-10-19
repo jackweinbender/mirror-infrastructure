@@ -8,10 +8,12 @@ deployment work.
 ## Repository model
 
 - `docker-networking/` is the platform stack. It owns the external `proxy`
-  network and is deployed to every inventory host with `host_roles: deploy`.
+  network and is deployed only to inventory hosts with `host_roles: deploy`.
 - Every other stack, including Traefik, is an assigned application stack.
 - Application assignment is the presence of
   `deployments/<host>/.env.template`; an overlay alone does not assign a stack.
+  Application assignment hosts need `deploy` or `c5e_reconciler`; only
+  `deploy` hosts enter GitHub Actions discovery/matrices.
 - Never add `deployments/ALL/`.
 - Root `.env.template` values are shared; host templates override them. Keep
   `op://...` references unresolved and never commit runtime `.env` files.

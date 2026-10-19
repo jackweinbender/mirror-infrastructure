@@ -8,13 +8,15 @@ relevant role or playbook before changing behavior.
 
 - `roles/base/` and `roles/tailscale/` provide the baseline applied by
   `playbooks/workloads.yaml`.
-- A host's `host_roles` controls optional roles such as `deploy` and `docker`.
+- A host's `host_roles` controls optional roles such as `deploy`, `docker`, and
+  `c5e_reconciler`.
 - `tasks/lxc_*` and `tasks/pve_host/` are procedural bootstrap workflows, not
   steady-state roles.
-- `playbooks/local-*.yaml` are operator-run workflows and must not accidentally
-  target production hosts.
-- Keep inventory names and `host_roles` compatible with Compose deployment host
-  discovery.
+- `playbooks/local-*.yaml` are operator-run bootstrap and feature workflows;
+  `local` means they run from the LAN rather than the GitHub Actions tailnet.
+- Keep inventory names and roles compatible with Compose preflight: application
+  assignments may use `deploy` or `c5e_reconciler`, while GHA discovery and the
+  platform stack remain limited to `deploy` hosts.
 - Debian guests and Tailscale SSH are the supported workload model.
 
 ## Secrets and changes
