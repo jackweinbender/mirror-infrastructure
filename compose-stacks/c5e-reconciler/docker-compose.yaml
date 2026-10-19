@@ -1,0 +1,33 @@
+services:
+  c5e-reconciler:
+    image: forgejo.weinbender.io/labs/c5e:main
+    restart: unless-stopped
+    user: "0:0"
+    command:
+      - --repo-url=https://forgejo.weinbender.io/labs/infrastructure.git
+      - --repo-ref=main
+      - --host-id=lxc-docker-core0-canary
+      - --worktree=/etc
+      - --stack-root=compose-stacks
+      - --state=/var/lib/c5e-state
+      - --deploy-host=false
+      - --removal-policy=retain
+      - --poll-interval=1m
+      - --reconcile-interval=5m
+      - --git-deadline=2m
+      - --secrets-deadline=30s
+      - --docker-deadline=5m
+      - --op-credentials-env=C5E_OP_CREDENTIALS
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    stop_grace_period: 6m
+    tmpfs: [/tmp:rw,nosuid,nodev,size=64m,mode=1777]
+    volumes:
+      - /etc/compose-stacks:/etc/compose-stacks:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+      - c5e_reconciler_state:/var/lib/c5e-state
+
+volumes:
+  c5e_reconciler_state:
+    name: c5e_reconciler_state
