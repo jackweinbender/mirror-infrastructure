@@ -3,6 +3,15 @@
   hosts: lxc-docker-core0.tortoise-noodlefish.ts.net
   gather_facts: true
   become: true
+
+  pre_tasks:
+    - name: Require the c5e service-account credential
+      ansible.builtin.assert:
+        that:
+          - c5e_reconciler_op_credentials is defined
+          - c5e_reconciler_op_credentials | length > 0
+        fail_msg: Enter the c5e service-account credential at the prompt.
+      no_log: true
   vars_prompt:
     - name: c5e_reconciler_op_credentials
       prompt: C5E_OP_CREDENTIALS service-account credential

@@ -31,7 +31,36 @@ Roles are composable and inventory-driven. `workloads.yaml` always applies
 - Tailscale SSH is the only supported remote access path.
 - The Proxmox console is the recovery path during initial bootstrap.
 - Docker and privileged LXC features are opt-in.
-- Secrets are passed as extra vars or prompts; do not commit them.
+- Follow the VM service credential SOP below for service credentials. Never
+  commit values or put them in inventory or command-line arguments.
+
+## VM service credential SOP
+
+Use this procedure for long-lived credentials consumed by systemd-managed
+services on any Ansible-managed VM. Keep each service on its own least-privilege
+credential where practical.
+
+1. **Source:** for c5e, `C5E_OP_CREDENTIALS` is the raw 1Password
+   service-account token passed to `op` as `OP_SERVICE_ACCOUNT_TOKEN`; it is
+   not an `op://` item reference. Existing Crow deployments inject a token
+   from the `ONE_PASSWORD_SA_TOKEN` secret. Retrieve the raw value from its
+   approved secure source; if no copy is available, reissue the token and
+   update the Crow secret. Give it read access only to the vaults referenced
+   by this host's assigned templates; use a dedicated account if the shared
+   Crow token has broader access than c5e needs.
+2. **Bootstrap:** use the service-specific targeted Ansible playbook and its
+   private `vars_prompt`. Never pass the value through `-e`, command arguments,
+   shell environment assignments, or repository files. Generic workload runs
+   should skip an uninitialized service rather than prompt or fail.
+3. **Store and verify:** write to `/etc/<service>/<service>.env` under a
+   root-owned mode-`0700` directory; the file is `root:root` mode `0600`.
+   Ansible tasks use `no_log: true` and `diff: false`; systemd reads the file
+   with `EnvironmentFile`. Verify file metadata with `stat` and service status
+   with `systemctl is-active`/`journalctl`; never print or `cat` the file.
+4. **Rotate:** issue a replacement in the source manager, update any Crow
+   secret using the same token, and rerun the targeted playbook with the new
+   value. Verify the service and secret access before revoking the old token.
+   Keep values out of shell history and logs.
 
 ## LXC guest storage convention
 
@@ -136,6 +165,10 @@ approval, its exact network and daemon IDs. The role pulls the image, writes the
 credential to root-only `/etc/c5e-reconciler/c5e.env`, removes any existing
 container with the c5e Compose project/service labels, and starts the systemd
 unit. It leaves the old Compose directory and all named volumes in place.
+
+Until the targeted playbook installs this credential file, generic
+`playbooks/workloads.yaml` runs skip the c5e role rather than failing. Once the
+file exists, those runs manage the systemd unit normally.
 
 The systemd unit uses host networking, keeps `/var/lib/c5e-live`, and mounts the
 named volume `c5e_reconciler_state` at `/var/lib/c5e-state`. Docker reuses that

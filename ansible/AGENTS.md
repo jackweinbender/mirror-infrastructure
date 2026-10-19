@@ -21,8 +21,11 @@ relevant role or playbook before changing behavior.
 
 ## Secrets and changes
 
-- Pass secrets through prompts, extra vars, or the existing CI mechanism; never
-  commit them or place them in inventory, logs, or generated artifacts.
+- For long-lived service credentials on workloads, follow the VM service
+  credential SOP in `README.md`: use private targeted prompts and root-only
+  environment files, never inline secret literals in command arguments.
+- CI uses approved Crow secrets; never commit credentials, logs, or generated
+  secret files.
 - Inspect inventory selection, limits, and playbook tags before running a
   command that can change a remote host.
 - Prefer idempotent role changes for steady-state configuration; keep procedural
