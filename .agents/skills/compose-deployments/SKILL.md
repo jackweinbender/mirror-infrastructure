@@ -1,6 +1,6 @@
 ---
 name: compose-deployments
-description: Maintain and deploy this repository's Docker Compose stacks using deployment folders, host overlays, docker-networking platform reconciliation, 1Password-backed env templates, and guarded GitHub Actions publication. Use when adding, changing, debugging, or documenting compose-stacks deployments.
+description: Maintain and validate this repository's Docker Compose stacks, host assignments, overlays, and reconciliation safeguards. Compose deployment workflows are absent; c5e independently reconciles its controller-host assignments.
 ---
 
 # Compose deployments
@@ -13,15 +13,16 @@ for the full repository runbook before making non-trivial changes.
 ## Repository model
 
 - `compose-stacks/docker-networking/` is the platform stack. It owns the
-  external `proxy` network and is reconciled by GitHub Actions on hosts with
-  `host_roles: deploy` only.
+  external `proxy` network.
 - Every other Compose stack is an application stack. Traefik is a normal
   assigned application stack, not part of the platform stack.
 - Application assignment hosts must have `deploy` or `c5e_reconciler` in
-  `host_roles`; only `deploy` hosts enter GitHub Actions discovery and matrices.
-  c5e reconciles assignments on its own host independently of GHA.
+  `host_roles`. c5e reconciles assignments on its own host independently of CI.
+- No Compose deployment workflows are configured; deploy-host assignments are
+  not automatically reconciled by CI.
 - Never introduce `deployments/ALL/`. Assignment is explicit for application
-  stacks; only `docker-networking` has implicit all-deploy-host behavior.
+  stacks; only `docker-networking` has implicit all-deploy-host behavior in the
+  retained reconciliation model.
 
 Use this shape for application stacks:
 
@@ -36,9 +37,9 @@ compose-stacks/<stack>/
 ```
 
 The presence of `deployments/<host>/.env.template` assigns the stack to that
-short inventory host ID. The host must have `deploy` or `c5e_reconciler`; only
-`deploy` hosts are GitHub Actions targets. An overlay does not assign a stack;
-it is copied to the remote staging directory as `docker-compose.override.yaml`.
+short inventory host ID. The host must have `deploy` or `c5e_reconciler`. An
+overlay does not assign a stack; deployment tooling copies it to staging as
+`docker-compose.override.yaml`.
 
 ## Environment and secrets
 
@@ -65,12 +66,11 @@ it is copied to the remote staging directory as `docker-compose.override.yaml`.
 - Persistent writable application data belongs in an intentional volume or
   data directory, not in configuration files copied with the stack.
 
-## Required workflow for changes
+## Validation for changes
 
 1. Inspect the relevant stack README and `compose-stacks/OPERATIONS.md`.
-2. Confirm the target host exists in `ansible/inventory.yaml`. GitHub Actions
-   targets require `host_roles: deploy`; c5e-managed assignments require
-   `host_roles: c5e_reconciler`.
+2. Confirm the target host exists in `ansible/inventory.yaml` and has `deploy`
+   or `c5e_reconciler` in `host_roles`.
 3. Update the base Compose file, root env template, host assignment template,
    and/or host overlay as appropriate.
 4. Verify every bind source is the expected regular-file or directory type.
@@ -94,44 +94,31 @@ it is copied to the remote staging directory as `docker-compose.override.yaml`.
      config --quiet
    ```
 
-   Omit the second file when no overlay exists. Expected warnings for unset
-   secret variables are acceptable locally when CI injects them through
-   1Password.
-7. For deployment workflow or script-only changes, manually dispatch the
-   workflow because the push path filter may not include those files:
-
-   ```bash
-   gh workflow run deploy.yaml --ref main
-   gh run watch <run-id> --exit-status
-   ```
-
-8. Inspect failed matrix jobs individually with:
-
-   ```bash
-   gh run view --job <job-id> --log-failed
-   ```
+   Omit the second file when no overlay exists. Compose validation checks
+   configuration only. No CI deployment workflow exists; pushes and assignment
+   changes do not deploy or remove live projects on `deploy` hosts.
 
 ## Deployment safety
 
-The reconciler stages privately, resolves and injects `.env`, validates Compose,
-then publishes to `/etc/compose-stacks/<stack>` using the stable Compose project
-name `<stack>`. It may replace or remove only a live directory containing a
-regular `.managed-by-github-actions` marker with the matching
-`STACK_NAME=<stack>` entry.
+The retained reconciler scripts stage privately, resolve and inject `.env`,
+validate Compose, then publish to `/etc/compose-stacks/<stack>` using the stable
+Compose project name `<stack>`. They may replace or remove only a live directory
+containing a regular `.managed-by-github-actions` marker with the matching
+`STACK_NAME=<stack>` entry. No CI workflow invokes these scripts.
 
 Do not weaken this marker guard or manually remove an unmarked live directory.
 If a migration creates a known stale layout, identify it by a narrow, explicit
 filesystem predicate and add recovery only for that layout. Preserve normal
 failure behavior for all unrelated unmarked directories.
 
-The deployment order is platform first, application stacks second. A failed
-stack is reported after other stacks on that host are attempted; a connectivity
-failure or failed teardown must not trigger destructive cleanup.
+The intended deployment order is platform first, application stacks second. A
+failed stack is reported after other stacks on that host are attempted; a
+connectivity failure or failed teardown must not trigger destructive cleanup.
 
-When removing an assignment from a `deploy` host, the next GitHub Actions
-reconciliation runs `docker compose down --remove-orphans` and removes the
-marked project directory while retaining named volumes and images. Assignments
-on `c5e_reconciler` hosts are handled by c5e's configured removal policy.
+Removing an assignment from a `deploy` host does not automatically stop or
+remove its live project now that the Compose deployment workflows are absent.
+Assignments on `c5e_reconciler` hosts are handled by c5e's configured removal
+policy.
 
 ## Ingress and DNS
 

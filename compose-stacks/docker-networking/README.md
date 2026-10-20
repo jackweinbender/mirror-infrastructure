@@ -3,7 +3,9 @@
 See [`../OPERATIONS.md`](../OPERATIONS.md) for the repository-wide Compose
 stack and deployment process.
 
-This stack owns the host-level Docker networking required by the other Compose stacks. It is deployed to every Docker host discovered from `ansible/inventory.yaml` with `host_roles: deploy`, before normal application reconciliation.
+This stack defines host-level Docker networking for other Compose stacks. The
+repository no longer has a CI deployment workflow for it; Compose validation
+checks its configuration but does not reconcile it on deploy hosts.
 
 ## What it provides
 
@@ -13,6 +15,7 @@ Traefik and application services are separate Compose stacks. Services that shou
 
 ## Deployment
 
-Changes under `compose-stacks/docker-networking/` run the platform workflow in `deploy.yaml`. The workflow validates the networking Compose project, stages it privately, and reconciles it on every discovered deploy host. This stack has no host assignment files because it is always deployed everywhere.
-
-The platform owns the `proxy` network. Application stacks that declare the network as external run after this phase succeeds; application reconciliation never removes it.
+The `proxy` network is provided by this stack and must exist before dependent
+application stacks run. The repository's CI validates this Compose project but
+does not deploy it. c5e independently ensures `proxy` on its own controller
+host.

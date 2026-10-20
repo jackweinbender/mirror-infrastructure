@@ -45,8 +45,8 @@ DNS-rebinding protection accepts requests for it.
 ## Secrets
 
 `PASEO_PASSWORD` is referenced from 1Password as
-`op://network/paseo/password`. Create that item before deploying, or the
-workflow's secret resolution will have nothing to inject. The Host header is
+`op://network/paseo/password`. Create that item before deploying, or authorized
+deployment tooling will have no secret to inject. The Host header is
 preserved and `X-Forwarded-Proto` passed by Traefik for WebSocket and
 `wss://` auto-connect.
 
@@ -68,8 +68,9 @@ rm -f "$tmp_env"
 git diff --check
 ```
 
-The deployment workflow merges the repository templates and supplies the
-runtime environment (including the 1Password-resolved password) remotely.
+Keep the repository templates as configuration; CI validation does not deploy
+the stack. Resolve the 1Password-backed password only through an authorized
+deployment process.
 
 ## Operational follow-up
 

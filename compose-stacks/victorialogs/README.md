@@ -52,8 +52,8 @@ rm -f "$tmp_env"
 git diff --check
 ```
 
-The deployment workflow merges the repository templates and supplies the runtime
-environment remotely; no secrets are needed for this stack.
+CI validates the repository templates but does not deploy the stack. No secrets
+are needed for this stack.
 
 ## Operational follow-up
 

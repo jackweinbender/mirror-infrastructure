@@ -21,9 +21,9 @@ deployments/
     .env.template
 ```
 
-The `traefik-lxc` deployment also has a Compose overlay that mounts dynamic routes from `traefik/dynamic/`. Add or remove a deployment directory to change where Traefik runs.
-
-The `.crow/deploy.yaml` platform workflow reconciles `docker-networking` first. The `deploy-traefik` matrix workflow in `.crow/deploy-stack.yaml` then deploys Traefik on its assigned hosts.
+The `traefik-lxc` deployment also has a Compose overlay that mounts dynamic
+routes from `traefik/dynamic/`. Assignment directories describe intended host
+placement, but no Compose deployment workflow automatically applies changes.
 
 ## DNS convention for LAN-backed services
 
@@ -66,4 +66,5 @@ The dashboard is exposed without authentication over HTTP at `http://<host-ip>/d
 | `CF_DNS_API_TOKEN` | `op://network/cloudflare-auth-weinbenderio/credential` | Cloudflare DNS-01 API token |
 | `ACME_EMAIL` | `op://network/acme/traefik-email` | Let's Encrypt account email |
 
-The 1Password item/path names can be changed in `.env.template` without changing the workflow.
+The 1Password item/path names can be changed in `.env.template` without changing
+the stack definition.

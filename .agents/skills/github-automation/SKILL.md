@@ -20,24 +20,17 @@ the `compose-deployments` skill and read `compose-stacks/OPERATIONS.md`.
 - Preserve secret boundaries: never print, commit, upload, or pass resolved
   secrets as command-line arguments. Keep SSH host verification, Tailscale
   connectivity, and non-interactive SSH behavior intact.
-- Keep Compose deployment order and managed-directory marker guards intact; do not
-  add broad remote cleanup. The platform network is reconciled before applications.
-- Keep path filters aligned with files that affect a workflow. Check whether
-  script-only changes require a manual deployment dispatch after merging.
+- Keep Compose reconciliation order and managed-directory marker guards intact
+  in retained scripts; no Compose deployment workflows are configured.
+- Keep path filters aligned with the workflows that remain. Compose validation
+  does not deploy stacks, and no deployment dispatch is available.
 
 ## Deployment verification
 
-Do not infer success from an aggregate workflow result. For script-only or
-workflow-only changes that are not covered by push filters, after merging to
-`main` dispatch and inspect the actual run:
-
-```bash
-gh workflow run deploy.yaml --ref main
-gh run watch <run-id> --exit-status
-gh run view --job <job-id> --log-failed
-```
-
-Inspect failed matrix jobs individually and report any unverified remote state.
+Compose deployment workflows have been removed. Do not attempt a deployment
+workflow dispatch or infer remote deployment success from a validation run.
+For retained script changes, validate the scripts and report that remote state
+was not changed unless an authorized deployment process was run separately.
 
 ## Validation
 
@@ -53,5 +46,6 @@ done
 git diff --check
 ```
 
-Use focused tests first, then broader checks relevant to changed workflows. Do not
-claim a deployment passed without checking the workflow run and relevant jobs.
+Use focused tests first, then broader checks relevant to the changed workflows.
+Claim deployment success only with evidence from the relevant workflow or an
+authorized deployment process.

@@ -36,9 +36,8 @@ Local authentication is enabled and new-user registration is disabled.
 Terraform declares an unproxied Cloudflare CNAME from
 `komodo.weinbender.io` to `docker0-lxc.weinbender.io`; the gateway A record must
 already resolve to the host's private LAN address. Apply the Cloudflare
-component before relying on the public hostname. The Compose deployment workflow
-reconciles Komodo after the platform workflow has created the external `proxy`
-network.
+component before relying on the public hostname. There is no Compose deployment
+workflow; the platform network must be present before Komodo runs.
 
 After deployment, log in with the initial admin credentials from 1Password and
 confirm the `docker0-lxc` Periphery server is online. Confirm the MongoDB,
@@ -57,8 +56,8 @@ docker compose \
 git diff --check
 ```
 
-The deployment workflow injects resolved secrets only into private remote
-staging. Never commit runtime `.env` files or resolved credentials.
+Never commit runtime `.env` files or resolved credentials. Resolve secrets only
+as part of an authorized deployment process.
 
 Sources: [Komodo](https://komo.do/),
 [Komodo Compose deployment](https://github.com/moghtech/komodo/blob/v2.3.3/compose/mongo.compose.yaml),

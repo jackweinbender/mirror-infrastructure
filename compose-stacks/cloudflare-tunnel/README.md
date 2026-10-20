@@ -40,18 +40,22 @@ After `terraform apply` in `terraform/cloudflare/`:
 | `CLOUDFLARE_TUNNEL_TOKEN` | `op://network/cloudflare-tunnel-weinbender-io/credential` | Tunnel credential |
 | `CF_DNS_API_TOKEN` | `op://network/cloudflare-auth-weinbenderio/credential` | Cloudflare API token (Zone:DNS:Edit) |
 
-The deployment template is kept with the deployment-specific files and injected at deploy via `op inject` — resolved secrets never persist on the runner.
+Keep `op://` references in the deployment template; resolve secrets only as part
+of an authorized deployment process. Never commit resolved values.
 
 ## Deploy
 
-The application assignment is represented by a deployment directory such as `deployments/docker-vm-dmz/`, containing `.env.template`. Add another `deployments/<deploy-host>/.env.template` file to run this stack on another inventory host. A deployment may also include `deployments/<deploy-host>/docker-compose.yaml` for host-specific Compose overrides. Remove the deployment directory to stop it there; the application workflow tears down Compose before deleting its remote files.
+The application assignment is represented by a deployment directory such as
+`deployments/docker-vm-dmz/`, containing `.env.template`. Add another
+`deployments/<host>/.env.template` to assign the stack to another inventory
+host. A deployment may also include `deployments/<host>/docker-compose.yaml` for
+host-specific overrides. Removing an assignment does not automatically stop or
+remove the deployed project on a `deploy` host.
 
-Prerequisites:
-1. Deploy with the `deploy-cloudflare-tunnel` workflow in `.crow/deploy-stack.yaml`; it runs after `.crow/deploy.yaml` has reconciled `compose-stacks/docker-networking` so the external `proxy` network exists.
-2. Apply `terraform/cloudflare/` if using the tunnel.
-3. Store the tunnel token in 1Password.
-
-For local validation, merge `.env.template` and a host assignment using a representative token value and run `docker compose config --quiet`. CI resolves `op://` references with `op inject`; the resolved `.env` is never committed or stored on the runner.
+There is no CI deployment workflow. The `.crow/compose-validation.yaml`
+pipeline validates the stack but does not deploy it. Keep the 1Password
+references in the template and use representative values for local Compose
+validation; resolved secrets must not be committed or stored on a runner.
 
 ## Add a New Service
 

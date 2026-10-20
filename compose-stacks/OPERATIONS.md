@@ -1,32 +1,25 @@
-# Compose deployment operations
+# Compose stack operations
 
-This runbook defines the standard pattern for Docker Compose stacks managed by
-GitHub Actions. The workflow is the owner of the desired state; hosts should not
-be changed manually except for recovery work described below.
+This runbook describes the repository's Compose layout, validation, and
+reconciliation safeguards. Compose deployment workflows have been removed;
+the remaining CI pipeline validates configuration but does not deploy stacks.
 
 ## Architecture
 
-Compose deployments have two ownership classes:
+Compose stacks have two ownership classes:
 
-- **Platform stack**: `docker-networking` owns the external `proxy` network
-  and is reconciled by GitHub Actions only on hosts with `host_roles: deploy`.
+- **Platform stack**: `docker-networking` owns the external `proxy` network,
+  which dependent application stacks require.
 - **Application stacks**: every other stack is assigned through deployment
   directories. Traefik is an application stack, not part of the platform stack.
-  Assignments are valid on `deploy` and `c5e_reconciler` hosts, but GitHub
-  Actions still targets only `deploy` hosts; c5e reconciles assignments on its
-  own controller host.
+  Assignments may target `deploy` or `c5e_reconciler` hosts. c5e reconciles
+  assignments on its own controller host.
 
-The deployment order is intentional:
-
-1. Preflight validates inventory, stack names, dotenv templates, assignments,
-   overlays, and Compose configuration. Application assignments on
-   `c5e_reconciler` hosts are validated but are not deployment targets.
-2. `.crow/deploy.yaml` reconciles `docker-networking` on every deploy host.
-3. The `.crow/deploy-<stack>.yaml` workflows each reconcile one application
-   stack on assigned deploy hosts. Each stack workflow depends on the platform
-   workflow; controller-host assignments are reconciled by c5e instead.
-   Independent stack workflows can run in parallel and can be selected
-   individually for manual runs.
+There are no Compose deployment workflows in `.crow/`. Compose validation
+checks inventory, stack names, dotenv templates, assignments, overlays, and
+Compose configuration; it does not connect to hosts or deploy. Deploy-host
+assignments remain configuration, but pushes and assignment changes do not
+reconcile them automatically.
 
 Application stacks may declare `proxy` as an external network. They must not
 create, delete, or otherwise manage that network themselves.
@@ -52,21 +45,19 @@ Compose project.
 The presence of `deployments/<host>/.env.template` assigns the stack to that
 exact short host ID from `ansible/inventory.yaml`. An empty template is still an
 assignment. The host must have either `deploy` or `c5e_reconciler` in
-`host_roles`. Only `deploy` hosts appear in GitHub Actions deployment discovery
-or matrices; assignments to a `c5e_reconciler` host are preflight-validated and
-left to that controller.
+`host_roles`. Preflight validates application assignments on both host types;
+c5e reconciles assignments on its own controller host.
 
-There is no `deployments/ALL/` convention. A stack that belongs everywhere is
-Deploy-host assignments use the platform reconciler; c5e-managed hosts ensure
-the shared `proxy` directly before dependent applications.
-For an ordinary application stack, enumerate its real assignments.
+There is no `deployments/ALL/` convention. The platform stack is intended for
+every Docker host with `host_roles: deploy`; application stacks must enumerate
+their actual host assignments. c5e-managed hosts ensure the shared `proxy`
+network directly before dependent applications.
 
 ### Compose overlays
 
-An optional `deployments/<host>/docker-compose.yaml` is used only for an
-already-assigned host. The workflow copies it to the staged project as
-`docker-compose.override.yaml`, so the same Compose commands work for every
-host. An overlay does not assign a stack.
+When deployment tooling uses an optional `deployments/<host>/docker-compose.yaml`,
+it is copied to the staged project as `docker-compose.override.yaml`, so the
+same Compose commands work for every host. An overlay does not assign a stack.
 
 Use an overlay for host-specific mounts, ports, resources, or service settings.
 Keep common services and defaults in the root `docker-compose.yaml`.
@@ -82,8 +73,8 @@ Use `.env.template` consistently:
 - Host-specific values override root values.
 - Secret references use `op://...`; resolved secrets must never be committed.
 
-The workflow merges the templates, resolves 1Password references, and writes
-only the resolved `.env` to private remote staging. Do not create or commit
+Deployment tooling merges the templates, resolves 1Password references, and
+writes the resolved `.env` to private remote staging. Do not create or commit
 runtime `.env` files in the repository.
 
 ## Filesystem and bind-mount rules
@@ -125,7 +116,8 @@ whole-VM backups or a separate offsite backup job. Do not assume the LXC
 
 ## Reconciliation lifecycle
 
-For an application assignment on a `deploy` host, the GitHub Actions workflow:
+When a deployment tool reconciles an application assignment on a `deploy` host,
+the host reconciler:
 
 1. Merges the root and host `.env.template` files.
 2. Creates a private remote staging directory.
@@ -140,11 +132,10 @@ Live projects are stored at `/etc/compose-stacks/<stack>` and use the stable
 Compose project name `<stack>`. Publication is not performed over the live
 directory; staging is validated first and then moved into place.
 
-For assignments on `deploy` hosts, removing a deployment directory causes the
-next GitHub Actions reconciliation to run `docker compose down --remove-orphans`
-and remove the marked project directory; named volumes and images are retained.
-Assignments on a `c5e_reconciler` host are not targeted by GitHub Actions and
-instead follow that controller's configured removal policy.
+Removing an assignment on a `deploy` host does not automatically stop or remove
+its live project now that the Compose deployment workflows are gone. Assignments
+on a `c5e_reconciler` host remain subject to that controller's configured
+removal policy.
 
 ## Adding or changing a stack
 
@@ -158,10 +149,11 @@ instead follow that controller's configured removal policy.
    separately.
 6. Check bind-mount source types, especially file mounts.
 7. Run local validation (below).
-8. Push to `main`, or manually dispatch the relevant stack workflow for
-   script-only changes. The platform workflow is `.crow/deploy.yaml`; application
-   stacks are the `.crow/deploy-<stack>.yaml` workflows.
-9. Inspect the workflow's preflight, platform, and per-host stack jobs.
+8. Run the repository's preflight and focused Compose validation. The Compose
+   validation pipeline does not deploy, and this repository has no Compose
+   deployment workflow; a push is not evidence that a stack was reconciled.
+9. Use the separately authorized operational process for any required host
+   deployment. c5e continues to reconcile assignments on its own controller.
 
 To move a stack between hosts, add the new assignment first, verify the new
 host, then remove the old assignment in a subsequent change when a staged
@@ -190,28 +182,21 @@ docker compose \
   config --quiet
 ```
 
-The second `-f` is optional. Use representative non-secret values locally;
-expected warnings for unset secret variables are acceptable when CI injects
-those values through 1Password.
+The second `-f` is optional. Use representative non-secret values locally.
 
 ## Failure and recovery process
 
-When a deployment job fails:
+When a separately authorized deployment process fails:
 
-1. Inspect the failed application job, not only the aggregate workflow result:
-
-   ```bash
-   gh run view --job <job-id> --log-failed
-   ```
-
-2. Identify the failing stack/host pair and whether the failure occurred during
-   staging, publication, or `compose up`.
-3. Do not manually delete an unmarked live directory. Check its marker and
+1. Inspect the failing stack/host pair and determine whether the failure
+   occurred during staging, publication, or `compose up`.
+2. Do not manually delete an unmarked live directory. Check its marker and
    filesystem contents first.
-4. Fix the repository source and validate locally before rerunning.
-5. For changes under `scripts` or other paths not covered by a stack's
-   deployment path, manually dispatch the affected Crow workflow and inspect
-   the completed run before treating the change as deployed.
+3. Fix the repository source and validate locally before retrying the approved
+   deployment process.
+
+The repository has no Compose deployment workflow to dispatch or inspect.
+Preflight and Compose validation do not prove that remote state changed.
 
 The reconciler contains a narrowly scoped migration recovery path for the
 known legacy Traefik layout where Docker created nested directories for
@@ -225,7 +210,8 @@ rule rather than weakening the marker guard.
 - Never print, commit, or upload resolved secrets.
 - Do not place runtime `.env` files in Git.
 - Keep remote staging and runtime environment files mode `0600`.
-- Keep SSH host verification and Tailscale access enabled in CI.
+- Keep SSH host verification and Tailscale access enabled in authorized
+  deployment tooling.
 - Do not replace or remove an unmarked live directory automatically.
 - Do not make a normal application stack responsible for shared platform
   resources.

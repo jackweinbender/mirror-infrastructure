@@ -146,9 +146,9 @@ Each workload's `host_roles` is a duplicate-free list of optional capabilities.
 `workloads.yaml` applies `base` and `tailscale` to every workload, then explicitly
 selects only these roles: `deploy`, `docker`, and `c5e_reconciler`. Unknown or
 duplicate entries fail validation before any role runs. `deploy` identifies
-GitHub Actions deployment hosts; `c5e_reconciler` permits application assignments
-that c5e reconciles but never adds that host to GitHub Actions deployment
-discovery.
+Docker deployment hosts used by retained host-discovery scripts.
+`c5e_reconciler` permits application assignments that c5e reconciles; no Compose
+deployment workflows are configured.
 
 ```yaml
 host_roles: [docker, c5e_reconciler]
@@ -158,9 +158,9 @@ host_roles: [docker, c5e_reconciler]
 
 `lxc-docker-core0` is configured with `docker` and `c5e_reconciler`, but not
 `deploy`. Its application stack assignments remain eligible for preflight and
-are reconciled by c5e; Compose deployment workflows continue to discover only
-hosts with `deploy`. The platform workflow therefore no longer targets this
-host, while remaining unchanged for other deploy hosts.
+are reconciled by c5e. Compose deployment workflows have been removed, so
+deploy-host assignments are no longer automatically reconciled by CI; retained
+discovery scripts still select only hosts with `deploy`.
 
 Install or rotate the controller credential with the targeted playbook:
 

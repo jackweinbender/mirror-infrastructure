@@ -37,9 +37,8 @@ Do not commit resolved values or a runtime `.env` file.
 
 The Cloudflare component declares an unproxied CNAME from
 `arcane.weinbender.io` to `docker0-lxc.weinbender.io`. The gateway A record must
-resolve to the host's private LAN IPv4 address. The Compose deployment workflow
-reconciles Arcane after the platform workflow has created the external `proxy`
-network.
+resolve to the host's private LAN IPv4 address. The repository has no Compose
+deployment workflow; CI validates this stack but does not deploy it.
 
 After deployment, log in and change the default password, confirm Arcane can
 reach the local Docker daemon, and verify the `arcane_data` volume plus the
@@ -66,8 +65,8 @@ rm -f "$tmp_env"
 git diff --check
 ```
 
-The deployment workflow resolves 1Password references only in private remote
-staging. Never put real keys in the validation environment or commit them.
+Keep real keys out of validation environments and Git. Resolve 1Password
+references only as part of an authorized deployment process.
 
 Sources: [Arcane](https://github.com/getarcaneapp/arcane),
 [Arcane Docker Compose example](https://github.com/getarcaneapp/arcane/blob/v2.16.1/docker/examples/compose.basic.yaml),

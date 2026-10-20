@@ -1,10 +1,10 @@
 # Compose stacks
 
 This directory contains reusable, host-independent Docker Compose definitions.
-The operational source of truth for adding, validating, deploying, and recovering
-stacks is [`OPERATIONS.md`](OPERATIONS.md). GitHub Actions reconciles application
-assignments only on `deploy` hosts; `c5e_reconciler` assignments pass preflight
-but are handled by c5e and excluded from GitHub Actions targets.
+The operational source of truth for stack layout, validation, and recovery is
+[`OPERATIONS.md`](OPERATIONS.md). The Compose validation pipeline checks
+assignments, but there are no Compose deployment workflows. c5e continues to
+reconcile assignments on its own `c5e_reconciler` host.
 
 ## Stack layout and assignments
 
@@ -42,43 +42,41 @@ services:
       DEPLOYMENT_HOST: traefik-lxc
 ```
 
-`docker-networking/` is the platform stack: it owns only the external `proxy`
-network and is reconciled first by `.crow/deploy.yaml` on deploy hosts only.
-The `.crow/deploy-<stack>.yaml` workflows reconcile assigned applications on
-deploy hosts after the platform workflow; c5e handles application assignments
-on `c5e_reconciler` hosts, which are excluded from GitHub Actions discovery and
-matrices. `traefik/` remains a normal assigned application stack.
+`docker-networking/` is the platform stack: it owns the external `proxy`
+network. The repository no longer has a CI workflow that reconciles this stack
+or application stacks on deploy hosts. `traefik/` remains a normal assigned
+application stack.
 
-The deployment workflow supports an optional host-specific Compose overlay named
-`deployments/<host>/docker-compose.yaml` for assigned application stacks. It is
-copied into private staging as `docker-compose.override.yaml` and applied only
-to its matching host; it does not determine assignment. Application assignment
-is controlled by `deployments/<host>/.env.template`. The platform stack is
-deployed to every discovered deploy host and has no assignment directories.
+An optional host-specific Compose overlay named
+`deployments/<host>/docker-compose.yaml` is available for assigned application
+stacks. Deployment tooling copies it into private staging as
+`docker-compose.override.yaml` and applies it only to its matching host; it
+does not determine assignment. Application assignment is controlled by
+`deployments/<host>/.env.template`. The platform stack has no assignment
+directories.
 
 The presence of `deployments/<host>/.env.template` assigns a stack to that exact
 short inventory host identifier. An empty file is still an assignment. The root
 `.env.template` is optional and provides shared values; host-specific values
-override them. Env files may contain `op://...` references. GitHub Actions
-merges the files, resolves references with `op inject`, and streams resolved
-`.env` files to private remote staging. Resolved secrets are never committed or
-written to runner artifacts.
+override them. Env files may contain `op://...` references. Deployment tooling
+merges the files and resolves references. Resolved secrets are never committed
+or written to runner artifacts.
 
-For a GitHub Actions-managed application, add an assignment for a host with
-`host_roles: deploy`. A `c5e_reconciler` host may also have application
-assignments; preflight validates them, but GitHub Actions does not target that
-host and c5e reconciles them. Removing a deploy-host assignment and running its
-stack workflow invokes `docker compose down --remove-orphans` before removing
-the marked directory; named volumes and images are retained. c5e-managed
-assignments follow the controller's `--removal-policy=retain` behavior instead.
-
-The `docker-networking` platform workflow provides `proxy` on deploy hosts.
-On a `c5e_reconciler` host, c5e independently ensures its `proxy` network.
-Application Compose files that declare `proxy` as external must not remove it.
+Application assignment files for `deploy` hosts are configuration only; pushes
+and assignment changes do not automatically deploy or tear down those stacks.
+Assignments on a `c5e_reconciler` host continue to be reconciled by c5e, which
+independently ensures its `proxy` network. Application Compose files that
+declare `proxy` as external must not remove it.
 
 ## Remote safety
 
-Application projects live at `/etc/compose-stacks/<stack>` with stable Compose project names equal to the stack directory name. Updates are copied to a unique private staging directory, validated with `docker compose config --quiet`, and atomically published before `compose up`. Only a directory containing a regular `.managed-by-github-actions` marker whose recorded stack name matches its directory may be replaced or removed. Unmarked directories are left for manual review.
+Application projects live at `/etc/compose-stacks/<stack>` with stable Compose
+project names equal to their stack directory names. Reconciliation scripts copy
+updates to a unique private staging directory, validate with
+`docker compose config --quiet`, and publish before `compose up`. Only a
+directory containing a regular `.managed-by-github-actions` marker with the
+matching stack name may be replaced or removed. Unmarked directories are left
+for manual review.
 
 ## Local validation
 

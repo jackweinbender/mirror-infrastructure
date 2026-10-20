@@ -69,15 +69,17 @@ rm -f "$tmp_env"
 git diff --check
 ```
 
-The deployment workflow merges the repository templates and supplies the
-runtime environment, including the 1Password-resolved secret, remotely.
+Keep the repository templates as configuration; CI validation does not deploy
+the stack. Resolve the 1Password-backed secret only through an authorized
+deployment process.
 
 ## Operational follow-up
 
 - Create the `network/planet-express/webhook-secret` 1Password item.
 - Apply Terraform to publish the Cloudflare CNAME; the record is included in
   this change, but applying it is manual.
-- Dispatch the Crow `deploy` workflow.
+- No Crow deployment workflow is configured; use a separately authorized
+  deployment process if the stack needs to be deployed.
 - Register the Forgejo webhook with the matching secret.
 - Verify `https://planet-express.weinbender.io/healthz` after deployment.
 - Confirm `planet_express_data` is covered by backups.

@@ -14,9 +14,9 @@ relevant role or playbook before changing behavior.
   steady-state roles.
 - `playbooks/local-*.yaml` are operator-run bootstrap and feature workflows;
   `local` means they run from the LAN rather than the GitHub Actions tailnet.
-- Keep inventory names and roles compatible with Compose preflight: application
-  assignments may use `deploy` or `c5e_reconciler`, while GHA discovery and the
-  platform stack remain limited to `deploy` hosts.
+- Application assignments may use `deploy` or `c5e_reconciler`; c5e reconciles
+  assignments on its own host. No Compose deployment workflows are configured;
+  retained discovery scripts still select hosts with `deploy`.
 - Debian guests and Tailscale SSH are the supported workload model.
 
 ## Secrets and changes

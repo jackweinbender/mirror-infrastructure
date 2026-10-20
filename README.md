@@ -1,11 +1,12 @@
 # labs/infrastructure
 
 Personal infrastructure as code. The repository manages cloud resources with
-Terraform, configures Debian and Proxmox hosts with Ansible, and deploys
-application services with Docker Compose through Crow-CI. The c5e controller
-runs as an Ansible-installed, systemd-managed Docker container. The repository
-is hosted locally at ssh://git@forgejo.weinbender.io:2222/labs/infrastructure.git
-and mirrored to GitHub at git@github.com:jackweinbender/mirror-infrastructure.git
+Terraform, configures Debian and Proxmox hosts with Ansible, and maintains
+Docker Compose services. CI validates Compose but does not deploy it; Compose
+deployment workflows have been removed. c5e reconciles assignments on its own
+controller host. The repository is hosted locally at
+ssh://git@forgejo.weinbender.io:2222/labs/infrastructure.git and mirrored to
+GitHub at git@github.com:jackweinbender/mirror-infrastructure.git.
 
 ## Repository Layout
 
@@ -13,7 +14,7 @@ and mirrored to GitHub at git@github.com:jackweinbender/mirror-infrastructure.gi
 ansible/                 Debian host configuration and Proxmox bootstrap
 compose-stacks/          Docker Compose projects and host assignments
 terraform/               Independent cloud and virtualization components
-.crow/                   Crow CI, validation, and deployment pipelines
+.crow/                   Crow CI, validation, and infrastructure deployment pipelines
 scripts/                Ruby CI entrypoints, reusable libraries, and tests
 ```
 
@@ -24,7 +25,7 @@ Each area has more focused guidance:
 - [`compose-stacks/OPERATIONS.md`](compose-stacks/OPERATIONS.md) — stack layout,
   assignments, deployment lifecycle, and recovery
 - [`terraform/`](terraform/) — component-specific READMEs and state boundaries
-- [`.crow/`](.crow/) — CI, validation, and deployment pipelines
+- [`.crow/`](.crow/) — CI, validation, and infrastructure deployment pipelines
 
 ## Delivery model
 
@@ -35,8 +36,6 @@ Each area has more focused guidance:
 | Terraform validation | [`.crow/terraform-validation.yaml`](.crow/terraform-validation.yaml) | Relevant pull requests, default-branch pushes, or manual | Validates Terraform components and formatting |
 | Terraform plan/apply | [`.crow/terraform-plan-apply.yaml`](.crow/terraform-plan-apply.yaml) | Pull requests and default-branch pushes affecting Terraform | Plans changed roots on PRs; plans and applies changed roots on the default branch |
 | Compose validation | [`.crow/compose-validation.yaml`](.crow/compose-validation.yaml) | Relevant pull requests, default-branch pushes, or manual | Checks inventory, assignments, templates, and Compose files |
-| Compose platform | [`.crow/deploy.yaml`](.crow/deploy.yaml) | Relevant default-branch pushes, scheduled, or manual | Reconciles the shared platform stack |
-| Compose stacks | [`.crow/deploy-*.yaml`](.crow/) | Per-stack default-branch paths, scheduled, or manual | Reconciles each application stack independently; manual runs can select stacks |
 | CI images | [`.crow/ci-base.yaml`](.crow/ci-base.yaml) | Relevant default-branch pushes or manual | Builds and publishes the CI images |
 | Repository validation | [`.crow/repository-validation.yaml`](.crow/repository-validation.yaml) | Default-branch pushes, pull requests, or manual | Checks Ruby syntax, tests, preflight, and repository whitespace |
 
@@ -45,33 +44,20 @@ and validated against the Terraform root directories.
 
 ## Compose deployments
 
-Compose deployment has two layers:
+Compose configuration has a platform stack and explicitly assigned application stacks.
 
-1. **Platform:** `compose-stacks/docker-networking/` owns the external `proxy`
-   network and is reconciled by GitHub Actions only on inventory hosts with
-   `host_roles: deploy`.
-2. **Applications:** every other stack—including Traefik—is assigned explicitly
-   through `deployments/<host>/.env.template`. Assignments may target `deploy`
-   hosts or a `c5e_reconciler` host; GitHub Actions discovers only `deploy`
-   hosts, while c5e owns reconciliation of its controller-host assignments.
+The platform stack `docker-networking/` owns the external `proxy` network.
+Application stacks, including Traefik, are assigned explicitly through
+`deployments/<host>/.env.template`. c5e continues to reconcile assignments on
+its own `c5e_reconciler` host; deploy-host assignments are not automatically
+reconciled by CI.
 
-The deployment workflows validate the inventory, assignments, dotenv
-templates, overlays, and Compose files before making an SSH connection. They
-then:
-
-1. Reconcile `docker-networking` on deploy hosts only through `deploy.yaml`.
-2. Reconcile assigned application stacks through their independent
-   `.crow/deploy-<stack>.yaml` workflows on deploy hosts only; these workflows
-   depend on the platform workflow and can run in parallel. The c5e controller
-   reconciles its own application assignments outside GitHub Actions discovery.
-3. Use each stack's path filter so a default-branch push does not deploy
-   unrelated stacks.
-
-Deployments connect over Tailscale, stage privately on the remote host, inject
-1Password-backed environment values directly into remote staging, validate with
-`docker compose config --quiet`, and publish only marked managed directories.
-Resolved secrets are not committed, printed, passed as command-line arguments,
-or stored on the runner.
+The `.crow/compose-validation.yaml` pipeline validates Compose inventory,
+assignments, templates, and files; it does not deploy stacks. All Compose
+deployment workflows have been removed. Deployment and reconciliation scripts
+remain under `scripts/`, but no CI workflow invokes them. Do not treat a push or
+assignment change as a deployment. Keep resolved secrets out of Git, logs, and
+runner artifacts.
 
 Read [`compose-stacks/OPERATIONS.md`](compose-stacks/OPERATIONS.md) before adding
 or moving a stack. In particular, do not add a `deployments/ALL/` assignment, do

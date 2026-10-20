@@ -37,8 +37,8 @@ rm -f "$tmp_env"
 git diff --check
 ```
 
-The deployment workflow merges the repository templates and supplies the
-runtime environment remotely.
+Keep the repository templates as configuration; CI validation does not deploy
+the stack. Resolve secrets only through an authorized deployment process.
 
 ## Operational follow-up
 
