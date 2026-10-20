@@ -32,13 +32,21 @@ Each area has more focused guidance:
 
 | Area | Pipeline | Trigger | Effect |
 | --- | --- | --- | --- |
-| Ansible | [`.crow/ansible.yaml`](.crow/ansible.yaml) | Relevant default-branch pushes, scheduled, or manual | Lints and applies `playbooks/site.yaml`; no PR host changes |
+| Ansible | [`.crow/ansible.yaml`](.crow/ansible.yaml) | Relevant default-branch pushes, scheduled, or manual | Runs the full `site.yaml` on pushes/schedule; manual runs select a steady-state profile; no PR host changes |
 | Ansible validation | [`.crow/ansible-validation.yaml`](.crow/ansible-validation.yaml) | Relevant pull requests, default-branch pushes, or manual | Lints Ansible and checks playbook syntax |
 | Terraform validation | [`.crow/terraform-validation.yaml`](.crow/terraform-validation.yaml) | Relevant pull requests, default-branch pushes, or manual | Validates Terraform components and formatting |
 | Terraform plan/apply | [`.crow/terraform-plan-apply.yaml`](.crow/terraform-plan-apply.yaml) | Pull requests and default-branch pushes affecting Terraform | Plans changed roots on PRs; plans and applies changed roots on the default branch |
 | Compose validation | [`.crow/compose-validation.yaml`](.crow/compose-validation.yaml) | Relevant pull requests, default-branch pushes, or manual | Checks inventory, assignments, templates, and Compose files |
 | CI images | [`.crow/ci-base.yaml`](.crow/ci-base.yaml) | Relevant default-branch pushes or manual | Builds and publishes the CI images |
 | Repository validation | [`.crow/repository-validation.yaml`](.crow/repository-validation.yaml) | Default-branch pushes, pull requests, or manual | Checks Ruby syntax, tests, preflight, and repository whitespace |
+
+Manual runs of `.crow/ansible.yaml` expose an `ANSIBLE_PLAYBOOK` dropdown:
+`site.yaml` composes both profiles; `debian-host-ops.yaml` configures the
+`debian_hosts` profile; `stack-hosts.yaml` configures container and deployment
+capabilities. The default is `site.yaml`. Default-branch pushes and the schedule
+always run full `site.yaml` convergence. The separate validation workflow checks
+playbook syntax without changing hosts; bootstrap and Proxmox workflows remain
+operator-run.
 
 Terraform components are listed in [`terraform/components.json`](terraform/components.json)
 and validated against the Terraform root directories.

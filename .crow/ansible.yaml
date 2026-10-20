@@ -1,5 +1,14 @@
 ---
 name: Ansible Playbook
+variables:
+  ANSIBLE_PLAYBOOK:
+    description: Select a steady-state Ansible profile.
+    options:
+      - site.yaml
+      - debian-host-ops.yaml
+      - stack-hosts.yaml
+    default: site.yaml
+    required: true
 when:
   - event: push
     branch: ${CI_REPO_DEFAULT_BRANCH}
@@ -25,7 +34,16 @@ steps:
       - printf 'Host *\n  ProxyCommand tailscale nc %%h %%p\n' > ~/.ssh/config
       - chmod 600 ~/.ssh/config
       - (cd ansible && ANSIBLE_CONFIG="$PWD/ansible.cfg" ansible-lint --config-file .ansible-lint)
-      - ANSIBLE_CONFIG="$PWD/ansible/ansible.cfg" ANSIBLE_ROLES_PATH="$PWD/ansible/roles" ansible-playbook -i ansible/inventory.yaml ansible/playbooks/site.yaml
+      - |
+        case "$ANSIBLE_PLAYBOOK" in
+          site.yaml|debian-host-ops.yaml|stack-hosts.yaml)
+            PLAYBOOK="$ANSIBLE_PLAYBOOK"
+            ;;
+          *)
+            PLAYBOOK=site.yaml
+            ;;
+        esac
+        ANSIBLE_CONFIG="$PWD/ansible/ansible.cfg" ANSIBLE_ROLES_PATH="$PWD/ansible/roles" ansible-playbook -i ansible/inventory.yaml "ansible/playbooks/$PLAYBOOK"
 
 # Configure the existing 04:00 UTC schedule as a Crow cron named `ansible`.
 # Relevant default-branch pushes apply the host configuration; pull requests do
