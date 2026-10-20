@@ -9,6 +9,10 @@ exclude_matches = { _SYSTEMD_UNIT = ["vector.service"] }
 type = "remap"
 inputs = ["journald"]
 source = '''
+.app = .SYSLOG_IDENTIFIER
+if is_null(.app) {
+  .app = "unknown"
+}
 .host = "{{ base_vector_host_id }}"
 .source_type = "journald"
 .level = to_syslog_level(to_int(.PRIORITY) ?? 6) ?? "info"

@@ -27,7 +27,9 @@
   changed_when: false
 
 - name: Create the management user steady state connects as
-  ansible.builtin.import_tasks: ../roles/base/tasks/sudo_users.yml
+  ansible.builtin.import_role:
+    name: base
+    tasks_from: sudo_users.yml
 
 - name: Install Tailscale and join the tailnet
   ansible.builtin.import_role:

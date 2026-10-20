@@ -15,13 +15,17 @@ Debian host configuration and Proxmox LXC bootstrap.
   Docker container on its dedicated host.
 - `tasks/lxc_*` and `tasks/pve_host/` are procedural Proxmox workflows. They
   create and prepare infrastructure; they are not steady-state roles.
-- `playbooks/workloads.yaml` applies the baseline and inventory-selected roles
-  to Debian guests.
-- `playbooks/local-*.yaml` are operator-run bootstrap and feature workflows;
-  `local` means they run from the LAN rather than the GitHub Actions tailnet.
+- `playbooks/workloads.yaml` converges the baseline and explicit inventory-selected
+  capabilities on Debian guests.
+- `playbooks/local-bootstrap-lxc.yaml` creates or prepares a guest on the selected
+  Proxmox node, bootstraps its management access, and registers it in inventory.
+- `playbooks/local-lxc-add-*.yaml` applies narrow Proxmox feature changes to an
+  existing guest; `local-bootstrap-pve.yaml` configures hypervisors.
+- `local` means these operator-run workflows execute from the LAN rather than
+  the GitHub Actions tailnet.
 
-Roles are composable and inventory-driven. `workloads.yaml` always applies
-`base` and `tailscale`, then applies each role named by a host's `host_roles`.
+`workloads.yaml` applies `base` and `tailscale` to all workloads, then invokes
+only the optional capabilities allowed by `host_roles`.
 
 ## Supported model
 
@@ -138,7 +142,13 @@ Use the project interpreter for every command:
 - `workloads`: Debian guests reached over Tailscale SSH.
 - `hypervisors`: Proxmox hosts configured by the local PVE playbook.
 
-A workload selects specialized roles with `host_roles`. `deploy` identifies GitHub Actions deployment hosts; `c5e_reconciler` permits application assignments that are reconciled by c5e but never adds that host to GitHub Actions deployment discovery.
+Each workload's `host_roles` is a duplicate-free list of optional capabilities.
+`workloads.yaml` applies `base` and `tailscale` to every workload, then explicitly
+selects only these roles: `deploy`, `docker`, and `c5e_reconciler`. Unknown or
+duplicate entries fail validation before any role runs. `deploy` identifies
+GitHub Actions deployment hosts; `c5e_reconciler` permits application assignments
+that c5e reconciles but never adds that host to GitHub Actions deployment
+discovery.
 
 ```yaml
 host_roles: [docker, c5e_reconciler]

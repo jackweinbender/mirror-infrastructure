@@ -1,7 +1,4 @@
 ---
-- name: Install Vector
-  ansible.builtin.import_tasks: vector_install.yml
-
 - name: Ensure the Vector data directory exists
   ansible.builtin.file:
     path: /var/lib/vector

@@ -12,13 +12,24 @@
   hosts: workloads
   gather_facts: true
   become: true
+  vars:
+    workload_roles: "{{ host_roles | default([], true) }}"
+  pre_tasks:
+    - name: Validate this host's optional roles
+      ansible.builtin.assert:
+        that:
+          - workload_roles | type_debug == 'list'
+          - workload_roles | difference(['deploy', 'docker', 'c5e_reconciler']) | length == 0
+          - workload_roles | unique | length == workload_roles | length
+        fail_msg: >-
+          host_roles must be a duplicate-free list containing only deploy,
+          docker, and c5e_reconciler; received {{ workload_roles | to_json }}.
   roles:
     - base
     - tailscale
-  tasks:
-    - name: Apply this host's specialized roles
-      ansible.builtin.include_role:
-        name: "{{ specialized_role }}"
-      loop: "{{ host_roles | default([]) }}"
-      loop_control:
-        loop_var: specialized_role
+    - role: deploy
+      when: "'deploy' in workload_roles"
+    - role: docker
+      when: "'docker' in workload_roles"
+    - role: c5e_reconciler
+      when: "'c5e_reconciler' in workload_roles"

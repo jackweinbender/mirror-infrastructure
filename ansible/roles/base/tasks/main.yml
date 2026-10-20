@@ -2,7 +2,10 @@
 - name: Install packages and enable automatic updates
   ansible.builtin.import_tasks: packages_updates.yml
 
-- name: Install Vector and ship host logs
+- name: Install Vector
+  ansible.builtin.import_tasks: vector_install.yml
+
+- name: Configure Vector to ship host logs
   ansible.builtin.import_tasks: vector.yml
 
 - name: Create users and configure shells

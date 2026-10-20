@@ -252,10 +252,6 @@
   vars:
     lxc_bootstrap_tailscale_authkey: "{{ hostvars.localhost.lxc_bootstrap_tailscale_authkey }}"
     lxc_bootstrap_enable_docker: "{{ hostvars.localhost.lxc_prepare_enable_docker }}"
-  pre_tasks:
-    - name: Load base role defaults for bootstrap tasks
-      ansible.builtin.include_vars:
-        file: ../roles/base/defaults/main.yml
   tasks:
     - name: Include LXC bootstrap tasks
       ansible.builtin.import_tasks: ../tasks/lxc_bootstrap/main.yml

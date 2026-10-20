@@ -1,7 +1,7 @@
 ---
-# base role: the Debian baseline every workload converges to. Applied on
-# every steady-state run by workloads.yaml; bootstrap borrows users.yml only
-# (see tasks/lxc_bootstrap/main.yml).
+# base role: the idempotent Debian baseline every workload converges to. Applied on
+# every steady-state run by workloads.yaml; bootstrap imports sudo_users.yml
+# only (see tasks/lxc_bootstrap/main.yml).
 
 base_ansible_user: ansible
 
