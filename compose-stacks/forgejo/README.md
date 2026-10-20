@@ -11,13 +11,13 @@ or create a per-stack directory on the Proxmox host. Git-over-SSH is available o
 host port `2222`; Forgejo advertises that port in its generated clone URLs.
 
 The application assignment is represented by
-`deployments/docker0-lxc/.env.template`. Assignment changes are configuration
-only; with Compose deployment workflows removed, they do not automatically
-deploy or stop the stack. The platform network and Traefik must be available
-before Forgejo runs.
+`deployments/docker0-lxc/.env.template`. c5e on `docker0-lxc` reconciles this
+assignment using the host's local Docker daemon. The controller ensures the
+external `proxy` network before assigned applications; Traefik must also be
+available on this host before Forgejo runs.
 
 Forgejo's webhook delivery honors `FORGEJO__webhook__ALLOWED_HOST_LIST`
 (default `external`, which denies private LAN addresses). The Compose
 environment extends it with the LAN webhook receivers Forgejo must reach, such
-as the `planet-express` stack; add future LAN receivers to that list. A
-redeployment of this stack is required for changes to take effect.
+as the `planet-express` stack; add future LAN receivers to that list. A c5e
+reconciliation is needed for the updated Compose configuration to take effect.

@@ -1,31 +1,29 @@
-workloads:
-  vars:
-    ansible_user: ansible
-  hosts:
-    jellyfin-lxc.tortoise-noodlefish.ts.net: {}
-    traefik-lxc.tortoise-noodlefish.ts.net:
-      host_roles:
-        - deploy
-        - docker
-    docker0-lxc.tortoise-noodlefish.ts.net:
-      host_roles:
-        - deploy
-        - docker
-      docker_configure_data_root: true
-    docker-vm-dmz.tortoise-noodlefish.ts.net:
-      host_roles:
-        - deploy
-        - docker
-    lxc-docker-core0.tortoise-noodlefish.ts.net:
-      host_roles:
-        - docker
-        - c5e_reconciler
-    w3040-01.tortoise-noodlefish.ts.net: {}
-hypervisors:
-  vars:
-    ansible_user: root
-  hosts:
-    caba-host:
-      ansible_host: 192.168.1.144
-    gateway-host:
-      ansible_host: 192.168.14.134
+all:
+  children:
+    debian_hosts:
+      vars:
+        ansible_user: ansible
+        host_ops_ansible_user: ansible
+        host_ops_extra_sudo_users: [jlw]
+      hosts:
+        jellyfin-lxc.tortoise-noodlefish.ts.net: {}
+        w3040-01.tortoise-noodlefish.ts.net: {}
+      children:
+        stack_hosts:
+          hosts: {}
+          children:
+            deployment_hosts:
+              hosts:
+                traefik-lxc.tortoise-noodlefish.ts.net: {}
+                docker0-lxc.tortoise-noodlefish.ts.net:
+                  containers_configure_data_root: true
+                docker-vm-dmz.tortoise-noodlefish.ts.net: {}
+                lxc-docker-core0.tortoise-noodlefish.ts.net: {}
+    hypervisors:
+      vars:
+        ansible_user: root
+      hosts:
+        caba-host:
+          ansible_host: 192.168.1.144
+        gateway-host:
+          ansible_host: 192.168.14.134

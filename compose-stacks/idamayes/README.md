@@ -4,12 +4,13 @@ The `idamayes` web service uses the requested image
 `forgejo.weinbender.io/idamayes/idamayes.com:main` and is assigned to
 `docker0-lxc`. Traefik exposes it over HTTPS at
 [`https://idamayes.weinbender.io`](https://idamayes.weinbender.io), forwarding to
-container port `8080` over the platform-owned external `proxy` network. No host
-port is published.
+container port `8080` over the external `proxy` network ensured by c5e on
+`docker0-lxc`. No host port is published.
 
-The `main` image tag is intentionally used as requested; it is mutable, and the
-reconciler pulls it on every deployment. The target host must be able to pull
-this image; deployment workflows do not exist in this repository.
+The `main` image tag is intentionally used as requested; it is mutable. The
+target host must be able to pull the image. c5e on `docker0-lxc` reconciles this
+host's assignment through its local Docker daemon; CI validates configuration
+but does not deploy or prove that remote state changed.
 
 No healthcheck, environment settings, or persistent data requirements were
 provided for the image, so this stack does not invent them. Add the appropriate
@@ -20,9 +21,9 @@ configuration if the service requires it.
 The Cloudflare Terraform component declares
 `idamayes.weinbender.io CNAME docker0-lxc.weinbender.io` as an unproxied record.
 The DNS change is not live until the Cloudflare Terraform component is applied.
-There is no Crow deployment workflow. Apply the Cloudflare component as
-appropriate and use a separately authorized deployment process. Verify the
-HTTPS route after deployment.
+c5e on `docker0-lxc` reconciles the stack assignment with its local Docker
+daemon. Verify the HTTPS route after the DNS and host-local service are ready;
+repository validation alone does not prove that remote state changed.
 
 ## Validation
 

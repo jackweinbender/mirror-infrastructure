@@ -1,0 +1,16 @@
+---
+- name: Converge Debian host operations
+  hosts: all
+  gather_facts: true
+  vars:
+    host_ops_ansible_user: ansible
+    host_ops_extra_sudo_users: [jlw]
+  tasks:
+    - name: Include host operations
+      ansible.builtin.include_role:
+        name: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}" # noqa role-name[path]
+        public: true
+
+    - name: Include host logging
+      ansible.builtin.include_role:
+        name: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/../logging" # noqa role-name[path]

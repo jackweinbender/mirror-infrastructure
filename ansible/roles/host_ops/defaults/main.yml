@@ -1,0 +1,24 @@
+---
+# Debian host operations applied to every enrolled workload.
+host_ops_ansible_user: ansible
+
+# Personal login accounts that also get passwordless sudo.
+host_ops_extra_sudo_users:
+  - jlw
+
+host_ops_user_shells:
+  ansible: /bin/bash
+  root: /usr/bin/zsh
+  jlw: /usr/bin/zsh
+
+host_ops_autologin_gettys:
+  - unit: container-getty@.service
+    tty: pts/%I
+  - unit: console-getty.service
+    tty: console
+
+host_ops_journald_max_use: 200M
+host_ops_journald_max_retention: 2week
+host_ops_logrotate_weeks: 4
+host_ops_locale: en_US.UTF-8
+host_ops_timezone: Etc/UTC

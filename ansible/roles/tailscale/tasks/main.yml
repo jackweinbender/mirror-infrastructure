@@ -5,7 +5,7 @@
 # joined, for callers that need it (bootstrap's inventory registration).
 #
 # Installed from Tailscale's own apt repo (pinned key + repo file, same
-# pattern as roles/docker), not the curl|sh install.sh convenience script -
+# pattern used by roles/containers), not the curl|sh install.sh convenience script -
 # auditable and reproducible rather than whatever the vendor ships that day.
 
 - name: Check whether Tailscale is already installed

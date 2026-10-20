@@ -1,0 +1,94 @@
+---
+- name: Verify proxy migration approval lifecycle
+  hosts: all
+  gather_facts: false
+  become: true
+  vars:
+    secrets_c5e_directory: /tmp/c5e-migration-test
+    secrets_c5e_environment_file: /tmp/c5e-migration-test/c5e.env
+  tasks:
+    - name: Inspect persisted approval file
+      ansible.builtin.stat:
+        path: /tmp/c5e-migration-test/proxy-network-migration.json
+      register: deploy_molecule_approval_stat
+
+    - name: Require root-only persisted approval
+      ansible.builtin.assert:
+        that:
+          - deploy_molecule_approval_stat.stat.isreg
+          - deploy_molecule_approval_stat.stat.pw_name == 'root'
+          - deploy_molecule_approval_stat.stat.gr_name == 'root'
+          - deploy_molecule_approval_stat.stat.mode == '0600'
+
+    - name: Read persisted approval
+      ansible.builtin.slurp:
+        src: /tmp/c5e-migration-test/proxy-network-migration.json
+      register: deploy_molecule_approval
+
+    - name: Verify exact approved IDs
+      ansible.builtin.assert:
+        that:
+          - (deploy_molecule_approval.content | b64decode | from_json).network_id == 'test-network-identifier'
+          - (deploy_molecule_approval.content | b64decode | from_json).daemon_id == 'test-daemon-identifier'
+
+    - name: Simulate ordinary convergence with no migration input
+      ansible.builtin.include_role:
+        name: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}" # noqa role-name[path]
+        tasks_from: proxy_migration.yml
+      vars:
+        deploy_proxy_network_migration_id: ""
+        deploy_proxy_network_migration_daemon_id: ""
+        deploy_proxy_network_migration_clear: false
+
+    - name: Render the c5e unit with retained approval
+      ansible.builtin.template:
+        src: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/templates/c5e-reconciler.service.j2"
+        dest: /tmp/c5e-migration-test/c5e-reconciler.service
+        mode: "0600"
+
+    - name: Read the rendered c5e unit
+      ansible.builtin.slurp:
+        src: /tmp/c5e-migration-test/c5e-reconciler.service
+      register: deploy_molecule_unit
+
+    - name: Assert routine convergence retains the migration flags
+      ansible.builtin.assert:
+        that:
+          - "'--proxy-network-migration-id=test-network-identifier' in (deploy_molecule_unit.content | b64decode)"
+          - "'--proxy-network-migration-daemon-id=test-daemon-identifier' in (deploy_molecule_unit.content | b64decode)"
+
+    - name: Clear the accepted approval explicitly
+      ansible.builtin.include_role:
+        name: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}" # noqa role-name[path]
+        tasks_from: proxy_migration.yml
+      vars:
+        deploy_proxy_network_migration_id: ""
+        deploy_proxy_network_migration_daemon_id: ""
+        deploy_proxy_network_migration_clear: true
+
+    - name: Inspect cleared approval file
+      ansible.builtin.stat:
+        path: /tmp/c5e-migration-test/proxy-network-migration.json
+      register: deploy_molecule_cleared_stat
+
+    - name: Require explicit clear to remove the approval
+      ansible.builtin.assert:
+        that:
+          - not deploy_molecule_cleared_stat.stat.exists
+
+    - name: Render the c5e unit without migration flags
+      ansible.builtin.template:
+        src: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/templates/c5e-reconciler.service.j2"
+        dest: /tmp/c5e-migration-test/c5e-reconciler.service
+        mode: "0600"
+
+    - name: Read the rendered c5e unit without migration flags
+      ansible.builtin.slurp:
+        src: /tmp/c5e-migration-test/c5e-reconciler.service
+      register: deploy_molecule_cleared_unit
+
+    - name: Assert explicit clear removes migration flags
+      ansible.builtin.assert:
+        that:
+          - "'--proxy-network-migration-id=' not in (deploy_molecule_cleared_unit.content | b64decode)"
+          - "'--proxy-network-migration-daemon-id=' not in (deploy_molecule_cleared_unit.content | b64decode)"

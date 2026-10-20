@@ -1,0 +1,14 @@
+---
+- name: Persist host-local proxy migration approval
+  hosts: all
+  gather_facts: false
+  become: true
+  vars:
+    secrets_c5e_directory: /tmp/c5e-migration-test
+    deploy_proxy_network_migration_id: test-network-identifier
+    deploy_proxy_network_migration_daemon_id: test-daemon-identifier
+  tasks:
+    - name: Apply deploy role proxy migration tasks
+      ansible.builtin.include_role:
+        name: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}" # noqa role-name[path]
+        tasks_from: proxy_migration.yml

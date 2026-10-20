@@ -8,7 +8,7 @@ Compose stacks and are not deployed to infrastructure hosts.
 `ci-base` is intentionally small while remaining useful for shell-based CI. It
 is based on `debian:bookworm-slim` and includes:
 
-- Bash, Git, curl, jq, Ruby, Python/pip, rsync, and OpenSSH client
+- Bash, Git, curl, jq, Ruby, Python/pip, and OpenSSH client
 - Docker CLI and Compose plugin from Docker's official APT repository
 - 1Password CLI from the official 1Password APT repository
 - Tailscale CLI from the official Tailscale APT repository

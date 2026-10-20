@@ -1,0 +1,6 @@
+---
+# Docker and Compose runtime for stack hosts.
+containers_docker_group_users: >-
+  {{ [host_ops_ansible_user] + host_ops_extra_sudo_users }}
+containers_configure_data_root: false
+containers_data_root: /srv/guest-volumes/docker

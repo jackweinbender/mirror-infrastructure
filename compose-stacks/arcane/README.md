@@ -37,8 +37,9 @@ Do not commit resolved values or a runtime `.env` file.
 
 The Cloudflare component declares an unproxied CNAME from
 `arcane.weinbender.io` to `docker0-lxc.weinbender.io`. The gateway A record must
-resolve to the host's private LAN IPv4 address. The repository has no Compose
-deployment workflow; CI validates this stack but does not deploy it.
+resolve to the host's private LAN IPv4 address. c5e on `docker0-lxc` reconciles
+this host's stack assignments through its local Docker daemon; CI validates
+configuration only and does not prove that remote state changed.
 
 After deployment, log in and change the default password, confirm Arcane can
 reach the local Docker daemon, and verify the `arcane_data` volume plus the

@@ -1,0 +1,56 @@
+---
+# Docker needs the keyctl syscall and delegated write access to the cgroup
+# hierarchy. Proxmox LXCs provide those through keyctl and nesting features;
+# other Debian stack hosts must provide the equivalent host capabilities.
+
+- name: Ensure keyutils is installed (provides the keyctl command)
+  ansible.builtin.apt:
+    name: keyutils
+    state: present
+
+- name: Check whether the keyctl() syscall is permitted
+  ansible.builtin.command:
+    argv:
+      - keyctl
+      - show
+  register: containers_preflight_keyctl
+  failed_when: false
+  changed_when: false
+
+- name: Fail if keyctl is unavailable
+  ansible.builtin.fail:
+    msg: >
+      keyctl() is unavailable, but Docker requires it. For a Proxmox LXC, enable
+      nesting and keyctl on the Proxmox host with:
+      pct set {{ ansible_facts['hostname'] }} --features nesting=1,keyctl=1
+      (the CTID may differ from the hostname; check `pct list`) and reboot.
+      Otherwise configure the host policy to permit keyctl().
+  when: containers_preflight_keyctl.rc != 0
+
+- name: Check whether Docker can create cgroups
+  ansible.builtin.command:
+    argv:
+      - mkdir
+      - /sys/fs/cgroup/docker-preflight-check
+  register: containers_preflight_cgroup
+  failed_when: false
+  changed_when: false
+
+- name: Clean up the cgroup delegation probe
+  ansible.builtin.command:
+    argv:
+      - rmdir
+      - /sys/fs/cgroup/docker-preflight-check
+  when: containers_preflight_cgroup.rc == 0
+  changed_when: false
+  failed_when: false
+
+- name: Fail if Docker cannot create delegated cgroups
+  ansible.builtin.fail:
+    msg: >
+      /sys/fs/cgroup is not writable, so Docker cannot create its cgroups.
+      For a Proxmox LXC, enable nesting on the Proxmox host with:
+      pct set {{ ansible_facts['hostname'] }} --features nesting=1,keyctl=1
+      (the CTID may differ from the hostname; check `pct list`) and reboot.
+      Otherwise configure cgroup delegation for the host/runtime.
+  when: containers_preflight_cgroup.rc != 0

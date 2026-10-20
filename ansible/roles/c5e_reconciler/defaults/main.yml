@@ -1,5 +1,0 @@
----
-# Optional one-time adoption inputs for the legacy proxy network. Keep unset
-# unless an operator has inspected the exact network and Docker daemon IDs.
-c5e_reconciler_proxy_network_migration_id: ""
-c5e_reconciler_proxy_network_migration_daemon_id: ""

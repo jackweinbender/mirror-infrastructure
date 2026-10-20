@@ -28,9 +28,8 @@ behind unrelated utility methods.
   these scripts.
 - Test success cases, precedence/order rules, validation failures, and boundary
   conditions relevant to the public interface.
-- Keep SSH, rsync, Docker, remote file writes, and 1Password injection as
-  integration boundaries unless they can be tested without contacting a real
-  service or exposing secrets.
+- Keep Docker Compose validation as an integration boundary unless it can be
+  tested without contacting a real service.
 - Run the library tests directly with:
 
   ```bash
@@ -41,11 +40,6 @@ behind unrelated utility methods.
 
 - Never print or commit resolved secrets, runtime `.env` files, tokens, or
   private keys.
-- Do not weaken managed deployment marker checks or automatically remove an
-  unmarked remote directory.
-- Preserve the platform/application deployment order and the external `proxy`
-  network ownership rules documented in `compose-stacks/OPERATIONS.md`.
-- Keep SSH host verification and non-interactive (`BatchMode`) behavior intact.
 
 ## Validation
 

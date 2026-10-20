@@ -9,11 +9,13 @@ certificates, and file-provider routes for services outside Docker discovery.
 Access logging is enabled and writes requests to stdout, where Vector can ship
 them to VictoriaLogs.
 
-Traefik joins the external `proxy` network created by `docker-networking`. Application stacks must join that network and set `traefik.enable=true` to be discovered.
+Traefik joins the external `proxy` network ensured locally by c5e. Application
+stacks must join that network and set `traefik.enable=true` to be discovered.
 
 ## Deployment
 
-Traefik is currently assigned to each Docker deploy host:
+Traefik has explicit assignments for the four current `deployment_hosts`:
+`traefik-lxc`, `docker0-lxc`, `docker-vm-dmz`, and `lxc-docker-core0`.
 
 ```text
 deployments/
@@ -21,9 +23,12 @@ deployments/
     .env.template
 ```
 
-The `traefik-lxc` deployment also has a Compose overlay that mounts dynamic
-routes from `traefik/dynamic/`. Assignment directories describe intended host
-placement, but no Compose deployment workflow automatically applies changes.
+Run exactly one c5e controller per deployment host. It uses that host's local
+Docker daemon and reconciles only the matching host assignment; c5e ensures that
+host's `proxy` network before assigned applications. The `traefik-lxc`
+assignment also has an overlay that mounts dynamic routes from `traefik/dynamic/`.
+CI validation does not prove that remote state changed, and assignment edits do
+not establish a live-stack handoff.
 
 ## DNS convention for LAN-backed services
 

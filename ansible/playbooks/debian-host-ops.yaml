@@ -1,0 +1,9 @@
+---
+- name: Configure Debian host operations
+  hosts: debian_hosts
+  gather_facts: true
+  become: true
+  roles:
+    - host_ops
+    - tailscale
+    - logging

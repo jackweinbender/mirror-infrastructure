@@ -1,0 +1,55 @@
+---
+- name: Verify the guest volume mount is active
+  ansible.builtin.command:
+    argv:
+      - findmnt
+      - --noheadings
+      - --output
+      - TARGET
+      - --target
+      - "{{ containers_data_root | dirname }}"
+  register: containers_guest_volume_mount
+  changed_when: false
+  failed_when: false
+  when: containers_configure_data_root | bool
+
+- name: Require the guest volume mount before configuring Docker
+  ansible.builtin.assert:
+    that:
+      - containers_guest_volume_mount.rc == 0
+      - containers_guest_volume_mount.stdout | trim == (containers_data_root | dirname)
+    fail_msg: >-
+      {{ containers_data_root | dirname }} must be mounted before configuring
+      Docker data-root.
+  when: containers_configure_data_root | bool
+
+- name: Ensure the Docker data root exists
+  ansible.builtin.file:
+    path: "{{ containers_data_root }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0711"
+  when: containers_configure_data_root | bool
+
+- name: Configure Docker data-root
+  ansible.builtin.copy:
+    dest: /etc/docker/daemon.json
+    owner: root
+    group: root
+    mode: "0644"
+    content: |
+      {
+        "data-root": "{{ containers_data_root }}"
+      }
+  register: containers_daemon_config
+  when: containers_configure_data_root | bool
+
+- name: Restart Docker after data-root configuration
+  ansible.builtin.systemd:
+    name: docker
+    enabled: true
+    state: restarted
+  when:
+    - containers_configure_data_root | bool
+    - containers_daemon_config is changed

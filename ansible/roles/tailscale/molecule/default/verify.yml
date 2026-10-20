@@ -58,37 +58,24 @@
           - tailscale_tailscaled_enabled.stdout.strip() == "enabled"
         fail_msg: tailscaled daemon not enabled
 
-    - name: Check Tailscale apt repository is configured
+    - name: Check the Tailscale apt source is configured
       ansible.builtin.stat:
-        path: /etc/apt/sources.list.d/tailscale.list
+        path: /etc/apt/sources.list.d/tailscale.sources
       register: tailscale_repo
-      failed_when: not tailscale_repo.stat.exists
+      failed_when: not tailscale_repo.stat.isreg
 
-    - name: Assert Tailscale repository file
-      ansible.builtin.assert:
-        that:
-          - tailscale_repo.stat.isreg
-        fail_msg: Tailscale apt repository not configured
-
-    - name: Check Tailscale GPG key is installed
+    - name: Check the Tailscale repository key exists
       ansible.builtin.stat:
         path: /etc/apt/keyrings/tailscale.asc
       register: tailscale_gpg_key
-      failed_when: not tailscale_gpg_key.stat.exists
+      failed_when: not tailscale_gpg_key.stat.isreg
 
-    - name: Assert Tailscale GPG key exists
-      ansible.builtin.assert:
-        that:
-          - tailscale_gpg_key.stat.isreg
-        fail_msg: Tailscale GPG key not installed
-
-    - name: Get Tailscale package facts
+    - name: Check the Tailscale package is installed
       ansible.builtin.package_facts:
         manager: apt
       register: tailscale_package_facts
 
-    - name: Assert Tailscale package installed
+    - name: Assert the Tailscale package is installed
       ansible.builtin.assert:
         that:
           - "'tailscale' in tailscale_package_facts.ansible_facts.packages"
-        fail_msg: tailscale package not installed via apt

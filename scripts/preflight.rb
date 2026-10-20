@@ -10,7 +10,6 @@ require_relative 'lib/inventory'
 ROOT = File.expand_path('..', __dir__)
 STACKS_DIR = File.join(ROOT, 'compose-stacks')
 NAME_PATTERN = /\A[a-z0-9][a-z0-9_-]*\z/
-DISCOVER_SCRIPT = File.join(ROOT, 'scripts/discover-deploy-hosts.rb')
 MERGE_SCRIPT = File.join(ROOT, 'scripts/merge-dotenv.rb')
 VALIDATE_TERRAFORM_COMPONENTS = File.join(ROOT, 'scripts/validate-terraform-components.rb')
 
@@ -24,16 +23,10 @@ rescue StandardError => e
   fail_preflight("Terraform component validation failed: #{e.message}")
 end
 
-def parse_inventory
-  JSON.parse(ScriptCommands.capture('ruby', DISCOVER_SCRIPT, File.join(ROOT, 'ansible/inventory.yaml')))
+def parse_deployment_host_ids
+  StackInventory.deployment_host_ids(File.join(ROOT, 'ansible/inventory.yaml'))
 rescue StandardError => e
-  fail_preflight("could not read deploy hosts: #{e.message}")
-end
-
-def parse_application_host_ids
-  DeployInventory.application_host_ids(File.join(ROOT, 'ansible/inventory.yaml'))
-rescue StandardError => e
-  fail_preflight("could not read application assignment hosts: #{e.message}")
+  fail_preflight("could not read deployment hosts: #{e.message}")
 end
 
 def merged_env(shared, assignment)
@@ -60,9 +53,7 @@ def validate_compose(stack, host, compose, overlay, env_text)
 end
 
 validate_terraform_components
-hosts = parse_inventory
-deploy_host_ids = hosts.to_h { |host| [host['id'], true] }
-application_host_ids = parse_application_host_ids.to_h { |host_id| [host_id, true] }
+deployment_host_ids = parse_deployment_host_ids.to_h { |host_id| [host_id, true] }
 stacks = []
 
 Dir.each_child(STACKS_DIR) do |stack|
@@ -71,55 +62,32 @@ Dir.each_child(STACKS_DIR) do |stack|
 
   fail_preflight("invalid stack name: #{stack}") unless NAME_PATTERN.match?(stack)
   compose = File.join(stack_dir, 'docker-compose.yaml')
-  compose_label = stack == 'docker-networking' ? 'platform stack' : 'application stack'
-  fail_preflight("#{compose_label} #{stack} has no docker-compose.yaml") unless File.file?(compose)
+  fail_preflight("application stack #{stack} has no docker-compose.yaml") unless File.file?(compose)
 
   shared = File.join(stack_dir, '.env.template')
   fail_preflight("#{shared} is not a regular file") if File.exist?(shared) && !File.file?(shared)
 
   deployments = File.join(stack_dir, 'deployments')
-  if stack == 'docker-networking'
-    if File.directory?(deployments)
-      Dir.each_child(deployments) do |host|
-        assignment_dir = File.join(deployments, host)
-        fail_preflight("invalid platform deployment entry: #{assignment_dir} is not a directory") unless File.directory?(assignment_dir)
-        fail_preflight("invalid platform deployment host directory: #{host}") unless NAME_PATTERN.match?(host) && host != 'docker-networking'
-        fail_preflight("unknown platform deployment host #{host} in #{assignment_dir}") unless deploy_host_ids.key?(host)
-        allowed = ['.env.template', 'docker-compose.yaml']
-        unexpected = Dir.children(assignment_dir) - allowed
-        fail_preflight("unexpected files in platform deployment #{assignment_dir}: #{unexpected.join(', ')}") unless unexpected.empty?
-      end
-    end
-    expected_hosts = deploy_host_ids.keys
-  else
-    expected_hosts = File.directory?(deployments) ? Dir.children(deployments) : []
-  end
-
+  expected_hosts = File.directory?(deployments) ? Dir.children(deployments) : []
   expected_hosts.each do |host|
     assignment_dir = File.join(deployments, host)
-    if stack != 'docker-networking'
-      fail_preflight("invalid deployment entry: #{assignment_dir} is not a directory") unless File.directory?(assignment_dir)
-      fail_preflight("invalid deployment host directory: #{host}") unless NAME_PATTERN.match?(host) && host != 'docker-networking'
-      fail_preflight("unknown or ineligible application deployment host #{host} in #{assignment_dir}") unless application_host_ids.key?(host)
-    end
+    fail_preflight("invalid deployment entry: #{assignment_dir} is not a directory") unless File.directory?(assignment_dir)
+    fail_preflight("invalid deployment host directory: #{host}") unless NAME_PATTERN.match?(host)
+    fail_preflight("unknown deployment host #{host} in #{assignment_dir}") unless deployment_host_ids.key?(host)
 
     assignment = File.join(assignment_dir, '.env.template')
-    if stack == 'docker-networking'
-      fail_preflight("invalid platform env template: #{assignment}") if File.exist?(assignment) && !File.file?(assignment)
-    else
-      fail_preflight("missing deployment env template: #{assignment}") unless File.file?(assignment)
-    end
+    fail_preflight("missing deployment env template: #{assignment}") unless File.file?(assignment)
     overlay = File.join(assignment_dir, 'docker-compose.yaml')
     fail_preflight("invalid deployment overlay: #{overlay}") if File.exist?(overlay) && !File.file?(overlay)
     overlay = nil unless File.file?(overlay)
     validate_compose(stack, host, compose, overlay, merged_env(shared, assignment))
   end
 
-  stacks << stack unless stack == 'docker-networking'
+  stacks << stack
 end
 
-fail_preflight('no application Compose stacks found') if stacks.empty?
-output = { 'hosts' => hosts, 'stacks' => stacks.sort }
+fail_preflight('no Compose stacks found') if stacks.empty?
+output = { 'hosts' => deployment_host_ids.keys.sort, 'stacks' => stacks.sort }
 if (github_output = ENV['GITHUB_OUTPUT'])
   File.open(github_output, 'a') do |file|
     file.puts "hosts=#{JSON.generate(output['hosts'])}"

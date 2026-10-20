@@ -36,8 +36,9 @@ Local authentication is enabled and new-user registration is disabled.
 Terraform declares an unproxied Cloudflare CNAME from
 `komodo.weinbender.io` to `docker0-lxc.weinbender.io`; the gateway A record must
 already resolve to the host's private LAN address. Apply the Cloudflare
-component before relying on the public hostname. There is no Compose deployment
-workflow; the platform network must be present before Komodo runs.
+component before relying on the public hostname. c5e on `docker0-lxc` reconciles
+this host's stack assignments through its local Docker daemon; CI validation
+does not deploy or prove that remote state changed.
 
 After deployment, log in with the initial admin credentials from 1Password and
 confirm the `docker0-lxc` Periphery server is online. Confirm the MongoDB,

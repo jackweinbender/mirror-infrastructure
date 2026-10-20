@@ -14,7 +14,6 @@ RUN apt-get update && apt-get install --no-install-recommends --yes \
     jq \
     openssh-client \
     python3-pip \
-    rsync \
     ruby \
     unzip
 

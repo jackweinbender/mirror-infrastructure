@@ -2,11 +2,9 @@
 # frozen_string_literal: true
 
 require 'minitest/autorun'
-require 'open3'
 require 'tempfile'
 
 require_relative '../lib/commands'
-require_relative '../lib/compose_deployment'
 require_relative '../lib/dotenv'
 require_relative '../lib/inventory'
 require_relative '../lib/output'
@@ -23,15 +21,6 @@ class LibTest < Minitest::Test
     end
   end
 
-  def with_environment(values)
-    previous = values.to_h { |key, _value| [key, ENV[key]] }
-    values.each { |key, value| ENV[key] = value }
-    yield
-  ensure
-    values.each do |key, _value|
-      previous[key].nil? ? ENV.delete(key) : ENV[key] = previous[key]
-    end
-  end
 end
 
 class DotenvTest < LibTest
@@ -63,59 +52,39 @@ class DotenvTest < LibTest
 
 end
 
-class DeployInventoryTest < LibTest
+class StackInventoryTest < LibTest
   def setup
     @inventory = <<~YAML
-      workloads:
-        hosts:
-          zeta.example:
-            ansible_host: 10.0.0.2
-            host_roles:
-              - deploy
-          alpha.example:
-            host_roles:
-              - deploy
-          controller.example:
-            host_roles:
-              - docker
-              - c5e_reconciler
-          worker.example:
-            host_roles:
-              - worker
+      all:
+        children:
+          stack_hosts:
+            children:
+              deployment_hosts:
+                hosts:
+                  zeta.example: {}
+                  lxc-docker-core0.example: {}
+                  controller.example: {}
     YAML
   end
 
-  def test_selects_deploy_hosts_with_addresses_and_sorts_them
+  def test_returns_exact_short_ids_from_the_single_deployment_group
     with_file(@inventory) do |file|
-      assert_equal(
-        [
-          { 'id' => 'alpha', 'address' => 'alpha.example' },
-          { 'id' => 'zeta', 'address' => '10.0.0.2' }
-        ],
-        DeployInventory.deploy_hosts(file)
-      )
-    end
+      assert_equal %w[controller lxc-docker-core0 zeta], StackInventory.deployment_host_ids(file)
+  end
   end
 
-  def test_controller_host_is_application_eligible_but_not_a_deploy_target
-    with_file(@inventory) do |file|
-      assert_equal %w[alpha controller zeta], DeployInventory.application_host_ids(file)
-      assert_equal %w[alpha zeta], DeployInventory.deploy_hosts(file).map { |host| host['id'] }
-    end
-  end
-
-  def test_rejects_duplicate_application_host_ids
-    duplicate = @inventory.sub('controller.example:', 'alpha.other.example:')
+  def test_rejects_duplicate_short_host_ids
+    duplicate = @inventory.sub('controller.example: {}', 'zeta.other.example: {}')
     with_file(duplicate) do |file|
-      error = assert_raises(ArgumentError) { DeployInventory.application_host_ids(file) }
+      error = assert_raises(ArgumentError) { StackInventory.deployment_host_ids(file) }
       assert_match(/not unique/, error.message)
     end
   end
 
-  def test_rejects_reserved_host
-    reserved = @inventory.sub('zeta.example:', 'docker-networking.example:')
-    with_file(reserved) do |file|
-      assert_raises(SystemExit) { DeployInventory.deploy_hosts(file) }
+  def test_rejects_invalid_short_host_ids
+    invalid = @inventory.sub('zeta.example: {}', 'bad name.example: {}')
+    with_file(invalid) do |file|
+      assert_raises(ArgumentError) { StackInventory.deployment_host_ids(file) }
     end
   end
 end
@@ -151,36 +120,8 @@ class TerraformComponentsTest < LibTest
   end
 end
 
-class ComposeDeploymentTest < LibTest
-  def test_staging_path_uses_run_identity
-    with_environment('GITHUB_RUN_ID' => '123', 'GITHUB_RUN_ATTEMPT' => '2') do
-      assert_equal '/etc/compose-stacks/.staging/traefik-123-2', ComposeDeployment.staging_path('traefik')
-    end
-  end
-
-  def test_marker_contains_deployment_identity
-    environment = {
-      'GITHUB_REPOSITORY' => 'owner/repository',
-      'GITHUB_SHA' => 'abc123',
-      'GITHUB_RUN_ID' => '123',
-      'GITHUB_RUN_NUMBER' => '45'
-    }
-
-    with_environment(environment) do
-      marker = ComposeDeployment.marker('traefik')
-      assert_includes marker, "REPOSITORY=owner/repository\n"
-      assert_includes marker, "STACK_NAME=traefik\n"
-      assert_includes marker, "COMMIT_SHA=abc123\n"
-      assert_match(/^SYNCED_AT=\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/, marker.lines.last.chomp)
-    end
-  end
-end
 
 class ScriptCommandsTest < LibTest
-  def test_quote_shell_escapes_values
-    assert_equal 'value\\ with\\ spaces', ScriptCommands.quote('value with spaces')
-    assert_equal "it\\'s", ScriptCommands.quote("it's")
-  end
 
   def test_capture_returns_stdout
     assert_equal "output\n", ScriptCommands.capture('ruby', '-e', 'puts "output"')
@@ -205,22 +146,5 @@ class ScriptOutputTest < LibTest
     end.fetch(1)
 
     assert_equal "preflight: failed\n", stderr
-  end
-end
-
-class ComposeDeploymentTest < LibTest
-  def test_application_stacks_removes_self_managed_stacks
-    stacks = ['cloudflare-tunnel', 'crow-ci', 'forgejo', 'grafana', 'paseo']
-    assert_equal ['cloudflare-tunnel', 'forgejo', 'grafana', 'paseo'],
-                 ComposeDeployment.application_stacks(stacks)
-  end
-
-  def test_application_stacks_is_identity_when_none_self_managed
-    assert_equal ['paseo', 'traefik'],
-                 ComposeDeployment.application_stacks(['paseo', 'traefik'])
-  end
-
-  def test_application_stacks_tolerates_all_self_managed
-    assert_equal [], ComposeDeployment.application_stacks(['crow-ci'])
   end
 end

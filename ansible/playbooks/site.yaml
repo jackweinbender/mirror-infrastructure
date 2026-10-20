@@ -1,0 +1,5 @@
+---
+- name: Debian host operations
+  ansible.builtin.import_playbook: debian-host-ops.yaml
+- name: Stack host capabilities
+  ansible.builtin.import_playbook: stack-hosts.yaml

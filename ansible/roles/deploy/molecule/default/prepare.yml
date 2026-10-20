@@ -1,0 +1,13 @@
+---
+- name: Prepare isolated c5e migration approval test
+  hosts: all
+  gather_facts: false
+  become: true
+  tasks:
+    - name: Create the test-only credential directory
+      ansible.builtin.file:
+        path: /tmp/c5e-migration-test
+        state: directory
+        owner: root
+        group: root
+        mode: "0700"

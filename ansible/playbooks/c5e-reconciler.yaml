@@ -1,28 +1,34 @@
 ---
-- name: Install the c5e controller on its dedicated workload host
-  hosts: lxc-docker-core0.tortoise-noodlefish.ts.net
+- name: Initialize c5e on exactly one deployment host
+  hosts: deployment_hosts
   gather_facts: true
   become: true
 
   pre_tasks:
+    - name: Require exactly one selected deployment host
+      ansible.builtin.assert:
+        that:
+          - ansible_play_hosts | length == 1
+        fail_msg: Select exactly one deployment host with --limit <host>.
     - name: Require the c5e service-account credential
       ansible.builtin.assert:
         that:
-          - c5e_reconciler_op_credentials is defined
-          - c5e_reconciler_op_credentials | length > 0
+          - secrets_c5e_op_credentials is defined
+          - secrets_c5e_op_credentials | length > 0
         fail_msg: Enter the c5e service-account credential at the prompt.
       no_log: true
   vars_prompt:
-    - name: c5e_reconciler_op_credentials
+    - name: secrets_c5e_op_credentials
       prompt: C5E_OP_CREDENTIALS service-account credential
       private: true
-    - name: c5e_reconciler_proxy_network_migration_id
+    - name: deploy_proxy_network_migration_id
       prompt: Exact existing proxy network ID (leave blank to omit migration)
       private: false
       default: ""
-    - name: c5e_reconciler_proxy_network_migration_daemon_id
+    - name: deploy_proxy_network_migration_daemon_id
       prompt: Exact Docker daemon ID for that network (leave blank to omit migration)
       private: false
       default: ""
   roles:
-    - c5e_reconciler
+    - secrets
+    - deploy

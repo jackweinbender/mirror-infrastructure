@@ -2,9 +2,10 @@
 
 Personal infrastructure as code. The repository manages cloud resources with
 Terraform, configures Debian and Proxmox hosts with Ansible, and maintains
-Docker Compose services. CI validates Compose but does not deploy it; Compose
-deployment workflows have been removed. c5e reconciles assignments on its own
-controller host. The repository is hosted locally at
+Docker Compose services. CI validates Compose configuration but does not deploy
+it. Each host enabled for deployment runs exactly one c5e controller, which
+reconciles only that host's assignments through its local Docker daemon.
+The repository is hosted locally at
 ssh://git@forgejo.weinbender.io:2222/labs/infrastructure.git and mirrored to
 GitHub at git@github.com:jackweinbender/mirror-infrastructure.git.
 
@@ -31,7 +32,7 @@ Each area has more focused guidance:
 
 | Area | Pipeline | Trigger | Effect |
 | --- | --- | --- | --- |
-| Ansible | [`.crow/ansible.yaml`](.crow/ansible.yaml) | Relevant default-branch pushes, scheduled, or manual | Lints and applies `playbooks/workloads.yaml`; no PR host changes |
+| Ansible | [`.crow/ansible.yaml`](.crow/ansible.yaml) | Relevant default-branch pushes, scheduled, or manual | Lints and applies `playbooks/site.yaml`; no PR host changes |
 | Ansible validation | [`.crow/ansible-validation.yaml`](.crow/ansible-validation.yaml) | Relevant pull requests, default-branch pushes, or manual | Lints Ansible and checks playbook syntax |
 | Terraform validation | [`.crow/terraform-validation.yaml`](.crow/terraform-validation.yaml) | Relevant pull requests, default-branch pushes, or manual | Validates Terraform components and formatting |
 | Terraform plan/apply | [`.crow/terraform-plan-apply.yaml`](.crow/terraform-plan-apply.yaml) | Pull requests and default-branch pushes affecting Terraform | Plans changed roots on PRs; plans and applies changed roots on the default branch |
@@ -44,25 +45,37 @@ and validated against the Terraform root directories.
 
 ## Compose deployments
 
-Compose configuration has a platform stack and explicitly assigned application stacks.
+Every Compose stack is an application stack, assigned explicitly through
+`deployments/<inventory_hostname_short>/.env.template`. This directory name must
+exactly match the host's `inventory_hostname_short`. `deployment_hosts` is the
+deployment-capable subset of `stack_hosts` and is the only group eligible for
+application assignments; other groups do not grant assignment eligibility.
+Each deployment host has exactly one c5e controller using its local Docker daemon.
+c5e provides that host's external `proxy` network before reconciling its
+assigned applications; there is no `docker-networking` platform stack.
 
-The platform stack `docker-networking/` owns the external `proxy` network.
-Application stacks, including Traefik, are assigned explicitly through
-`deployments/<host>/.env.template`. c5e continues to reconcile assignments on
-its own `c5e_reconciler` host; deploy-host assignments are not automatically
-reconciled by CI.
+Current deployment assignment hosts are `traefik-lxc`, `docker0-lxc`,
+`docker-vm-dmz`, and `lxc-docker-core0`. A host is listed here because Compose
+assignment directories target it; other configured services without assignment
+directories are not deployed by this repository's Compose assignments.
 
 The `.crow/compose-validation.yaml` pipeline validates Compose inventory,
-assignments, templates, and files; it does not deploy stacks. All Compose
-deployment workflows have been removed. Deployment and reconciliation scripts
-remain under `scripts/`, but no CI workflow invokes them. Do not treat a push or
-assignment change as a deployment. Keep resolved secrets out of Git, logs, and
-runner artifacts.
+assignments, templates, and files; it does not deploy stacks. Initialize each
+controller on its own host with that host's credentials, inspecting that host's
+local network and daemon IDs. Never reuse one credential/network-ID pair across
+hosts. Initialization is targeted to an individual host, not fleet-wide. Keep
+resolved secrets out of Git, logs, and runner artifacts. c5e does not
+automatically adopt existing Docker resources by project name: foreign or mixed
+ownership blocks Up/Down, and historical automation markers do not grant
+adoption permission.
+Its `retain` policy leaves removed assignments and orphaned projects in place.
+Do not imply an operational rollout or live-stack handoff as part of an
+assignment change; preserve safe remote-state handling and do not remove live
+directories without establishing that it is safe.
 
 Read [`compose-stacks/OPERATIONS.md`](compose-stacks/OPERATIONS.md) before adding
-or moving a stack. In particular, do not add a `deployments/ALL/` assignment, do
-not let application stacks manage `proxy`, and do not remove an unmarked remote
-directory during recovery.
+or moving a stack. Never add a `deployments/ALL/` assignment or let application
+stacks manage the c5e-provided `proxy` network.
 
 ## Terraform state and credentials
 
@@ -74,16 +87,16 @@ static service-account credentials for AWS and GCP managed as Crow secrets and
 secrets, provider credentials, private keys, or resolved secret values.
 
 Ansible supports Debian guests and Proxmox bootstrap workflows. The steady-state
-`playbooks/workloads.yaml` playbook always applies the baseline roles and then
-selects additional roles from each host's `host_roles`, such as `deploy`,
-`docker`, and `c5e_reconciler`. LXC persistent data follows the host-backed
-`/primary/guest-volumes/<hostname>` to guest `/srv/guest-volumes` convention;
-`mp0` is reserved for that mount. VMs are the exception: `docker-vm-dmz` keeps
-Docker data in `/var/lib/docker` and requires whole-VM or separate offsite
-backups. Tailscale SSH is the supported remote access path; the Proxmox console
-is the bootstrap recovery path. The c5e host's dashboard is deliberately
-loopback-only at `127.0.0.1:8080`; Ansible reuses its existing named state volume
-and retires the marked Compose service only after verifying ownership evidence.
+`playbooks/site.yaml` composes the Debian host-operations and stack-host profiles.
+Inventory groups describe host populations; playbooks compose capabilities such
+as logging, Docker/Compose, and c5e deployment.
+LXC persistent data follows the host-backed `/primary/guest-volumes/<hostname>`
+to guest `/srv/guest-volumes` convention; `mp0` is reserved for that mount.
+VMs are the exception: `docker-vm-dmz` keeps Docker data in `/var/lib/docker`
+and requires whole-VM or separate offsite backups. Tailscale SSH is the
+supported remote access path; the Proxmox console is the bootstrap recovery
+path. The c5e dashboard is deliberately loopback-only at `127.0.0.1:8080`;
+Ansible retires only its c5e-labeled Compose service after verifying ownership.
 
 Set up the local environment with:
 
@@ -91,7 +104,7 @@ Set up the local environment with:
 cd ansible
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
-.venv/bin/ansible-playbook playbooks/workloads.yaml
+.venv/bin/ansible-playbook playbooks/site.yaml
 ```
 
 Review inventory, limits, and tags before running a playbook that can change a

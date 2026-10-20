@@ -1,0 +1,18 @@
+---
+- name: Ensure the c5e live worktree directory exists
+  ansible.builtin.file:
+    path: /var/lib/c5e-live
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Pull the current c5e controller image before handoff
+  ansible.builtin.command:
+    argv:
+      - /usr/bin/docker
+      - image
+      - pull
+      - forgejo.weinbender.io/labs/c5e:main
+  register: deploy_image_pull
+  changed_when: "'Downloaded newer image' in (deploy_image_pull.stdout + deploy_image_pull.stderr)"

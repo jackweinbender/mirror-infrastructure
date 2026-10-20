@@ -15,9 +15,9 @@ image: forgejo.weinbender.io/labs/planet-express:f66c5c668bf319d6dd3c965976795e3
 ```
 
 To upgrade, merge the desired change in `labs/planet-express`, let CrowCI
-publish its new SHA tag, then update the pinned tag here. The deployment
-reconciler uses `--pull always`, so it fetches the tag on reconciliation. The
-registry is anonymously pullable and requires no per-host Docker login.
+publish its new SHA tag, then update the pinned tag here. c5e on `docker0-lxc`
+reconciles this host's assignment through its local Docker daemon. The registry
+is anonymously pullable and requires no per-host Docker login.
 
 The receiver listens on port `8080`. Its SQLite database is stored at
 `/data/events.db` in the named `planet_express_data` volume. On `docker0-lxc`,
@@ -36,8 +36,9 @@ Run that one-time migration only for the existing `planet_express_data` volume
 on `docker0-lxc`; otherwise the new container will not be able to write its
 SQLite database.
 
-The service joins the external `proxy` network supplied by `docker-networking`.
-Traefik routes the configured hostname and terminates TLS with Let's Encrypt.
+The service joins the external `proxy` network ensured by c5e on `docker0-lxc`;
+it does not create or manage that network. Traefik routes the configured
+hostname and terminates TLS with Let's Encrypt.
 
 ## Secrets
 
@@ -69,24 +70,26 @@ rm -f "$tmp_env"
 git diff --check
 ```
 
-Keep the repository templates as configuration; CI validation does not deploy
-the stack. Resolve the 1Password-backed secret only through an authorized
-deployment process.
+CI validates repository configuration only; c5e on `docker0-lxc` reconciles
+this host's assignment through its local Docker daemon. Validation does not
+prove remote state changed. Resolve the 1Password-backed secret only through the
+configured secret process.
 
 ## Operational follow-up
 
 - Create the `network/planet-express/webhook-secret` 1Password item.
 - Apply Terraform to publish the Cloudflare CNAME; the record is included in
   this change, but applying it is manual.
-- No Crow deployment workflow is configured; use a separately authorized
-  deployment process if the stack needs to be deployed.
+- The local c5e controller on `docker0-lxc` reconciles this host's assignment;
+  CI validation does not prove that the host has applied the Compose change.
 - Register the Forgejo webhook with the matching secret.
 - Verify `https://planet-express.weinbender.io/healthz` after deployment.
 - Confirm `planet_express_data` is covered by backups.
 
-The repository change only scaffolds this deployment; it does not create the
-1Password item, apply DNS, deploy the service, or register the webhook.
-Follow the repository-wide recovery and marker rules in
-[`../OPERATIONS.md`](../OPERATIONS.md) before manual recovery.
+This repository change does not create the 1Password item, apply DNS, or
+register the Forgejo webhook. The c5e controller is host-local; repository
+validation alone does not prove that remote state changed. See
+[`../OPERATIONS.md`](../OPERATIONS.md) for ownership and remote-state safety
+before manual recovery.
 
 Scaffold status: ready for review; not deployed.

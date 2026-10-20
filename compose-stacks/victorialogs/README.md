@@ -11,8 +11,8 @@ immutable tag:
 image: docker.io/victoriametrics/victoria-logs:v1.53.0
 ```
 
-The reconciler pulls the pinned tag on each deployment (`--pull always`), so no
-registry credentials are needed here.
+c5e on `lxc-docker-core0` reconciles this assignment through the host's local
+Docker daemon. No registry credentials are needed for the public image.
 
 ## Stack
 
@@ -22,8 +22,8 @@ registry credentials are needed here.
 - Retention is set to **30 days** (`-retentionPeriod=30d`). Tune the retention
   and consider `-retention.maxDiskSpaceUsageBytes` if this host's storage budget
   needs a hard cap.
-- The service joins the external `proxy` network supplied by
-  `docker-networking`; it does not create or manage that network. Traefik routes
+- The service joins the external `proxy` network ensured by c5e on
+  `lxc-docker-core0`; it does not create or manage that network. Traefik routes
   `https://victorialogs.weinbender.io` to the container and terminates TLS with
   Let's Encrypt.
 - The image (v1.52+) is **distroless**: it ships no shell, `curl`, or `wget`, so
@@ -52,15 +52,15 @@ rm -f "$tmp_env"
 git diff --check
 ```
 
-CI validates the repository templates but does not deploy the stack. No secrets
-are needed for this stack.
+CI validates repository templates only; c5e on `lxc-docker-core0` reconciles
+this host's assignment through its local Docker daemon. Validation does not
+prove that remote state changed. No secrets are needed for this stack.
 
 ## Operational follow-up
 
-The repository change only scaffolds the deployment. Before the web UI is
-reachable over the public hostname, complete the following (each is a separate
-prerequisite, none is created by this change):
-
+The host-local c5e controller reconciles this assignment. Before the web UI is
+reachable through the public hostname, complete these separate prerequisites;
+repository validation does not prove that the host has applied its assignment:
 - **Gateway A record:** `lxc-docker-core0.weinbender.io` → the host's LAN IPv4
   address (matches the `docker0-lxc`/`traefik-lxc` convention). This is a
   Proxmox/LXC provisioning follow-up, not an Ansible or Compose task.

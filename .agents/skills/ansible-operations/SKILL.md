@@ -12,9 +12,14 @@ before editing.
 
 ## Choose the correct process
 
-- `playbooks/workloads.yaml` is steady-state, idempotent Debian guest
-  configuration. It always applies `base` and `tailscale`, then applies optional
-  roles selected by each host's `host_roles` (for example `deploy` and `docker`).
+- `playbooks/debian-host-ops.yaml` applies `host_ops`, `tailscale`, and `logging`
+  to `debian_hosts`; `playbooks/stack-hosts.yaml` adds `containers` on
+  `stack_hosts` and `secrets` plus c5e's `deploy` implementation on
+  `deployment_hosts` (all four current app hosts).
+- `playbooks/site.yaml` composes both profiles. Run
+  `playbooks/c5e-reconciler.yaml` with `--limit <host>` for exactly one
+  deployment host; each host has its own controller, credentials, Docker socket,
+  and proxy-network/daemon IDs.
 - `tasks/lxc_*` and `tasks/pve_host/` are procedural bootstrap workflows, not
   steady-state roles.
 - `playbooks/local-*.yaml` are operator-run workflows from the LAN. Review their
@@ -35,8 +40,8 @@ Docker root:  /srv/guest-volumes/docker
 
 The bootstrap owns the per-guest host directory and LXC `mp0` mount; `mp0` is
 reserved for that mount and existing mounts must be shifted or reviewed. The
-steady-state Docker role owns `data-root` configuration. Provision the mount
-before setting `docker_configure_data_root: true`; adding a mount does not migrate
+steady-state containers role owns `data-root` configuration. Provision the mount
+before setting `containers_configure_data_root: true`; adding a mount does not migrate
 existing `/var/lib/docker` data. This convention is for LXCs only. VMs such as
 `docker-vm-dmz` retain `/var/lib/docker` and need whole-VM or separate offsite
 backups.

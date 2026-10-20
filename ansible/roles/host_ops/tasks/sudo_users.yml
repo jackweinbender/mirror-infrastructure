@@ -1,0 +1,23 @@
+---
+- name: Ensure sudo is installed
+  ansible.builtin.apt:
+    name: sudo
+    state: present
+    update_cache: true
+    cache_valid_time: 3600
+
+- name: Create sudo-enabled accounts
+  ansible.builtin.user:
+    name: "{{ item }}"
+    create_home: true
+  loop: "{{ [host_ops_ansible_user] + host_ops_extra_sudo_users }}"
+
+- name: Grant sudo-enabled accounts passwordless sudo
+  ansible.builtin.copy:
+    content: "{{ item }} ALL=(ALL) NOPASSWD:ALL\n"
+    dest: /etc/sudoers.d/{{ item }}
+    owner: root
+    group: root
+    mode: "0440"
+    validate: visudo -cf %s
+  loop: "{{ [host_ops_ansible_user] + host_ops_extra_sudo_users }}"

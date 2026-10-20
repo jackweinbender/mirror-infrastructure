@@ -6,24 +6,25 @@ relevant role or playbook before changing behavior.
 
 ## Structure and behavior
 
-- `roles/base/` and `roles/tailscale/` provide the baseline applied by
-  `playbooks/workloads.yaml`.
-- A host's `host_roles` controls optional roles such as `deploy`, `docker`, and
-  `c5e_reconciler`.
-- `tasks/lxc_*` and `tasks/pve_host/` are procedural bootstrap workflows, not
+- `host_ops`, `tailscale`, and `logging` configure the Debian host-operations
+  profile used by `playbooks/debian-host-ops.yaml`.
+- `playbooks/stack-hosts.yaml` adds the `containers` runtime on `stack_hosts`
+  and applies `secrets` plus `deploy` (c5e) on `deployment_hosts`.
+- `deployment_hosts` is the child deployment capability group under
+  `stack_hosts`; all four current application hosts belong to it. c5e
+  reconciles assignments only on the matching host-local controller.
+- Run `playbooks/c5e-reconciler.yaml` with `--limit <host>` for exactly one
+  deployment host; credentials and any proxy network IDs are host-specific.
+- Tasks under `tasks/lxc_*` and `tasks/pve_host/` are procedural bootstrap workflows, not
   steady-state roles.
 - `playbooks/local-*.yaml` are operator-run bootstrap and feature workflows;
   `local` means they run from the LAN rather than the GitHub Actions tailnet.
-- Application assignments may use `deploy` or `c5e_reconciler`; c5e reconciles
-  assignments on its own host. No Compose deployment workflows are configured;
-  retained discovery scripts still select hosts with `deploy`.
 - Debian guests and Tailscale SSH are the supported workload model.
 
 ## Secrets and changes
 
-- For long-lived service credentials on workloads, follow the VM service
-  credential SOP in `README.md`: use private targeted prompts and root-only
-  environment files, never inline secret literals in command arguments.
+- The c5e service credential is handled by the targeted playbook and `secrets`
+  role. General host/LXC secret distribution is not yet implemented.
 - CI uses approved Crow secrets; never commit credentials, logs, or generated
   secret files.
 - Inspect inventory selection, limits, and playbook tags before running a

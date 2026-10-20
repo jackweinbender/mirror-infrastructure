@@ -1,0 +1,27 @@
+---
+- name: Converge host operations and stack capabilities
+  hosts: all
+  gather_facts: true
+  vars:
+    host_ops_ansible_user: ansible
+    host_ops_extra_sudo_users: [jlw]
+    logging_vector_start_with_host_logs: false
+  tasks:
+    - name: Include host operations
+      ansible.builtin.include_role:
+        name: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/../host_ops" # noqa role-name[path]
+        public: true
+
+    - name: Include host logging
+      ansible.builtin.include_role:
+        name: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/../logging" # noqa role-name[path]
+        public: true
+
+    - name: Include containers capability
+      ansible.builtin.include_role:
+        name: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}" # noqa role-name[path]
+
+    - name: Add Docker logging source
+      ansible.builtin.include_role:
+        name: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/../logging" # noqa role-name[path]
+        tasks_from: containers

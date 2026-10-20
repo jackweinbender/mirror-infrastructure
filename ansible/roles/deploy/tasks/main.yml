@@ -1,46 +1,27 @@
 ---
-- name: Create the deployment account
-  ansible.builtin.user:
-    name: "{{ deploy_user }}"
-    create_home: true
-    shell: "{{ deploy_user_shell }}"
-    state: present
+- name: Inspect whether the c5e credential is initialized
+  ansible.builtin.stat:
+    path: "{{ secrets_c5e_environment_file }}"
+    follow: false
+  register: deploy_c5e_environment
+  no_log: true
 
-- name: Install rsync for remote deployments
-  ansible.builtin.apt:
-    name: rsync
-    state: present
+- name: Skip c5e until the secrets capability initializes its credential
+  ansible.builtin.debug:
+    msg: Run playbooks/c5e-reconciler.yaml with --limit <host> once per host to initialize c5e credentials.
+  when: not (deploy_c5e_environment.stat.isreg | default(false))
 
-- name: Create the existing Compose deployment directory
-  ansible.builtin.file:
-    path: /etc/compose-stacks
-    state: directory
-    owner: "{{ deploy_user }}"
-    group: "{{ deploy_user }}"
-    mode: "0755"
+- name: Configure c5e when its credential exists
+  when: deploy_c5e_environment.stat.isreg | default(false)
+  block:
+    - name: Resolve and validate proxy-network migration approval
+      ansible.builtin.import_tasks: proxy_migration.yml
 
+    - name: Prepare the c5e application
+      ansible.builtin.import_tasks: prepare.yml
 
-- name: Install stackctl
-  ansible.builtin.copy:
-    src: stackctl
-    dest: /usr/local/sbin/stackctl
-    owner: root
-    group: root
-    mode: "0755"
+    - name: Stop any existing c5e Compose controller
+      ansible.builtin.import_tasks: retire_compose.yml
 
-- name: Install stackctl systemd template
-  ansible.builtin.copy:
-    src: docker-compose@.service
-    dest: /etc/systemd/system/docker-compose@.service
-    owner: root
-    group: root
-    mode: "0644"
-  notify: Reload systemd
-
-- name: Create stackctl managed-state directory
-  ansible.builtin.file:
-    path: /var/lib/stackctl/managed
-    state: directory
-    owner: root
-    group: root
-    mode: "0755"
+    - name: Install and start the c5e systemd controller
+      ansible.builtin.import_tasks: install.yml

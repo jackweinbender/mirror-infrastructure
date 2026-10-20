@@ -1,0 +1,168 @@
+---
+- name: Verify containers capability
+  hosts: all
+  gather_facts: true
+  tasks:
+    - name: Check Docker version
+      ansible.builtin.command:
+        argv:
+          - docker
+          - --version
+      register: containers_version
+      changed_when: false
+      failed_when: containers_version.rc != 0
+
+    - name: Assert Docker version output
+      ansible.builtin.assert:
+        that:
+          - "'Docker version' in containers_version.stdout"
+        fail_msg: Docker not properly installed
+
+    - name: Check Docker Compose plugin
+      ansible.builtin.command:
+        argv:
+          - docker
+          - compose
+          - version
+      register: containers_compose_version
+      changed_when: false
+      failed_when: containers_compose_version.rc != 0
+
+    - name: Assert Docker Compose version output
+      ansible.builtin.assert:
+        that:
+          - "'Docker Compose version' in containers_compose_version.stdout or 'version' in containers_compose_version.stdout"
+        fail_msg: Docker Compose plugin not installed
+
+    - name: Check docker group exists
+      ansible.builtin.getent:
+        database: group
+        key: docker
+
+    - name: Check Vector Docker log config exists
+      ansible.builtin.stat:
+        path: /etc/vector/conf.d/10-docker.toml
+      register: containers_vector_config
+      failed_when: not containers_vector_config.stat.exists
+
+    - name: Read Vector Docker log config
+      ansible.builtin.slurp:
+        src: /etc/vector/conf.d/10-docker.toml
+      register: containers_vector_config_content
+
+    - name: Assert Docker Vector uses Elasticsearch bulk ingestion and app streams
+      ansible.builtin.assert:
+        that:
+          - >-
+            'type = "elasticsearch"' in
+            (containers_vector_config_content.content | b64decode)
+          - >-
+            '/insert/elasticsearch/' in
+            (containers_vector_config_content.content | b64decode)
+          - >-
+            'api_version = "v8"' in
+            (containers_vector_config_content.content | b64decode)
+          - >-
+            'mode = "bulk"' in
+            (containers_vector_config_content.content | b64decode)
+          - >-
+            '.task = .label."crowci/task-uuid"' in
+            (containers_vector_config_content.content | b64decode)
+          - >-
+            '.app = .label."vector.app"' in
+            (containers_vector_config_content.content | b64decode)
+          - >-
+            'if is_null(.app)' in
+            (containers_vector_config_content.content | b64decode)
+          - >-
+            '_stream_fields = "host,app,task"' in
+            (containers_vector_config_content.content | b64decode)
+
+    - name: Check Vector is in the docker group
+      ansible.builtin.command:
+        argv:
+          - id
+          - -Gn
+          - vector
+      register: containers_vector_groups
+      changed_when: false
+      failed_when: containers_vector_groups.rc != 0 or 'docker' not in containers_vector_groups.stdout.split()
+
+    - name: Check host-operations users are in docker group
+      ansible.builtin.command:
+        argv:
+          - id
+          - -Gn
+          - "{{ item }}"
+      register: containers_user_groups
+      changed_when: false
+      failed_when: containers_user_groups.rc != 0
+      loop:
+        - ansible
+        - jlw
+
+    - name: Assert host-operations users are in docker group
+      ansible.builtin.assert:
+        that:
+          - "'docker' in item.stdout"
+        fail_msg: "{{ item.item }} user not in docker group"
+      loop: "{{ containers_user_groups.results }}"
+
+    - name: Check Docker daemon is running
+      ansible.builtin.command:
+        argv:
+          - systemctl
+          - is-active
+          - docker
+      register: containers_status
+      changed_when: false
+      failed_when: containers_status.rc != 0
+
+    - name: Assert Docker daemon running
+      ansible.builtin.assert:
+        that:
+          - containers_status.stdout.strip() == "active"
+        fail_msg: Docker daemon not running
+
+    - name: Check Docker daemon is enabled
+      ansible.builtin.command:
+        argv:
+          - systemctl
+          - is-enabled
+          - docker
+      register: containers_enabled
+      changed_when: false
+      failed_when: containers_enabled.rc != 0
+
+    - name: Assert Docker daemon enabled
+      ansible.builtin.assert:
+        that:
+          - containers_enabled.stdout.strip() == "enabled"
+        fail_msg: Docker daemon not enabled
+
+    - name: Test host-operations user can run Docker without sudo
+      ansible.builtin.command:
+        argv:
+          - docker
+          - ps
+      become: true
+      become_user: ansible
+      register: containers_tests
+      changed_when: false
+      failed_when: containers_tests.rc != 0
+
+    - name: Assert docker ps works
+      ansible.builtin.assert:
+        that:
+          - containers_tests.rc == 0
+
+    - name: Check Docker official repo is configured
+      ansible.builtin.command:
+        argv:
+          - grep
+          - -r
+          - docker.com
+          - /etc/apt/sources.list.d/
+      register: containers_repo
+      changed_when: false
+      failed_when: containers_repo.rc != 0

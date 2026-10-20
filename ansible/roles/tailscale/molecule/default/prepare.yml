@@ -11,3 +11,16 @@
           - logrotate
         state: present
         update_cache: true
+
+    - name: Remove any Tailscale package inherited by the test image
+      ansible.builtin.apt:
+        name: tailscale
+        state: absent
+
+    - name: Remove Tailscale CLI and daemon binaries inherited by the test image
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /usr/bin/tailscale
+        - /usr/sbin/tailscaled

@@ -40,5 +40,7 @@ Restrict registration with `CROW_ORGS` or change it to `false` after the initial
 administrative account is established.
 
 The application assignment is represented by
-`deployments/docker0-lxc/.env.template`; remove that assignment to stop the
-stack during the next reconciliation.
+`deployments/docker0-lxc/.env.template`; c5e on `docker0-lxc` reconciles it
+through the local Docker daemon. Removing the assignment does not itself stop or
+remove the live project: the configured `retain` policy leaves removed projects
+and orphaned resources in place.

@@ -1,0 +1,81 @@
+---
+- name: Reject clearing and replacing proxy migration approval together
+  ansible.builtin.assert:
+    that:
+      - >-
+        not (deploy_proxy_network_migration_clear | default(false) | bool)
+        or (
+          (deploy_proxy_network_migration_id | default('') | length == 0)
+          and
+          (deploy_proxy_network_migration_daemon_id | default('') | length == 0)
+        )
+    fail_msg: Clear a completed proxy migration in a separate convergence.
+
+- name: Clear a completed proxy-network migration approval
+  ansible.builtin.file:
+    path: "{{ secrets_c5e_directory }}/proxy-network-migration.json"
+    state: absent
+  when: deploy_proxy_network_migration_clear | default(false) | bool
+
+- name: Inspect a pending proxy-network migration approval
+  ansible.builtin.stat:
+    path: "{{ secrets_c5e_directory }}/proxy-network-migration.json"
+    follow: false
+  register: deploy_proxy_network_migration_file
+  when: not (deploy_proxy_network_migration_clear | default(false) | bool)
+
+- name: Read a pending proxy-network migration approval
+  ansible.builtin.slurp:
+    src: "{{ secrets_c5e_directory }}/proxy-network-migration.json"
+  register: deploy_proxy_network_migration_data
+  when:
+    - deploy_proxy_network_migration_file.stat.isreg | default(false)
+    - deploy_proxy_network_migration_id | default('') | length == 0
+    - deploy_proxy_network_migration_daemon_id | default('') | length == 0
+
+- name: Select prompted proxy-network migration IDs
+  ansible.builtin.set_fact:
+    deploy_proxy_network_effective_migration_id: "{{ deploy_proxy_network_migration_id | default('') }}"
+    deploy_proxy_network_effective_migration_daemon_id: "{{ deploy_proxy_network_migration_daemon_id | default('') }}"
+
+- name: Retain pending proxy-network migration IDs across convergences
+  ansible.builtin.set_fact:
+    deploy_proxy_network_effective_migration_id: "{{ (deploy_proxy_network_migration_data.content | b64decode | from_json).network_id }}"
+    deploy_proxy_network_effective_migration_daemon_id: "{{ (deploy_proxy_network_migration_data.content | b64decode | from_json).daemon_id }}"
+  when:
+    - deploy_proxy_network_migration_file.stat.isreg | default(false)
+    - deploy_proxy_network_migration_id | default('') | length == 0
+    - deploy_proxy_network_migration_daemon_id | default('') | length == 0
+
+- name: Validate optional proxy-network migration identifiers
+  ansible.builtin.assert:
+    that:
+      - >-
+        (deploy_proxy_network_effective_migration_id | length == 0)
+        ==
+        (deploy_proxy_network_effective_migration_daemon_id | length == 0)
+      - >-
+        (deploy_proxy_network_effective_migration_id | length == 0)
+        or deploy_proxy_network_effective_migration_id is match('^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$')
+      - >-
+        (deploy_proxy_network_effective_migration_daemon_id | length == 0)
+        or deploy_proxy_network_effective_migration_daemon_id is match('^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$')
+    fail_msg: >-
+      Supply both exact proxy-network migration identifiers or leave both
+      unset; each supplied identifier must match the c5e safe-ID format.
+
+- name: Persist proxy-network migration approval until c5e accepts it
+  ansible.builtin.copy:
+    dest: "{{ secrets_c5e_directory }}/proxy-network-migration.json"
+    content: >-
+      {{
+        {
+          'network_id': deploy_proxy_network_effective_migration_id,
+          'daemon_id': deploy_proxy_network_effective_migration_daemon_id
+        } | to_nice_json
+      }}
+    owner: root
+    group: root
+    mode: "0600"
+  when: deploy_proxy_network_effective_migration_id | length > 0
+  diff: false

@@ -1,6 +1,6 @@
 ---
 name: compose-deployments
-description: Maintain and validate this repository's Docker Compose stacks, host assignments, overlays, and reconciliation safeguards. Compose deployment workflows are absent; c5e independently reconciles its controller-host assignments.
+description: Maintain and validate Docker Compose stacks and host-local c5e assignments. Each deployment host runs its own controller against its local Docker socket.
 ---
 
 # Compose deployments
@@ -12,17 +12,16 @@ for the full repository runbook before making non-trivial changes.
 
 ## Repository model
 
-- `compose-stacks/docker-networking/` is the platform stack. It owns the
-  external `proxy` network.
-- Every other Compose stack is an application stack. Traefik is a normal
-  assigned application stack, not part of the platform stack.
-- Application assignment hosts must have `deploy` or `c5e_reconciler` in
-  `host_roles`. c5e reconciles assignments on its own host independently of CI.
-- No Compose deployment workflows are configured; deploy-host assignments are
-  not automatically reconciled by CI.
-- Never introduce `deployments/ALL/`. Assignment is explicit for application
-  stacks; only `docker-networking` has implicit all-deploy-host behavior in the
-  retained reconciliation model.
+- Every Compose stack is an application stack. c5e provides the external `proxy`
+  network on each deployment host; there is no `docker-networking` platform stack.
+- Application assignments belong only to `deployment_hosts`, the deployment
+  subset of `stack_hosts`. The presence of `deployments/<host>/.env.template`
+  assigns the stack to that exact `inventory_hostname_short`. Each deployment
+  host owns its controller, which reconciles only that host's assignments
+  through its local Docker socket.
+- CI validates configuration but does not deploy stacks. Assignment changes
+  are consumed by the host-local c5e controller.
+- Never introduce `deployments/ALL/`; assignments are explicit per hostname.
 
 Use this shape for application stacks:
 
@@ -31,15 +30,17 @@ compose-stacks/<stack>/
   docker-compose.yaml
   .env.template                 # optional shared values
   deployments/
-    <host>/
+    <inventory_hostname_short>/
       .env.template             # assignment and host-specific values
       docker-compose.yaml       # optional host overlay
 ```
 
-The presence of `deployments/<host>/.env.template` assigns the stack to that
-short inventory host ID. The host must have `deploy` or `c5e_reconciler`. An
-overlay does not assign a stack; deployment tooling copies it to staging as
-`docker-compose.override.yaml`.
+The presence of
+`deployments/<inventory_hostname_short>/.env.template` assigns the stack to the
+host whose exact `inventory_hostname_short` matches that directory. That host
+must belong to `deployment_hosts`, the deployment-capable subset of
+`stack_hosts`. An overlay does not assign a stack; the host-local c5e controller
+uses it as the Compose override.
 
 ## Environment and secrets
 
@@ -60,17 +61,17 @@ overlay does not assign a stack; deployment tooling copies it to staging as
 - Treat every bind source as a type-sensitive path. A source intended to be a
   file must already exist as a regular file in the repository. Docker creates a
   missing bind source as a root-owned directory, which can break the service
-  and prevent the `deploy` user from cleaning it up.
-- Shared `proxy` is external and provided by `docker-networking`; application
-  stacks must not create or remove it.
+  and impede recovery by the host-local controller.
+- Shared `proxy` is external and provided by c5e; application stacks must not
+  create or remove it.
 - Persistent writable application data belongs in an intentional volume or
   data directory, not in configuration files copied with the stack.
 
 ## Validation for changes
 
 1. Inspect the relevant stack README and `compose-stacks/OPERATIONS.md`.
-2. Confirm the target host exists in `ansible/inventory.yaml` and has `deploy`
-   or `c5e_reconciler` in `host_roles`.
+2. Confirm the target hostname exists in `ansible/inventory.yaml` and belongs to
+   `deployment_hosts`.
 3. Update the base Compose file, root env template, host assignment template,
    and/or host overlay as appropriate.
 4. Verify every bind source is the expected regular-file or directory type.
@@ -79,9 +80,6 @@ overlay does not assign a stack; deployment tooling copies it to staging as
    ```bash
    ruby scripts/preflight.rb
    ruby -c scripts/preflight.rb
-   ruby -c scripts/reconcile-platform.rb
-   ruby -c scripts/reconcile-host.rb
-   ruby -c scripts/discover-deploy-hosts.rb
    git diff --check
    ```
 
@@ -94,31 +92,25 @@ overlay does not assign a stack; deployment tooling copies it to staging as
      config --quiet
    ```
 
-   Omit the second file when no overlay exists. Compose validation checks
-   configuration only. No CI deployment workflow exists; pushes and assignment
-   changes do not deploy or remove live projects on `deploy` hosts.
+   Compose validation checks configuration only. The c5e controller on a
+   deployment host reconciles only that host's assignments using its local
+   Docker socket.
 
 ## Deployment safety
 
-The retained reconciler scripts stage privately, resolve and inject `.env`,
-validate Compose, then publish to `/etc/compose-stacks/<stack>` using the stable
-Compose project name `<stack>`. They may replace or remove only a live directory
-containing a regular `.managed-by-github-actions` marker with the matching
-`STACK_NAME=<stack>` entry. No CI workflow invokes these scripts.
-
-Do not weaken this marker guard or manually remove an unmarked live directory.
-If a migration creates a known stale layout, identify it by a narrow, explicit
-filesystem predicate and add recovery only for that layout. Preserve normal
-failure behavior for all unrelated unmarked directories.
-
-The intended deployment order is platform first, application stacks second. A
-failed stack is reported after other stacks on that host are attempted; a
-connectivity failure or failed teardown must not trigger destructive cleanup.
-
-Removing an assignment from a `deploy` host does not automatically stop or
-remove its live project now that the Compose deployment workflows are absent.
-Assignments on `c5e_reconciler` hosts are handled by c5e's configured removal
-policy.
+Each deployment host has exactly one c5e controller, which reconciles that
+host's assignments through its local Docker daemon. c5e ensures the local
+`proxy` network before assigned applications. Initialize each controller on
+its own host with that host's credentials, inspecting that host's local network
+and daemon IDs. Never reuse a shared credential/network-ID pair across hosts;
+initialization is per-host, not fleet-wide.
+c5e does not automatically adopt existing Docker resources by project name.
+Foreign or mixed ownership blocks Up/Down; historical automation markers do not
+grant adoption permission. Its `retain` removal policy leaves removed
+assignments and orphaned projects in place. Never manually remove remote
+Compose state without first establishing that it is safe; preserve unrelated
+live projects and data. Do not imply an operational rollout or live-stack
+handoff as part of an assignment change.
 
 ## Ingress and DNS
 

@@ -1,0 +1,19 @@
+---
+- name: Create sudo-enabled accounts and grant passwordless sudo
+  ansible.builtin.import_tasks: sudo_users.yml
+
+- name: Set the ansible account's shell
+  ansible.builtin.user:
+    name: "{{ host_ops_ansible_user }}"
+    shell: "{{ host_ops_user_shells[host_ops_ansible_user] | default('/bin/bash') }}"
+
+- name: Set extra sudo accounts' shells
+  ansible.builtin.user:
+    name: "{{ item }}"
+    shell: "{{ host_ops_user_shells[item] | default('/bin/bash') }}"
+  loop: "{{ host_ops_extra_sudo_users }}"
+
+- name: Set root's shell
+  ansible.builtin.user:
+    name: root
+    shell: "{{ host_ops_user_shells['root'] | default('/bin/bash') }}"

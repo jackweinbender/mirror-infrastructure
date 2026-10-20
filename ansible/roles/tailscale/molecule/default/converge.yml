@@ -1,19 +1,20 @@
 ---
-# Converge playbook for Tailscale role.
-# Applies base role (prerequisite), then tailscale role (without authkey - install only).
-
+# Converge the host capabilities required by the Tailscale role test.
 - name: Converge Tailscale role
   hosts: all
   gather_facts: true
   tasks:
-    - name: Include base role (prerequisite)
+    - name: Include host operations
       ansible.builtin.include_role:
-        name: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/../base" # noqa role-name[path]
+        name: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/../host_ops" # noqa role-name[path]
         public: true
+
+    - name: Include logging
+      ansible.builtin.include_role:
+        name: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}/../logging" # noqa role-name[path]
 
     - name: Include tailscale role
       ansible.builtin.include_role:
         name: "{{ lookup('env', 'MOLECULE_PROJECT_DIRECTORY') }}" # noqa role-name[path]
       vars:
-        # Don't join the tailnet in tests - we don't have a valid authkey
         tailscale_authkey: ""

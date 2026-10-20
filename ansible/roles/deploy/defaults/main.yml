@@ -1,4 +1,6 @@
 ---
-# Local account used by GitHub Actions over Tailscale SSH.
-deploy_user: deploy
-deploy_user_shell: /bin/bash
+# Optional one-time approval for migrating a legacy proxy network on this host.
+# Supplied IDs persist through routine convergence until explicitly cleared.
+deploy_proxy_network_migration_id: ""
+deploy_proxy_network_migration_daemon_id: ""
+deploy_proxy_network_migration_clear: false

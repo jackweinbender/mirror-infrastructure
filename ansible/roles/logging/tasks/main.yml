@@ -1,0 +1,6 @@
+---
+- name: Install Vector
+  ansible.builtin.import_tasks: install.yml
+
+- name: Configure host logging
+  ansible.builtin.import_tasks: host.yml

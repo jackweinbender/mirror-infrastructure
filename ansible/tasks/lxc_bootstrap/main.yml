@@ -13,7 +13,7 @@
       - lxc_bootstrap_tailscale_authkey | default('') | length > 0
     fail_msg: >-
       lxc_bootstrap_tailscale_authkey is required: bootstrap's job is to put
-      the container on the tailnet so workloads.yaml can manage it.
+      the container on the tailnet so the Debian host operations profile can manage it.
 
 - name: Wait for outbound network connectivity
   ansible.builtin.uri:
@@ -28,7 +28,7 @@
 
 - name: Create the management user steady state connects as
   ansible.builtin.import_role:
-    name: base
+    name: host_ops
     tasks_from: sudo_users.yml
 
 - name: Install Tailscale and join the tailnet
@@ -49,22 +49,75 @@
   register: lxc_bootstrap_inventory_raw
   delegate_to: localhost
 
-- name: Register the host under the workloads group
+- name: Register the host in Debian host operations
   vars:
     lxc_bootstrap_inventory: "{{ lxc_bootstrap_inventory_raw.content | b64decode | from_yaml }}"
-    # Preserve whatever vars (e.g. host_roles) an already-registered host
-    # already has; only a brand-new host gets `null`, or {host_roles:
-    # [docker]} if lxc_bootstrap_enable_docker was requested. Re-bootstrapping
-    # an existing host must not silently erase its host_roles.
-    lxc_bootstrap_default_host_vars: >-
-      {{ {'host_roles': ['docker']} if (lxc_bootstrap_enable_docker | default(false)) else none }}
-    lxc_bootstrap_existing_host_vars: >-
-      {{ lxc_bootstrap_inventory.workloads.hosts[tailscale_hostname] | default(lxc_bootstrap_default_host_vars) }}
+    lxc_bootstrap_debian_hosts: "{{ lxc_bootstrap_inventory.all.children.debian_hosts.hosts | default({}) }}"
+    lxc_bootstrap_stack_hosts: "{{ lxc_bootstrap_inventory.all.children.debian_hosts.children.stack_hosts.hosts | default({}) }}"
+    lxc_bootstrap_deployment_hosts: "{{ lxc_bootstrap_inventory.all.children.debian_hosts.children.stack_hosts.children.deployment_hosts.hosts | default({}) }}"
+    lxc_bootstrap_existing_debian_host_vars: "{{ lxc_bootstrap_debian_hosts[tailscale_hostname] | default({}) }}"
+    lxc_bootstrap_existing_stack_host_vars: >-
+      {{
+        lxc_bootstrap_stack_hosts.get(
+          tailscale_hostname,
+          lxc_bootstrap_deployment_hosts.get(tailscale_hostname, {})
+        )
+      }}
+    lxc_bootstrap_stack_group_update: >-
+      {{
+        {'hosts': {tailscale_hostname: lxc_bootstrap_existing_stack_host_vars}}
+        if (
+          lxc_bootstrap_enable_docker | default(false) | bool
+          and tailscale_hostname not in lxc_bootstrap_deployment_hosts
+        )
+        else
+        {
+          'children': {
+            'deployment_hosts': {
+              'hosts': {
+                tailscale_hostname: lxc_bootstrap_existing_stack_host_vars
+              }
+            }
+          }
+        }
+        if (
+          lxc_bootstrap_enable_docker | default(false) | bool
+          and tailscale_hostname in lxc_bootstrap_deployment_hosts
+        )
+        else {}
+      }}
   ansible.builtin.copy:
     content: >-
       {{
         lxc_bootstrap_inventory
-        | combine({'workloads': {'hosts': {tailscale_hostname: lxc_bootstrap_existing_host_vars}}}, recursive=true)
+        | combine(
+            {
+              'all': {
+                'children': {
+                  'debian_hosts': {
+                    'hosts': {
+                      tailscale_hostname: lxc_bootstrap_existing_debian_host_vars
+                    }
+                  }
+                }
+              }
+            },
+            recursive=true
+          )
+        | combine(
+            {
+              'all': {
+                'children': {
+                  'debian_hosts': {
+                    'children': {
+                      'stack_hosts': lxc_bootstrap_stack_group_update
+                    }
+                  }
+                }
+              }
+            },
+            recursive=true
+          )
         | to_nice_yaml(indent=2, sort_keys=false)
       }}
     dest: "{{ playbook_dir }}/../inventory.yaml"
@@ -75,7 +128,6 @@
   ansible.builtin.debug:
     msg: >-
       {{ tailscale_hostname }} is on the tailnet (Tailscale SSH enabled) and
-      registered in ansible/inventory.yaml under workloads. Run
-      workloads.yaml to apply the full baseline. Tailscale SSH is the only
-      supported remote-access path; if it's ever unreachable, use the
-      Proxmox console (root, no password) as the fallback.
+      registered in ansible/inventory.yaml under debian_hosts. Run
+      site.yaml to apply host operations and any selected stack capabilities.
+      Tailscale SSH is the only supported remote-access path; if it's ever unreachable, use the Proxmox console (root, no password) as the fallback.

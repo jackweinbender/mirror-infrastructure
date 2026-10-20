@@ -43,19 +43,19 @@ After `terraform apply` in `terraform/cloudflare/`:
 Keep `op://` references in the deployment template; resolve secrets only as part
 of an authorized deployment process. Never commit resolved values.
 
-## Deploy
+## Assignment and reconciliation
 
-The application assignment is represented by a deployment directory such as
-`deployments/docker-vm-dmz/`, containing `.env.template`. Add another
-`deployments/<host>/.env.template` to assign the stack to another inventory
-host. A deployment may also include `deployments/<host>/docker-compose.yaml` for
-host-specific overrides. Removing an assignment does not automatically stop or
-remove the deployed project on a `deploy` host.
+The stack is assigned to `docker-vm-dmz` by
+`deployments/docker-vm-dmz/.env.template`. c5e on that host reconciles its
+assignment through the local Docker daemon; a host-specific Compose overlay is
+optional and does not assign the stack. Each `deployment_hosts` member requires
+its own c5e controller.
 
-There is no CI deployment workflow. The `.crow/compose-validation.yaml`
-pipeline validates the stack but does not deploy it. Keep the 1Password
-references in the template and use representative values for local Compose
-validation; resolved secrets must not be committed or stored on a runner.
+CI validates configuration only. Removing an assignment does not itself stop
+or remove a live project: c5e's `retain` policy leaves removed projects and
+orphaned resources in place. Do not treat an assignment change as a live-state
+handoff. Keep 1Password references unresolved and never commit resolved values
+or runtime `.env` files.
 
 ## Add a New Service
 

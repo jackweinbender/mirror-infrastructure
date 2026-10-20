@@ -9,11 +9,11 @@ application data is stored in the named `uptime_kuma_data` volume. On
 `docker0-lxc`, named volumes follow the host-backed Docker data root at
 `/srv/guest-volumes/docker`.
 
-The service joins the external `proxy` network supplied by
-`docker-networking`; it does not create or manage that network. The host Docker
-socket is mounted read-only so Uptime Kuma can use its Docker monitor. Add an
-unproxied Cloudflare CNAME for `uptime-kuma.weinbender.io` pointing to the
-`docker0-lxc` Traefik gateway hostname, following the convention in
+The service joins the external `proxy` network ensured by c5e on `docker0-lxc`;
+it does not create or manage that network. The host Docker socket is mounted
+read-only so Uptime Kuma can use its Docker monitor. Add an unproxied Cloudflare
+CNAME for `uptime-kuma.weinbender.io` pointing to the `docker0-lxc` Traefik
+gateway hostname, following the convention in
 [`../traefik/README.md`](../traefik/README.md).
 
 After deployment, complete Uptime Kuma's initial admin setup through the
@@ -37,8 +37,9 @@ rm -f "$tmp_env"
 git diff --check
 ```
 
-Keep the repository templates as configuration; CI validation does not deploy
-the stack. Resolve secrets only through an authorized deployment process.
+CI validates repository configuration only; c5e on `docker0-lxc` reconciles
+this assignment through the host's local Docker daemon. Resolve secrets only
+through the configured secret process; validation does not prove remote state changed.
 
 ## Operational follow-up
 
@@ -48,9 +49,10 @@ the stack. Resolve secrets only through an authorized deployment process.
 - Verify the public URL and at least one monitor after deployment.
 - Confirm that the `uptime_kuma_data` volume is covered by host backups.
 
-The repository change only scaffolds the deployment; it does not deploy the
-service or configure DNS. Follow the repository-wide recovery and marker rules
-in [`../OPERATIONS.md`](../OPERATIONS.md) before taking manual action.
+The host-local c5e controller reconciles this assignment; this change does not
+configure DNS. Repository validation alone does not prove that remote state
+changed. See [`../OPERATIONS.md`](../OPERATIONS.md) for ownership and
+remote-state safety before taking manual action.
 
 ## Upgrade and security
 

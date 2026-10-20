@@ -1,0 +1,19 @@
+---
+- name: Configure container runtime and container logging
+  hosts: stack_hosts
+  gather_facts: true
+  become: true
+  roles:
+    - containers
+  tasks:
+    - name: Configure the Docker log source
+      ansible.builtin.import_role:
+        name: logging
+        tasks_from: containers
+- name: Configure deployment capability on deployment hosts
+  hosts: deployment_hosts
+  gather_facts: false
+  become: true
+  roles:
+    - secrets
+    - deploy

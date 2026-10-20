@@ -2,51 +2,52 @@
 
 require 'yaml'
 
-module DeployInventory
+module StackInventory
   NAME_PATTERN = /\A[a-z0-9][a-z0-9_-]*\z/
+  DEPLOYMENT_GROUP = 'deployment_hosts'
 
   module_function
 
-  def deploy_hosts(path)
+  def deployment_host_ids(path)
     inventory = YAML.load_file(path, aliases: true) || {}
-    hosts = inventory.fetch('workloads', {}).fetch('hosts', {})
-    deploy_hosts = hosts.filter_map do |hostname, data|
-      next unless Array(data&.fetch('host_roles', nil)).include?('deploy')
+    hosts = group_hosts(inventory, DEPLOYMENT_GROUP)
+    raise ArgumentError, "inventory has no hosts in #{DEPLOYMENT_GROUP}" if hosts.empty?
 
-      id = hostname.split('.').first
-      abort "discover deploy hosts: invalid or reserved deploy host identifier: #{id}" unless valid_id?(id) && id != 'docker-networking'
+    ids = hosts.map { |hostname, _data| host_id(hostname) }
+    invalid = ids.reject { |id| valid_id?(id) }
+    raise ArgumentError, "invalid deployment host identifier: #{invalid.first}" unless invalid.empty?
+    raise ArgumentError, 'deployment host identifiers are not unique' unless ids.uniq.length == ids.length
 
-      { 'id' => id, 'address' => data['ansible_host'] || hostname }
-    end
-
-    abort 'discover deploy hosts: no workload hosts have the deploy role' if deploy_hosts.empty?
-    abort 'discover deploy hosts: deploy host identifiers are not unique' unless deploy_hosts.map { |host| host['id'] }.uniq.length == deploy_hosts.length
-
-    deploy_hosts.sort_by { |host| host['id'] }
+    ids.sort
   end
 
-  # Hosts eligible for application assignments. Only deploy hosts are returned
-  # by deploy_hosts and can ever become GitHub Actions deployment targets.
-  def application_host_ids(path)
-    inventory = YAML.load_file(path, aliases: true) || {}
-    hosts = inventory.fetch('workloads', {}).fetch('hosts', {})
-    application_hosts = hosts.filter_map do |hostname, data|
-      roles = Array(data&.fetch('host_roles', nil))
-      next unless roles.include?('deploy') || roles.include?('c5e_reconciler')
+  def group_hosts(inventory, name)
+    group = find_group(inventory.fetch('all', {}).fetch('children', {}), name)
+    raise ArgumentError, "inventory has no #{name} group" unless group
 
-      id = hostname.split('.').first
-      unless valid_id?(id) && id != 'docker-networking'
-        raise ArgumentError, "invalid or reserved application host identifier: #{id}"
-      end
+    collect_hosts(group)
+  end
 
-      id
+  def find_group(groups, target)
+    groups.each do |name, group|
+      return group if name == target
+
+      nested = find_group(group.fetch('children', {}) || {}, target)
+      return nested if nested
     end
+    nil
+  end
 
-    if application_hosts.uniq.length != application_hosts.length
-      raise ArgumentError, 'application host identifiers are not unique'
+  def collect_hosts(group)
+    hosts = (group.fetch('hosts', {}) || {}).to_a
+    (group.fetch('children', {}) || {}).each_value do |child|
+      hosts.concat(collect_hosts(child))
     end
+    hosts
+  end
 
-    application_hosts.sort
+  def host_id(hostname)
+    hostname.split('.').first
   end
 
   def valid_id?(id)
