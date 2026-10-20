@@ -39,7 +39,7 @@
     owner: root
     group: root
     mode: "0600"
-    diff: false
+  diff: false
   when: c5e_reconciler_op_credentials is defined and (c5e_reconciler_op_credentials | length > 0)
   register: c5e_reconciler_environment_file_install
   no_log: true
