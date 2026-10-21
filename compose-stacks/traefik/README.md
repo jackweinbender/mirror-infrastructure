@@ -25,10 +25,12 @@ deployments/
 
 Run exactly one c5e controller per deployment host. It uses that host's local
 Docker daemon and reconciles only the matching host assignment; c5e ensures that
-host's `proxy` network before assigned applications. The `traefik-lxc`
-assignment also has an overlay that mounts dynamic routes from `traefik/dynamic/`.
-CI validation does not prove that remote state changed, and assignment edits do
-not establish a live-stack handoff.
+host's `proxy` network before assigned applications. The `traefik-lxc` overlay
+mounts its dynamic routes, while `docker-vm-dmz` mounts
+`dynamic/forgejo-oidc.yaml` for the two Forgejo Actions OIDC endpoints only.
+That DMZ route forwards to `docker0-lxc` Traefik's path-restricted HTTP router;
+do not widen either router because the public tunnel also has an exact-path
+allowlist and a hostname 404 fallback.
 
 ## DNS convention for LAN-backed services
 

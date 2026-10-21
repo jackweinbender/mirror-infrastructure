@@ -16,6 +16,19 @@ resource "cloudflare_zero_trust_tunnel_cloudflared_config" "main" {
   config = {
     ingress = [
       {
+        # cloudflared runs on docker-vm-dmz; its local Traefik forwards these
+        # exact paths to docker0-lxc. Keep this rule before the deny and wildcard.
+        hostname = "forgejo.weinbender.io"
+        path     = "^/api/actions/\\.well-known/(openid-configuration|keys)$"
+        service  = "http://traefik:80"
+      },
+      {
+        # Do not let Forgejo fall through to the general wildcard route.
+        hostname = "forgejo.weinbender.io"
+        service  = "http_status:404"
+      },
+
+      {
         # Wildcard public hostname — registers *.weinbender.io with Cloudflare's
         # edge so any subdomain CNAME'd to this tunnel is accepted. Traefik
         # receives the original Host header and routes to the right container.

@@ -1,8 +1,16 @@
 # Forgejo
 
-Forgejo runs on `docker0-lxc` and is exposed through the host Traefik at
-`https://forgejo.weinbender.io`. The hostname is defined in `.env.template` and
-can be changed without modifying the Compose definition.
+Forgejo runs on `docker0-lxc` behind the host Traefik. The Cloudflare Tunnel
+publishes only `/api/actions/.well-known/openid-configuration` and
+`/api/actions/.well-known/keys` at `https://forgejo.weinbender.io`; all other
+HTTP paths on that hostname return 404. The hostname is defined in
+`.env.template`, but must match the Terraform tunnel ingress and Forgejo's
+`ROOT_URL` issuer; update those together if it changes.
+
+Forgejo's Traefik labels add a separate plain-HTTP router for only those two
+OIDC paths. The DMZ Traefik uses it over the private LAN; the normal Forgejo
+router remains HTTPS-only. Keep the hostname and paths aligned with the
+Cloudflare Tunnel ingress.
 
 The stack uses the Forgejo 16.0.2 image and stores repositories and application data
 in the named Docker volume `forgejo_data`. On `docker0-lxc`, that volume follows the

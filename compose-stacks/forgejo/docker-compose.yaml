@@ -29,6 +29,12 @@ services:
       traefik.http.routers.forgejo.tls: "true"
       traefik.http.routers.forgejo.tls.certresolver: letsencrypt
       traefik.http.services.forgejo.loadbalancer.server.port: "3000"
+      traefik.http.routers.forgejo-oidc.rule: >-
+        Host(`${FORGEJO_HOSTNAME}`) &&
+        (Path(`/api/actions/.well-known/openid-configuration`) || Path(`/api/actions/.well-known/keys`))
+      traefik.http.routers.forgejo-oidc.entrypoints: web
+      traefik.http.routers.forgejo-oidc.service: forgejo
+      traefik.http.routers.forgejo-oidc.priority: "100"
 
 networks:
   proxy:

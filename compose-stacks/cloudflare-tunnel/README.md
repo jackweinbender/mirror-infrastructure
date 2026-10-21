@@ -21,6 +21,26 @@ Internet → Cloudflare Edge
 - **Traefik**: Deployed by `compose-stacks/traefik`; handles routing, TLS certs (via the `letsencrypt` resolver using DNS-01), and label-based service discovery.
 - **Zero Trust Access**: Policies enforced at Cloudflare edge before traffic reaches tunnel.
 
+## Forgejo Actions OIDC
+
+The Terraform-managed `forgejo.weinbender.io` DNS record points to this tunnel.
+Tunnel ingress forwards only `/api/actions/.well-known/openid-configuration`
+and `/api/actions/.well-known/keys` to Traefik on `docker-vm-dmz`; every other
+HTTP path on that hostname returns 404 before the general wildcard route.
+
+The DMZ Traefik forwards those exact paths and the original `Host` header over
+private HTTP to `docker0-lxc` Traefik. Forgejo has a matching path-only HTTP
+router there, which sends the requests to the container. No other Forgejo paths
+are routed on the internal HTTP entrypoint.
+
+Keep the tunnel path rules before the hostname 404 and wildcard rule so other
+tunnel hostnames remain unchanged.
+
+The issuer is `https://forgejo.weinbender.io/api/actions`. Verify discovery and
+JWKS externally for HTTP 200 JSON without a login redirect or challenge. If a
+dashboard-managed Access application covers this hostname, add a more-specific
+Bypass policy for both OIDC paths and retain the existing application policy.
+
 ## Traefik Configuration
 
 Host-level configuration lives in `compose-stacks/traefik/`. This stack joins the external `proxy` network and contributes application containers via Docker labels.

@@ -7,7 +7,7 @@ Cloudflare resources for `weinbender.io` — Zero Trust Access, DNS, Tunnel.
 | File | Resources |
 |------|-----------|
 | `access.tf` | Google OAuth provider, existing Access policy data source, Access Application `uk2026.weinbender.io`, Service Token `weinbender-io-api` |
-| `dns.tf` | CNAME records: `uk2026`, `helloworld` → Tunnel CNAME; `forgejo`, `ntfy`, `crow`, `uptime-kuma`, `grafana`, `paseo`, `planet-express`, `idamayes`, `komodo`, `arcane` → `docker0-lxc` Traefik gateway |
+| `dns.tf` | CNAME records: `uk2026`, `helloworld`, `forgejo` → Cloudflare Tunnel; `ntfy`, `crow`, `uptime-kuma`, `grafana`, `paseo`, `planet-express`, `idamayes`, `komodo`, `arcane` → `docker0-lxc` Traefik gateway |
 | `tunnel.tf` | Cloudflare Tunnel `weinbender-io` + config |
 
 ## Access Policy (uk2026.weinbender.io)
@@ -24,6 +24,27 @@ Service token `weinbender-io-api` for programmatic access.
 The Google OAuth client credentials are sensitive Terraform variables and are
 loaded by the shared GitHub Actions Terraform action from 1Password.
 
+## Forgejo Actions OIDC ingress
+
+`forgejo.weinbender.io` uses the Cloudflare Tunnel. The ingress forwards only
+`/api/actions/.well-known/openid-configuration` and
+`/api/actions/.well-known/keys` to Traefik; all other HTTP paths on this
+hostname return 404 before the wildcard ingress can route them. The discovery
+document currently advertises issuer
+`https://forgejo.weinbender.io/api/actions` and JWKS URI
+`https://forgejo.weinbender.io/api/actions/.well-known/keys`.
+
+The `cloudflared` workload stays on `docker-vm-dmz` for this change. Its local
+Traefik proxies those exact paths over the private LAN to `docker0-lxc`
+Traefik, where Forgejo has a matching path-only HTTP router. Other Forgejo
+paths are not routed through the tunnel.
+
+Cloudflare Access applications and policies are dashboard-managed. If an
+application covers `forgejo.weinbender.io`, add a more-specific Bypass policy
+for both OIDC paths while leaving the existing hostname application and its
+policy in place. Verify both endpoints return HTTP 200 without a login or
+challenge before configuring provider trust.
+
 ## DNS
 
 **Current state:** most DNS records for `weinbender.io` are not managed in
@@ -36,21 +57,25 @@ Tunnel-backed records point directly to the tunnel target:
 ```
 uk2026.weinbender.io     CNAME <tunnel-id>.cfargotunnel.com
 helloworld.weinbender.io CNAME <tunnel-id>.cfargotunnel.com
+forgejo.weinbender.io    CNAME <tunnel-id>.cfargotunnel.com
 ```
+
+The Forgejo record is proxied (`proxied = true`) and uses the path-restricted
+tunnel ingress described above.
 
 These services are LAN-backed by Traefik on `docker0-lxc`:
 
 ```
 ntfy.weinbender.io     CNAME docker0-lxc.weinbender.io
 crow.weinbender.io     CNAME docker0-lxc.weinbender.io
-forgejo.weinbender.io  CNAME docker0-lxc.weinbender.io
 idamayes.weinbender.io CNAME docker0-lxc.weinbender.io
 komodo.weinbender.io   CNAME docker0-lxc.weinbender.io
 arcane.weinbender.io   CNAME docker0-lxc.weinbender.io
 ```
 
-This record is intentionally unproxied. The `docker0-lxc.weinbender.io` gateway A
-record must already point to the host's private LAN address.
+These remaining records are intentionally unproxied. The
+`docker0-lxc.weinbender.io` gateway A record must already point to the host's
+private LAN address.
 
 Services exposed through a LAN Traefik gateway use a two-record chain instead:
 

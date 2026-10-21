@@ -1,0 +1,14 @@
+http:
+  routers:
+    forgejo-oidc:
+      rule: Host(`forgejo.weinbender.io`) && (Path(`/api/actions/.well-known/openid-configuration`) || Path(`/api/actions/.well-known/keys`))
+      entryPoints:
+        - web
+      priority: 100
+      service: forgejo-oidc
+  services:
+    forgejo-oidc:
+      loadBalancer:
+        passHostHeader: true
+        servers:
+          - url: http://docker0-lxc.weinbender.io

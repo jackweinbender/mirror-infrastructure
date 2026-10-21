@@ -1,0 +1,5 @@
+---
+services:
+  traefik:
+    volumes:
+      - ./dynamic/forgejo-oidc.yaml:/etc/traefik/dynamic/forgejo-oidc.yaml:ro
