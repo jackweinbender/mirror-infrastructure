@@ -39,7 +39,7 @@ resource "cloudflare_dns_record" "forgejo" {
   name    = "forgejo"
   content = "docker0-lxc.weinbender.io"
   type    = "CNAME"
-  proxied = true
+  proxied = false
   ttl     = 1
 }
 
