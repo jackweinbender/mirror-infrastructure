@@ -6,7 +6,7 @@ Cloudflare Tunnel stack for public ingress (Zero Trust Access). Traefik is deplo
 
 | Service | Image | Purpose |
 |---------|-------|---------|
-| `cloudflared` | `cloudflare/cloudflared:latest` | Cloudflare Tunnel endpoint for Zero Trust |
+| `cloudflared` | `cloudflare/cloudflared:2026.10.5` | Cloudflare Tunnel endpoint for Zero Trust |
 | Host Traefik | `traefik:v3.7` | Host-level L7 reverse proxy and auto-TLS (deployed separately) |
 
 ## Architecture

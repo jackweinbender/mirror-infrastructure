@@ -1,7 +1,7 @@
 ---
 services:
   cloudflared:
-    image: cloudflare/cloudflared:latest
+    image: cloudflare/cloudflared:2026.10.5
     restart: unless-stopped
     command: tunnel --no-autoupdate run
     labels:
